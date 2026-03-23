@@ -30,11 +30,11 @@ def create_user():
 
     name = data.get("name")
     email = data.get("email")
-    password_hash = data.get("password_hash")
+    password = data.get("password")
     role_id = data.get("role_id")
 
-    if not all([name, email, password_hash, role_id]):
-        return error("name, email, password_hash, and role_id are required")
+    if not all([name, email, password, role_id]):
+        return error("name, email, password, and role_id are required")
 
     if role_id not in {"participant", "researcher"}:
         return error("role_id must be 'participant' or 'researcher'")
@@ -46,7 +46,7 @@ def create_user():
     user = User(
         name=name,
         email=email,
-        password_hash=password_hash,
+        password_hash=password,
         role_id=role_id,
     )
     db.session.add(user)
@@ -519,4 +519,31 @@ def get_study_data(study_id):
             "status": study.status,
         },
         "participants": grouped,
+    }), 200
+
+@api.route("/login", methods=["POST"])
+def login():
+    data = request.get_json() or {}
+
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        return error("email and password are required")
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return error("invalid email or password", 401)
+
+    if user.password_hash != password:
+        return error("invalid email or password", 401)
+
+    return jsonify({
+        "message": "login successful",
+        "user": {
+            "user_id": user.user_id,
+            "name": user.name,
+            "email": user.email,
+            "role_id": user.role_id,
+        }
     }), 200
