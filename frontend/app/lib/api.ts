@@ -2,6 +2,7 @@ import type {
   ParticipantStudy,
   ResearcherStudy,
   StudyDataResponse,
+  User,
 } from "./types";
 
 const API_BASE = "http://127.0.0.1:5000";
@@ -27,13 +28,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<{ status: string }>("/health"),
 
+  login: (payload: { email: string; password: string }) =>
+    request<{
+      message: string;
+      user: User;
+    }>("/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   createUser: (payload: {
     name: string;
     email: string;
     password_hash: string;
     role_id: "participant" | "researcher";
   }) =>
-    request("/users", {
+    request<{
+      message: string;
+      user: User;
+    }>("/users", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
