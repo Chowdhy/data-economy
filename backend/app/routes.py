@@ -301,6 +301,7 @@ def regrant_consent_fields(study_id):
 
     required_field_rows = StudyRequiredField.query.filter_by(study_id=study_id).all()
     required_field_ids = {row.field_id for row in required_field_rows}
+    required_count = len(required_field_ids)
 
     invalid = [fid for fid in field_ids if fid not in required_field_ids]
     if invalid:
@@ -318,11 +319,13 @@ def regrant_consent_fields(study_id):
     to_add = [fid for fid in field_ids if fid not in existing_ids]
 
     for field_id in to_add:
-        db.session.add(StudyParticipantConsentedField(
-            study_id=study_id,
-            participant_id=participant_id,
-            field_id=field_id,
-        ))
+        db.session.add(
+            StudyParticipantConsentedField(
+                study_id=study_id,
+                participant_id=participant_id,
+                field_id=field_id,
+            )
+        )
 
     db.session.flush()
 
@@ -331,9 +334,8 @@ def regrant_consent_fields(study_id):
         participant_id=participant_id,
     ).count()
 
-    remaining_required = len(required_field_ids)
+    membership.consent_all_fields = (current_consented_count == required_count)
 
-    membership.consent_all_fields = (remaining_required > 0 and current_consented_count == remaining_required)
     db.session.commit()
 
     return jsonify({
@@ -342,6 +344,7 @@ def regrant_consent_fields(study_id):
         "participant_id": participant_id,
         "added_field_ids": to_add,
         "already_consented_field_ids": list(existing_ids),
+        "consent_all_fields": membership.consent_all_fields,
     }), 200
 
 
