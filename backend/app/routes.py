@@ -331,6 +331,8 @@ def regrant_consent_fields(study_id):
         participant_id=participant_id,
     ).count()
 
+    remaining_required = len(required_field_ids)
+
     membership.consent_all_fields = (remaining_required > 0 and current_consented_count == remaining_required)
     db.session.commit()
 
