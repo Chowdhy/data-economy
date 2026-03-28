@@ -449,6 +449,9 @@ def list_participant_studies(participant_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "title": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "status": study.status,
             "joined_at": membership.joined_at.isoformat(),
             "consent_all_fields": membership.consent_all_fields,
@@ -484,9 +487,12 @@ def list_researcher_studies(researcher_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "title": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "status": study.status,
             "required_field_ids": [row.field_id for row in required_field_rows],
-            "participant_count": participant_count,
+            "participant_count": participant_count, 
         })
 
     return jsonify({
@@ -535,6 +541,9 @@ def get_study_data(study_id):
         "study": {
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "title": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "status": study.status,
         },
         "participants": grouped,
