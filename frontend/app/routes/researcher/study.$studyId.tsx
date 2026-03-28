@@ -43,9 +43,7 @@ export default function ResearcherStudyDetailPage() {
   return (
     <AppShell
       role="researcher"
-      title={
-        data ? (data.study.title ?? data.study.study_name) : "Study Details"
-      }
+      title={data ? data.study.study_name : "Study Details"}
       subtitle="Only data for consented fields should appear here."
     >
       <SectionHeading

@@ -61,7 +61,7 @@ export default function ResearcherStudiesPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">
-                    {study.title ?? study.study_name}
+                    {study.study_name}
                   </h2>
 
                   {study.description ? (

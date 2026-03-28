@@ -93,8 +93,18 @@ export default function ParticipantStudiesPage() {
                 <h2 className="text-lg font-semibold text-slate-900">
                   {study.study_name}
                 </h2>
+
+                {study.description ? (
+                  <p className="mt-1 text-sm text-slate-600">
+                    {study.description}
+                  </p>
+                ) : null}
+
                 <p className="mt-1 text-sm text-slate-600">
                   Status: {study.status}
+                  {study.duration_months
+                    ? ` • Duration: ${study.duration_months} months`
+                    : ""}
                 </p>
               </div>
 

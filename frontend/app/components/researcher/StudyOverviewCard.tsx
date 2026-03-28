@@ -6,6 +6,9 @@ interface StudyOverviewCardProps {
   study: {
     study_id: number;
     study_name: string;
+    title?: string;
+    description?: string;
+    duration_months?: number;
     status: string;
     participant_count: number;
     required_field_ids: number[];
