@@ -89,6 +89,20 @@ def create_field():
         }
     }), 201
 
+@api.route("/fields", methods=["GET"])
+def list_fields():
+    fields = FieldDescription.query.order_by(FieldDescription.field_name.asc()).all()
+
+    return jsonify({
+        "fields": [
+            {
+                "field_id": field.field_id,
+                "field_name": field.field_name,
+                "field_desc": field.field_desc,
+            }
+            for field in fields
+        ]
+    }), 200
 
 @api.route("/studies", methods=["POST"])
 def create_study():
