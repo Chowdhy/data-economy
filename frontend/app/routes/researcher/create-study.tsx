@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import Button from "~/components/ui/Button";
@@ -6,7 +6,7 @@ import Card from "~/components/ui/Card";
 import Input from "~/components/ui/Input";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
-import type { StudyStatus } from "~/lib/types";
+import type { FieldDescription } from "~/lib/types";
 
 export default function CreateStudyPage() {
   const navigate = useNavigate();
@@ -14,26 +14,66 @@ export default function CreateStudyPage() {
   const researcherId = Number(localStorage.getItem("demo_user_id") || "1");
 
   const [studyName, setStudyName] = useState("");
-  const [status, setStatus] = useState<StudyStatus>("pending");
-  const [fieldIds, setFieldIds] = useState("1,2,3");
+  const [description, setDescription] = useState("");
+  const [durationMonths, setDurationMonths] = useState("");
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
+  const [selectedFieldIds, setSelectedFieldIds] = useState<number[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadingFields, setLoadingFields] = useState(true);
+
+  useEffect(() => {
+    async function loadFields() {
+      try {
+        setLoadingFields(true);
+        setError("");
+        const data = await api.getFields();
+        setAvailableFields(data.fields);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load fields");
+      } finally {
+        setLoadingFields(false);
+      }
+    }
+
+    loadFields();
+  }, []);
+
+  function toggleField(fieldId: number) {
+    setSelectedFieldIds((current) =>
+      current.includes(fieldId)
+        ? current.filter((id) => id !== fieldId)
+        : [...current, fieldId],
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
     setError("");
 
-    const parsedFieldIds = fieldIds
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map(Number)
-      .filter((value) => !Number.isNaN(value));
+    const parsedDuration = Number(durationMonths);
 
     if (!studyName.trim()) {
       setError("Please enter a study name.");
+      return;
+    }
+
+    if (!description.trim()) {
+      setError("Please enter a study description.");
+      return;
+    }
+
+    if (!Number.isInteger(parsedDuration) || parsedDuration <= 0) {
+      setError("Please enter a valid duration in whole months.");
+      return;
+    }
+
+    if (selectedFieldIds.length === 0) {
+      setError("Please select at least one requested field.");
       return;
     }
 
@@ -41,15 +81,18 @@ export default function CreateStudyPage() {
       setSubmitting(true);
 
       await api.createStudy({
-        study_name: studyName,
+        study_name: studyName.trim(),
+        description: description.trim(),
+        duration_months: parsedDuration,
         creator_id: researcherId,
-        status,
-        field_ids: parsedFieldIds,
+        field_ids: selectedFieldIds,
       });
 
       setMessage("Study created successfully.");
       setStudyName("");
-      setFieldIds("");
+      setDescription("");
+      setDurationMonths("");
+      setSelectedFieldIds([]);
 
       setTimeout(() => {
         navigate("/researcher/studies");
@@ -65,11 +108,11 @@ export default function CreateStudyPage() {
     <AppShell
       role="researcher"
       title="Create Study"
-      subtitle="Set up a new study and define the field IDs it requires."
+      subtitle="Set up a new study with a description, duration, and requested fields."
     >
       <SectionHeading
         title="New study"
-        description="Use comma-separated field IDs to match the fields already stored in your backend."
+        description="Enter the study details and choose the preset fields participants will be asked to provide."
       />
 
       <Card className="max-w-3xl">
@@ -92,45 +135,81 @@ export default function CreateStudyPage() {
 
           <div>
             <label
-              htmlFor="study-status"
+              htmlFor="study-description"
               className="mb-1 block text-sm font-medium text-slate-700"
             >
-              Status
+              Description
             </label>
-            <select
-              id="study-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as StudyStatus)}
+            <textarea
+              id="study-description"
+              placeholder="Describe what the study is about and what participants should expect."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="pending">pending</option>
-              <option value="approved">approved</option>
-              <option value="rejected">rejected</option>
-              <option value="closed">closed</option>
-            </select>
+            />
           </div>
 
           <div>
             <label
-              htmlFor="field-ids"
+              htmlFor="study-duration"
               className="mb-1 block text-sm font-medium text-slate-700"
             >
-              Required field IDs
+              Duration (months)
             </label>
             <Input
-              id="field-ids"
-              type="text"
-              placeholder="e.g. 1,2,3"
-              value={fieldIds}
-              onChange={(e) => setFieldIds(e.target.value)}
+              id="study-duration"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="e.g. 6"
+              value={durationMonths}
+              onChange={(e) => setDurationMonths(e.target.value)}
             />
-            <p className="mt-1 text-sm text-slate-500">
-              Enter numeric field IDs separated by commas.
-            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              Requested fields
+            </label>
+
+            {loadingFields ? (
+              <p className="text-sm text-slate-500">Loading fields...</p>
+            ) : availableFields.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No fields are currently available.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {availableFields.map((field) => (
+                  <label
+                    key={field.field_id}
+                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFieldIds.includes(field.field_id)}
+                      onChange={() => toggleField(field.field_id)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {field.field_name}
+                      </p>
+                      {field.field_desc ? (
+                        <p className="text-sm text-slate-500">
+                          {field.field_desc}
+                        </p>
+                      ) : null}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting || loadingFields}>
               {submitting ? "Creating..." : "Create study"}
             </Button>
 
