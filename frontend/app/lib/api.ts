@@ -1,4 +1,5 @@
 import type {
+  FieldDescription,
   ParticipantStudy,
   ResearcherStudy,
   StudyDataResponse,
@@ -57,11 +58,15 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  getFields: () =>
+  request<{ fields: FieldDescription[] }>("/fields"),
+
   createStudy: (payload: {
     study_name: string;
+    description: string;
+    duration_months: number;
     creator_id: number;
-    status?: "pending" | "approved" | "rejected" | "closed";
-    field_ids?: number[];
+    field_ids: number[];
   }) =>
     request("/studies", {
       method: "POST",
