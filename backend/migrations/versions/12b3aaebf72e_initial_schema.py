@@ -47,11 +47,13 @@ def upgrade():
     op.create_table('studies',
     sa.Column('study_id', sa.Integer(), nullable=False),
     sa.Column('study_name', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('duration_months', sa.Integer(), nullable=False),
     sa.Column('creator_id', sa.Integer(), nullable=False),
     sa.Column('status', sa.String(length=50), nullable=False),
     sa.ForeignKeyConstraint(['creator_id'], ['users.user_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('study_id')
-    )
+)
     op.create_table('study_participants',
     sa.Column('study_id', sa.Integer(), nullable=False),
     sa.Column('participant_id', sa.Integer(), nullable=False),

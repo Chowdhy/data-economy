@@ -18,6 +18,8 @@ export interface FieldDescription {
 export interface ParticipantStudy {
   study_id: number;
   study_name: string;
+  description?: string;
+  duration_months?: number;
   status: StudyStatus;
   joined_at: string;
   consent_all_fields: boolean;
@@ -27,6 +29,8 @@ export interface ParticipantStudy {
 export interface ResearcherStudy {
   study_id: number;
   study_name: string;
+  description?: string;
+  duration_months?: number;
   status: StudyStatus;
   required_field_ids: number[];
   participant_count: number;
@@ -43,6 +47,8 @@ export interface StudyDataResponse {
   study: {
     study_id: number;
     study_name: string;
+    description?: string;
+    duration_months?: number;
     status: StudyStatus | string;
   };
   participants: Record<string, StudyDataField[]>;

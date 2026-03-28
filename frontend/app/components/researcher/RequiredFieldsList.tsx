@@ -1,11 +1,13 @@
 import Card from "~/components/ui/Card";
 
+import type { FieldDescription } from "~/lib/types";
+
 interface RequiredFieldsListProps {
-  fieldIds: number[];
+  fields: FieldDescription[];
 }
 
 export default function RequiredFieldsList({
-  fieldIds,
+  fields,
 }: RequiredFieldsListProps) {
   return (
     <Card>
@@ -14,13 +16,13 @@ export default function RequiredFieldsList({
       </h3>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {fieldIds.length > 0 ? (
-          fieldIds.map((id) => (
+        {fields.length > 0 ? (
+          fields.map((field) => (
             <span
-              key={id}
+              key={field.field_id}
               className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
             >
-              Field #{id}
+              {field.field_name}
             </span>
           ))
         ) : (

@@ -89,18 +89,33 @@ def create_field():
         }
     }), 201
 
+@api.route("/fields", methods=["GET"])
+def list_fields():
+    fields = FieldDescription.query.order_by(FieldDescription.field_name.asc()).all()
+
+    return jsonify({
+        "fields": [
+            {
+                "field_id": field.field_id,
+                "field_name": field.field_name,
+                "field_desc": field.field_desc,
+            }
+            for field in fields
+        ]
+    }), 200
 
 @api.route("/studies", methods=["POST"])
 def create_study():
     data = request.get_json() or {}
 
-    study_name = data.get("study_name")
+    study_name = data.get("study_name") 
+    description = data.get("description")
+    duration_months = data.get("duration_months")
     creator_id = data.get("creator_id")
-    status = data.get("status", "pending")
     field_ids = data.get("field_ids", [])
 
-    if not study_name or creator_id is None:
-        return error("study_name and creator_id are required")
+    if not study_name or not description or creator_id is None or duration_months is None:
+        return error("study_name, description, duration_months, and creator_id are required")
 
     creator = User.query.get(creator_id)
     if not creator:
@@ -109,26 +124,27 @@ def create_study():
     if creator.role_id != "researcher":
         return error("creator must be a researcher", 403)
 
-    if status not in {"pending", "approved", "rejected", "closed"}:
-        return error("invalid study status")
+    if not isinstance(duration_months, int) or duration_months <= 0:
+        return error("duration_months must be a positive integer")
 
-    if not isinstance(field_ids, list):
-        return error("field_ids must be a list")
+    if not isinstance(field_ids, list) or not field_ids:
+        return error("field_ids must be a non-empty list")
 
-    if field_ids:
-        fields = FieldDescription.query.filter(FieldDescription.field_id.in_(field_ids)).all()
-        if len(fields) != len(set(field_ids)):
-            return error("one or more field_ids do not exist")
+    unique_field_ids = list(dict.fromkeys(field_ids))
+    fields = FieldDescription.query.filter(FieldDescription.field_id.in_(unique_field_ids)).all()
+    if len(fields) != len(unique_field_ids):
+        return error("one or more field_ids do not exist")
 
     study = Study(
-        study_name=study_name,
+        study_name=study_name.strip(),
+        description=description.strip(),
+        duration_months=duration_months,
         creator_id=creator_id,
-        status=status,
+        status="approved",
     )
     db.session.add(study)
     db.session.flush()
 
-    unique_field_ids = list(dict.fromkeys(field_ids))
     for field_id in unique_field_ids:
         db.session.add(StudyRequiredField(
             study_id=study.study_id,
@@ -142,6 +158,8 @@ def create_study():
         "study": {
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "creator_id": study.creator_id,
             "status": study.status,
             "field_ids": unique_field_ids,
@@ -430,6 +448,8 @@ def list_participant_studies(participant_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "status": study.status,
             "joined_at": membership.joined_at.isoformat(),
             "consent_all_fields": membership.consent_all_fields,
@@ -465,9 +485,11 @@ def list_researcher_studies(researcher_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "status": study.status,
             "required_field_ids": [row.field_id for row in required_field_rows],
-            "participant_count": participant_count,
+            "participant_count": participant_count, 
         })
 
     return jsonify({
@@ -516,6 +538,8 @@ def get_study_data(study_id):
         "study": {
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
             "status": study.status,
         },
         "participants": grouped,

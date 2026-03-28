@@ -4,10 +4,13 @@ import ConsentFieldList from "~/components/consent/ConsentFieldList";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
-import type { ParticipantStudy } from "~/lib/types";
+import type { FieldDescription, ParticipantStudy } from "~/lib/types";
 
 export default function ParticipantStudiesPage() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -17,13 +20,23 @@ export default function ParticipantStudiesPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await api.getParticipantStudies(participantId);
-      setStudies(data.studies);
+
+      const [studiesData, fieldsData] = await Promise.all([
+        api.getParticipantStudies(participantId),
+        api.getFields(),
+      ]);
+
+      setStudies(studiesData.studies);
+      setAvailableFields(fieldsData.fields);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load studies");
     } finally {
       setLoading(false);
     }
+  }
+
+  function getConsentedFields(fieldIds: number[]) {
+    return availableFields.filter((field) => fieldIds.includes(field.field_id));
   }
 
   async function handleWithdrawConsent(studyId: number, fieldIds: number[]) {
@@ -87,34 +100,50 @@ export default function ParticipantStudiesPage() {
         </p>
       ) : (
         <div className="space-y-4">
-          {studies.map((study) => (
-            <Card key={study.study_id}>
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  {study.study_name}
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Status: {study.status}
-                </p>
-              </div>
+          {studies.map((study) => {
+            const consentedFields = getConsentedFields(
+              study.consented_field_ids,
+            );
 
-              <ConsentFieldList
-                fieldIds={study.consented_field_ids}
-                onWithdraw={() =>
-                  handleWithdrawConsent(
-                    study.study_id,
-                    study.consented_field_ids,
-                  )
-                }
-                onRegrant={() =>
-                  handleRegrantConsent(
-                    study.study_id,
-                    study.consented_field_ids,
-                  )
-                }
-              />
-            </Card>
-          ))}
+            return (
+              <Card key={study.study_id}>
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    {study.study_name}
+                  </h2>
+
+                  {study.description ? (
+                    <p className="mt-1 text-sm text-slate-600">
+                      {study.description}
+                    </p>
+                  ) : null}
+
+                  <p className="mt-1 text-sm text-slate-600">
+                    Status: {study.status}
+                    {study.duration_months
+                      ? ` • Duration: ${study.duration_months} months`
+                      : ""}
+                  </p>
+                </div>
+
+                <ConsentFieldList
+                  fields={consentedFields}
+                  onWithdraw={() =>
+                    handleWithdrawConsent(
+                      study.study_id,
+                      study.consented_field_ids,
+                    )
+                  }
+                  onRegrant={() =>
+                    handleRegrantConsent(
+                      study.study_id,
+                      study.consented_field_ids,
+                    )
+                  }
+                />
+              </Card>
+            );
+          })}
         </div>
       )}
     </AppShell>
