@@ -43,7 +43,9 @@ export default function ResearcherStudyDetailPage() {
   return (
     <AppShell
       role="researcher"
-      title={data ? data.study.study_name : "Study Details"}
+      title={
+        data ? (data.study.title ?? data.study.study_name) : "Study Details"
+      }
       subtitle="Only data for consented fields should appear here."
     >
       <SectionHeading
@@ -84,6 +86,15 @@ export default function ResearcherStudyDetailPage() {
                 </p>
               </div>
             </div>
+
+            {data.study.description ? (
+              <div className="mt-4">
+                <p className="text-sm text-slate-500">Description</p>
+                <p className="mt-1 text-sm text-slate-700">
+                  {data.study.description}
+                </p>
+              </div>
+            ) : null}
           </Card>
 
           <ParticipantDataTable data={data} />

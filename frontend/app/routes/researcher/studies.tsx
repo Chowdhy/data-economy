@@ -61,24 +61,35 @@ export default function ResearcherStudiesPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">
-                    {study.study_name}
+                    {study.title ?? study.study_name}
                   </h2>
+
+                  {study.description ? (
+                    <p className="mt-2 text-sm text-slate-600">
+                      {study.description}
+                    </p>
+                  ) : null}
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="neutral">{study.status}</Badge>
+                    {study.duration_months ? (
+                      <Badge tone="neutral">
+                        {study.duration_months} months
+                      </Badge>
+                    ) : null}
                     <Badge tone="success">
                       {study.participant_count} participants
                     </Badge>
                   </div>
-                </div>
 
-                <Button
-                  onClick={() =>
-                    navigate(`/researcher/studies/${study.study_id}`)
-                  }
-                >
-                  Open study
-                </Button>
+                  <Button
+                    onClick={() =>
+                      navigate(`/researcher/studies/${study.study_id}`)
+                    }
+                  >
+                    Open study
+                  </Button>
+                </div>
               </div>
 
               <div className="mt-4">
