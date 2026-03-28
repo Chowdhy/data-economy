@@ -18,7 +18,6 @@ export interface FieldDescription {
 export interface ParticipantStudy {
   study_id: number;
   study_name: string;
-  title?: string;
   description?: string;
   duration_months?: number;
   status: StudyStatus;
@@ -30,7 +29,6 @@ export interface ParticipantStudy {
 export interface ResearcherStudy {
   study_id: number;
   study_name: string;
-  title?: string;
   description?: string;
   duration_months?: number;
   status: StudyStatus;
@@ -49,7 +47,6 @@ export interface StudyDataResponse {
   study: {
     study_id: number;
     study_name: string;
-    title?: string;
     description?: string;
     duration_months?: number;
     status: StudyStatus | string;
