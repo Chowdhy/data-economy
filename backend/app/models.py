@@ -34,12 +34,15 @@ class Study(db.Model):
 
     study_id = db.Column(db.Integer, primary_key=True)
     study_name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    duration_months = db.Column(db.Integer, nullable=False)
     creator_id = db.Column(
         db.Integer,
         db.ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False
     )
-    status = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default="approved")
+
 
     creator = db.relationship("User", back_populates="created_studies")
 
