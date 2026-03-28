@@ -108,7 +108,7 @@ def list_fields():
 def create_study():
     data = request.get_json() or {}
 
-    study_name = data.get("study_name") or data.get("title")
+    study_name = data.get("study_name") 
     description = data.get("description")
     duration_months = data.get("duration_months")
     creator_id = data.get("creator_id")
@@ -158,7 +158,6 @@ def create_study():
         "study": {
             "study_id": study.study_id,
             "study_name": study.study_name,
-            "title": study.study_name,
             "description": study.description,
             "duration_months": study.duration_months,
             "creator_id": study.creator_id,
@@ -449,7 +448,6 @@ def list_participant_studies(participant_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
-            "title": study.study_name,
             "description": study.description,
             "duration_months": study.duration_months,
             "status": study.status,
@@ -487,7 +485,6 @@ def list_researcher_studies(researcher_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
-            "title": study.study_name,
             "description": study.description,
             "duration_months": study.duration_months,
             "status": study.status,
@@ -541,7 +538,6 @@ def get_study_data(study_id):
         "study": {
             "study_id": study.study_id,
             "study_name": study.study_name,
-            "title": study.study_name,
             "description": study.description,
             "duration_months": study.duration_months,
             "status": study.status,
