@@ -6,7 +6,6 @@ interface StudyOverviewCardProps {
   study: {
     study_id: number;
     study_name: string;
-    title?: string;
     description?: string;
     duration_months?: number;
     status: string;
@@ -27,8 +26,14 @@ export default function StudyOverviewCard({
           <h3 className="text-lg font-semibold text-slate-900">
             {study.study_name}
           </h3>
+
+          {study.description ? (
+            <p className="mt-1 text-sm text-slate-600">{study.description}</p>
+          ) : null}
+
           <p className="mt-1 text-sm text-slate-500">
             Required fields: {study.required_field_ids.length}
+            {study.duration_months ? ` • ${study.duration_months} months` : ""}
           </p>
         </div>
 

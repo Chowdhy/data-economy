@@ -7,6 +7,8 @@ interface StudyCardProps {
   study: {
     study_id: number;
     study_name: string;
+    description?: string;
+    duration_months?: number;
     status: string;
     joined_at: string;
     consent_all_fields: boolean;

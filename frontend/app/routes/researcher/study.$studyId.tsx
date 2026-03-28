@@ -62,7 +62,7 @@ export default function ResearcherStudyDetailPage() {
       ) : (
         <div className="space-y-4">
           <Card>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <p className="text-sm text-slate-500">Study ID</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
@@ -74,6 +74,15 @@ export default function ResearcherStudyDetailPage() {
                 <p className="text-sm text-slate-500">Study name</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
                   {data.study.study_name}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-slate-500">Duration</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">
+                  {data.study.duration_months
+                    ? `${data.study.duration_months} months`
+                    : "—"}
                 </p>
               </div>
 

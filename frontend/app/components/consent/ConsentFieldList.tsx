@@ -1,14 +1,15 @@
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
+import type { FieldDescription } from "~/lib/types";
 
 interface ConsentFieldListProps {
-  fieldIds: number[];
-  onWithdraw?: () => void;
-  onRegrant?: () => void;
+  fields: FieldDescription[];
+  onWithdraw: () => void;
+  onRegrant: () => void;
 }
 
 export default function ConsentFieldList({
-  fieldIds,
+  fields,
   onWithdraw,
   onRegrant,
 }: ConsentFieldListProps) {
@@ -19,29 +20,26 @@ export default function ConsentFieldList({
       </h3>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {fieldIds.length > 0 ? (
-          fieldIds.map((id) => (
+        {fields.length > 0 ? (
+          fields.map((field) => (
             <span
-              key={id}
-              className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+              key={field.field_id}
+              className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
             >
-              Field #{id}
+              {field.field_name}
             </span>
           ))
         ) : (
-          <p className="text-sm text-slate-500">
-            No fields are currently consented.
-          </p>
+          <p className="text-sm text-slate-500">No consented fields.</p>
         )}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={onRegrant}>
-          Regrant consent
+        <Button variant="secondary" onClick={onWithdraw}>
+          Withdraw one field
         </Button>
-        <Button variant="danger" onClick={onWithdraw}>
-          Withdraw consent
-        </Button>
+
+        <Button onClick={onRegrant}>Regrant one field</Button>
       </div>
     </Card>
   );
