@@ -366,10 +366,12 @@ def regrant_consent_fields(study_id):
     }), 200
 
 
+
+
+
 @api.route("/participants/<int:participant_id>/answers", methods=["POST"])
 def upsert_participant_answers(participant_id):
     data = request.get_json() or {}
-
     answers = data.get("answers", [])
 
     if not isinstance(answers, list) or not answers:
@@ -385,32 +387,38 @@ def upsert_participant_answers(participant_id):
     updated = []
 
     for item in answers:
-        field_id = item.get("field_id")
+        field_name = item.get("field_name")
         answer_value = item.get("answer")
 
-        if field_id is None:
-            return error("each answer must include field_id")
+        if not field_name:
+            return error("each answer must include field_name")
 
-        field = FieldDescription.query.get(field_id)
+        field = FieldDescription.query.filter_by(field_name=field_name).first()
         if not field:
-            return error(f"field_id {field_id} does not exist")
+            return error(f"field_name '{field_name}' does not exist")
 
         existing = ParticipantAnswer.query.filter_by(
             participant_id=participant_id,
-            field_id=field_id,
+            field_id=field.field_id,
         ).first()
 
         if existing:
             existing.answer = answer_value
-            updated.append({"field_id": field_id, "action": "updated"})
+            updated.append({
+                "field_name": field.field_name,
+                "action": "updated"
+            })
         else:
             new_answer = ParticipantAnswer(
                 participant_id=participant_id,
-                field_id=field_id,
+                field_id=field.field_id,
                 answer=answer_value,
             )
             db.session.add(new_answer)
-            updated.append({"field_id": field_id, "action": "created"})
+            updated.append({
+                "field_name": field.field_name,
+                "action": "created"
+            })
 
     db.session.commit()
 
@@ -420,6 +428,36 @@ def upsert_participant_answers(participant_id):
         "results": updated,
     }), 200
 
+
+@api.route("/participants/<int:participant_id>/answers", methods=["GET"])
+def get_participant_answers(participant_id):
+    participant = User.query.get(participant_id)
+    if not participant:
+        return error("participant not found", 404)
+
+    if participant.role_id != "participant":
+        return error("user is not a participant", 403)
+
+    fields = FieldDescription.query.all()
+
+    results = []
+
+    for field in fields:
+        existing = ParticipantAnswer.query.filter_by(
+            participant_id=participant_id,
+            field_id=field.field_id,
+        ).first()
+
+        results.append({
+            "field_name": field.field_name,
+            "field_description": field.field_desc,
+            "answer": existing.answer if existing else ""
+        })
+
+    return jsonify({
+        "participant_id": participant_id,
+        "answers": results,
+    }), 200
 
 @api.route("/participants/<int:participant_id>/studies", methods=["GET"])
 def list_participant_studies(participant_id):

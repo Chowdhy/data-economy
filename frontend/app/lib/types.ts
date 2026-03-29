@@ -15,6 +15,17 @@ export interface FieldDescription {
   field_desc?: string | null;
 }
 
+export interface ParticipantAnswerField {
+  field_name: string;
+  field_description?: string | null;
+  answer: string;
+}
+
+export interface ParticipantAnswersResponse {
+  participant_id: number;
+  answers: ParticipantAnswerField[];
+}
+
 export interface ParticipantStudy {
   study_id: number;
   study_name: string;

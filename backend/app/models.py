@@ -69,7 +69,7 @@ class FieldDescription(db.Model):
     __tablename__ = "field_descriptions"
 
     field_id = db.Column(db.Integer, primary_key=True)
-    field_name = db.Column(db.String(255), nullable=False)
+    field_name = db.Column(db.String(255), unique=True, nullable=False)
     field_desc = db.Column(db.Text)
 
     study_links = db.relationship(

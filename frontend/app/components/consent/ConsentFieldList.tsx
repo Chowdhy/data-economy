@@ -1,18 +1,11 @@
-import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import type { FieldDescription } from "~/lib/types";
 
 interface ConsentFieldListProps {
   fields: FieldDescription[];
-  onWithdraw: () => void;
-  onRegrant: () => void;
 }
 
-export default function ConsentFieldList({
-  fields,
-  onWithdraw,
-  onRegrant,
-}: ConsentFieldListProps) {
+export default function ConsentFieldList({ fields }: ConsentFieldListProps) {
   return (
     <Card>
       <h3 className="text-base font-semibold text-slate-900">
@@ -32,14 +25,6 @@ export default function ConsentFieldList({
         ) : (
           <p className="text-sm text-slate-500">No consented fields.</p>
         )}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={onWithdraw}>
-          Withdraw one field
-        </Button>
-
-        <Button onClick={onRegrant}>Regrant one field</Button>
       </div>
     </Card>
   );
