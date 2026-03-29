@@ -4,6 +4,7 @@ import type {
   ResearcherStudy,
   StudyDataResponse,
   User,
+  ParticipantAnswersResponse,
 } from "./types";
 
 const API_BASE = "http://127.0.0.1:5000/api";
@@ -58,8 +59,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  getFields: () =>
-  request<{ fields: FieldDescription[] }>("/fields"),
+  getFields: () => request<{ fields: FieldDescription[] }>("/fields"),
 
   createStudy: (payload: {
     study_name: string;
@@ -118,9 +118,12 @@ export const api = {
       body: JSON.stringify({ participant_id }),
     }),
 
+  getParticipantAnswers: (participantId: number) =>
+    request<ParticipantAnswersResponse>(`/participants/${participantId}/answers`),
+
   saveAnswers: (
     participantId: number,
-    answers: { field_id: number; answer: string }[]
+    answers: { field_name: string; answer: string }[]
   ) =>
     request(`/participants/${participantId}/answers`, {
       method: "POST",
