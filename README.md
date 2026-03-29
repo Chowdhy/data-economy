@@ -25,3 +25,11 @@ flask run
 | John Doe  | john.participant@example.com      | test123  |
 | Jane Roe  | jane.participant@example.com      | test123  |
 | Sam Lee   | sam.participant@example.com       | test123  |
+
+# React Frontend Setup
+
+Run these commands from the `frontend/` folder:
+
+```bash
+npm run dev
+```
