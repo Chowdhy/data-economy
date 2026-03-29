@@ -7,6 +7,7 @@ import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
+import { getCurrentUser } from "~/lib/auth";
 import type { FieldDescription, ResearcherStudy } from "~/lib/types";
 
 export default function ResearcherStudiesPage() {
@@ -14,15 +15,23 @@ export default function ResearcherStudiesPage() {
 
   const [studies, setStudies] = useState<ResearcherStudy[]>([]);
   const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
-    [],
+    []
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const researcherId = Number(localStorage.getItem("demo_user_id") || "1");
+  const currentUser = getCurrentUser();
+  const researcherId =
+    currentUser?.role_id === "researcher" ? currentUser.user_id : null;
 
   useEffect(() => {
     async function loadData() {
+      if (!researcherId) {
+        setError("No logged-in researcher found");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");

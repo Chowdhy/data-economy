@@ -4,19 +4,28 @@ import ConsentFieldList from "~/components/consent/ConsentFieldList";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
+import { getCurrentUser } from "~/lib/auth";
 import type { FieldDescription, ParticipantStudy } from "~/lib/types";
 
 export default function ParticipantStudiesPage() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
   const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
-    [],
+    []
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const participantId = Number(localStorage.getItem("demo_user_id") || "1");
+  const currentUser = getCurrentUser();
+  const participantId =
+    currentUser?.role_id === "participant" ? currentUser.user_id : null;
 
   async function loadStudies() {
+    if (!participantId) {
+      setError("No logged-in participant found");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -40,44 +49,56 @@ export default function ParticipantStudiesPage() {
   }
 
   async function handleWithdrawConsent(studyId: number, fieldIds: number[]) {
+    if (!participantId) {
+      setError("No logged-in participant found");
+      return;
+    }
+
     if (fieldIds.length === 0) return;
 
     try {
+      setError("");
       await api.withdrawConsentFields(studyId, participantId, [fieldIds[0]]);
       await loadStudies();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to withdraw consent",
+        err instanceof Error ? err.message : "Failed to withdraw consent"
       );
     }
   }
 
   async function handleRegrantConsent(
     studyId: number,
-    currentFieldIds: number[],
+    currentFieldIds: number[]
   ) {
+    if (!participantId) {
+      setError("No logged-in participant found");
+      return;
+    }
+
     if (currentFieldIds.length === 0) {
       setError(
-        "This demo page can only regrant fields that you choose explicitly. Add a field picker next.",
+        "This demo page can only regrant fields that you choose explicitly. Add a field picker next."
       );
       return;
     }
 
     try {
+      setError("");
       await api.regrantConsentFields(studyId, participantId, [
         currentFieldIds[0],
       ]);
       await loadStudies();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to regrant consent",
+        err instanceof Error ? err.message : "Failed to regrant consent"
       );
     }
   }
 
   useEffect(() => {
     loadStudies();
-  }, []);
+  }, [participantId]);
 
   return (
     <AppShell
@@ -102,7 +123,7 @@ export default function ParticipantStudiesPage() {
         <div className="space-y-4">
           {studies.map((study) => {
             const consentedFields = getConsentedFields(
-              study.consented_field_ids,
+              study.consented_field_ids
             );
 
             return (
@@ -131,13 +152,13 @@ export default function ParticipantStudiesPage() {
                   onWithdraw={() =>
                     handleWithdrawConsent(
                       study.study_id,
-                      study.consented_field_ids,
+                      study.consented_field_ids
                     )
                   }
                   onRegrant={() =>
                     handleRegrantConsent(
                       study.study_id,
-                      study.consented_field_ids,
+                      study.consented_field_ids
                     )
                   }
                 />
