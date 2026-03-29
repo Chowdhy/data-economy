@@ -3,6 +3,7 @@ import AppShell from "~/components/layout/AppShell";
 import ConsentFieldList from "~/components/consent/ConsentFieldList";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
+import Button from "~/components/ui/Button";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
 import type { FieldDescription, ParticipantStudy } from "~/lib/types";
@@ -10,7 +11,7 @@ import type { FieldDescription, ParticipantStudy } from "~/lib/types";
 export default function ParticipantStudiesPage() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
   const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
-    []
+    [],
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,54 +49,6 @@ export default function ParticipantStudiesPage() {
     return availableFields.filter((field) => fieldIds.includes(field.field_id));
   }
 
-  async function handleWithdrawConsent(studyId: number, fieldIds: number[]) {
-    if (!participantId) {
-      setError("No logged-in participant found");
-      return;
-    }
-
-    if (fieldIds.length === 0) return;
-
-    try {
-      setError("");
-      await api.withdrawConsentFields(studyId, participantId, [fieldIds[0]]);
-      await loadStudies();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to withdraw consent"
-      );
-    }
-  }
-
-  async function handleRegrantConsent(
-    studyId: number,
-    currentFieldIds: number[]
-  ) {
-    if (!participantId) {
-      setError("No logged-in participant found");
-      return;
-    }
-
-    if (currentFieldIds.length === 0) {
-      setError(
-        "This demo page can only regrant fields that you choose explicitly. Add a field picker next."
-      );
-      return;
-    }
-
-    try {
-      setError("");
-      await api.regrantConsentFields(studyId, participantId, [
-        currentFieldIds[0],
-      ]);
-      await loadStudies();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to regrant consent"
-      );
-    }
-  }
-
   useEffect(() => {
     loadStudies();
   }, [participantId]);
@@ -123,7 +76,7 @@ export default function ParticipantStudiesPage() {
         <div className="space-y-4">
           {studies.map((study) => {
             const consentedFields = getConsentedFields(
-              study.consented_field_ids
+              study.consented_field_ids,
             );
 
             return (
@@ -147,21 +100,14 @@ export default function ParticipantStudiesPage() {
                   </p>
                 </div>
 
-                <ConsentFieldList
-                  fields={consentedFields}
-                  onWithdraw={() =>
-                    handleWithdrawConsent(
-                      study.study_id,
-                      study.consented_field_ids
-                    )
-                  }
-                  onRegrant={() =>
-                    handleRegrantConsent(
-                      study.study_id,
-                      study.consented_field_ids
-                    )
-                  }
-                />
+                <ConsentFieldList fields={consentedFields} />
+
+                {/* ✅ New single button */}
+                <div className="mt-4">
+                  <Button type="button" variant="secondary">
+                    Modify Consent
+                  </Button>
+                </div>
               </Card>
             );
           })}
