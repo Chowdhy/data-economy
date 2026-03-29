@@ -399,7 +399,7 @@ def upsert_participant_answers(participant_id):
 
         existing = ParticipantAnswer.query.filter_by(
             participant_id=participant_id,
-            field_id=field.id,
+            field_id=field.field_id,
         ).first()
 
         if existing:
@@ -411,7 +411,7 @@ def upsert_participant_answers(participant_id):
         else:
             new_answer = ParticipantAnswer(
                 participant_id=participant_id,
-                field_id=field.id,
+                field_id=field.field_id,
                 answer=answer_value,
             )
             db.session.add(new_answer)
@@ -445,12 +445,12 @@ def get_participant_answers(participant_id):
     for field in fields:
         existing = ParticipantAnswer.query.filter_by(
             participant_id=participant_id,
-            field_id=field.id,
+            field_id=field.field_id,
         ).first()
 
         results.append({
             "field_name": field.field_name,
-            "field_description": field.description,
+            "field_description": field.field_desc,
             "answer": existing.answer if existing else ""
         })
 
