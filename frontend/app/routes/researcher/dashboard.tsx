@@ -6,6 +6,7 @@ import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import type { ResearcherStudy } from "~/lib/types";
+import { getCurrentUser } from "~/lib/auth";
 
 export default function ResearcherDashboard() {
   const navigate = useNavigate();
@@ -14,29 +15,37 @@ export default function ResearcherDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const researcherId = Number(localStorage.getItem("demo_user_id") || "1");
+  const currentUser = getCurrentUser();
+  const researcherId =
+    currentUser?.role_id === "researcher" ? currentUser.user_id : null;
 
-  useEffect(() => {
-    async function loadStudies() {
-      try {
-        setLoading(true);
-        setError("");
-        const data = await api.getResearcherStudies(researcherId);
-        setStudies(data.studies);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load studies");
-      } finally {
-        setLoading(false);
-      }
+  async function loadStudies() {
+    if (!researcherId) {
+      setError("No logged-in researcher found");
+      setLoading(false);
+      return;
     }
 
+    try {
+      setLoading(true);
+      setError("");
+      const data = await api.getResearcherStudies(researcherId);
+      setStudies(data.studies);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load studies");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     loadStudies();
   }, [researcherId]);
 
   const approvedCount = studies.filter((s) => s.status === "approved").length;
   const totalParticipants = studies.reduce(
     (sum, study) => sum + study.participant_count,
-    0,
+    0
   );
 
   return (

@@ -5,15 +5,24 @@ import StudyCard from "~/components/consent/StudyCard";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import type { ParticipantStudy } from "~/lib/types";
+import { getCurrentUser } from "~/lib/auth";
 
 export default function ParticipantDashboard() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const participantId = Number(localStorage.getItem("demo_user_id") || "1");
+  const currentUser = getCurrentUser();
+  const participantId =
+    currentUser?.role_id === "participant" ? currentUser.user_id : null;
 
   async function loadStudies() {
+    if (!participantId) {
+      setError("No logged-in participant found");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -27,23 +36,29 @@ export default function ParticipantDashboard() {
   }
 
   async function handleWithdrawFromStudy(studyId: number) {
+    if (!participantId) {
+      setError("No logged-in participant found");
+      return;
+    }
+
     try {
+      setError("");
       await api.withdrawFromStudy(studyId, participantId);
       await loadStudies();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to withdraw from study",
+        err instanceof Error ? err.message : "Failed to withdraw from study"
       );
     }
   }
 
   useEffect(() => {
     loadStudies();
-  }, []);
+  }, [participantId]);
 
   const fullConsentCount = studies.filter((s) => s.consent_all_fields).length;
   const partialConsentCount = studies.filter(
-    (s) => !s.consent_all_fields,
+    (s) => !s.consent_all_fields
   ).length;
 
   return (
@@ -84,12 +99,12 @@ export default function ParticipantDashboard() {
                   }
                   onWithdrawConsent={() =>
                     alert(
-                      "Wire this button to a consent management form or modal next.",
+                      "Wire this button to a consent management form or modal next."
                     )
                   }
                   onRegrantConsent={() =>
                     alert(
-                      "Wire this button to a consent management form or modal next.",
+                      "Wire this button to a consent management form or modal next."
                     )
                   }
                 />
