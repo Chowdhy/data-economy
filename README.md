@@ -31,5 +31,6 @@ flask run
 Run these commands from the `frontend/` folder:
 
 ```bash
+npm install
 npm run dev
 ```
