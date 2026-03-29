@@ -41,7 +41,7 @@ export const api = {
   createUser: (payload: {
     name: string;
     email: string;
-    password_hash: string;
+    password: string;
     role_id: "participant" | "researcher";
   }) =>
     request<{
