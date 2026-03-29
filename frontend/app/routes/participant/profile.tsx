@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "~/components/layout/AppShell";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
@@ -8,7 +8,8 @@ import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
 
 interface AnswerRow {
-  field_id: string;
+  field_name: string;
+  field_description?: string | null;
   answer: string;
 }
 
@@ -17,20 +18,38 @@ export default function ParticipantProfilePage() {
   const participantId =
     currentUser?.role_id === "participant" ? currentUser.user_id : null;
 
-  const [answers, setAnswers] = useState<AnswerRow[]>([
-    { field_id: "", answer: "" },
-  ]);
+  const [answers, setAnswers] = useState<AnswerRow[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  function updateRow(index: number, key: keyof AnswerRow, value: string) {
+  useEffect(() => {
+    async function loadAnswers() {
+      if (!participantId) {
+        setLoading(false);
+        return;
+      }
+
+      setMessage("");
+      setError("");
+
+      try {
+        const response = await api.getParticipantAnswers(participantId);
+        setAnswers(response.answers || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load answers");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadAnswers();
+  }, [participantId]);
+
+  function updateAnswer(index: number, value: string) {
     setAnswers((current) =>
-      current.map((row, i) => (i === index ? { ...row, [key]: value } : row))
+      current.map((row, i) => (i === index ? { ...row, answer: value } : row)),
     );
-  }
-
-  function addRow() {
-    setAnswers((current) => [...current, { field_id: "", answer: "" }]);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -43,15 +62,13 @@ export default function ParticipantProfilePage() {
       return;
     }
 
-    const cleanedAnswers = answers
-      .filter((row) => row.field_id.trim() !== "")
-      .map((row) => ({
-        field_id: Number(row.field_id),
-        answer: row.answer,
-      }));
+    const cleanedAnswers = answers.map((row) => ({
+      field_name: row.field_name,
+      answer: row.answer,
+    }));
 
     if (cleanedAnswers.length === 0) {
-      setError("Please enter at least one field ID.");
+      setError("No profile fields are available.");
       return;
     }
 
@@ -67,62 +84,59 @@ export default function ParticipantProfilePage() {
     <AppShell
       role="participant"
       title="My Answers"
-      subtitle="Add or update your answers for profile fields used in studies."
+      subtitle="View and update your answers for profile fields used in studies."
     >
       <SectionHeading
         title="Manage participant answers"
-        description="This form lets you submit answers for field IDs stored by your backend."
+        description="Review your existing answers below and update them whenever needed."
       />
 
       <Card className="max-w-3xl">
         {!participantId ? (
-          <p className="text-sm text-rose-600">No logged-in participant found.</p>
+          <p className="text-sm text-rose-600">
+            No logged-in participant found.
+          </p>
+        ) : loading ? (
+          <p className="text-sm text-slate-600">Loading your answers...</p>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {answers.map((row, index) => (
-              <div key={index} className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label
-                    htmlFor={`field-id-${index}`}
-                    className="mb-1 block text-sm font-medium text-slate-700"
-                  >
-                    Field ID
-                  </label>
-                  <Input
-                    id={`field-id-${index}`}
-                    type="number"
-                    placeholder="e.g. 1"
-                    value={row.field_id}
-                    onChange={(e) =>
-                      updateRow(index, "field_id", e.target.value)
-                    }
-                  />
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {answers.length === 0 ? (
+              <p className="text-sm text-slate-600">
+                No profile fields are available yet.
+              </p>
+            ) : (
+              answers.map((row, index) => (
+                <div key={row.field_name} className="space-y-2">
+                  <div>
+                    <label
+                      htmlFor={`answer-${index}`}
+                      className="block text-sm font-medium text-slate-700"
+                    >
+                      {row.field_name}
+                    </label>
+                    {row.field_description ? (
+                      <p className="mt-1 text-sm text-slate-500">
+                        {row.field_description}
+                      </p>
+                    ) : null}
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor={`answer-${index}`}
-                    className="mb-1 block text-sm font-medium text-slate-700"
-                  >
-                    Answer
-                  </label>
                   <Input
                     id={`answer-${index}`}
                     type="text"
-                    placeholder="Enter your answer"
+                    placeholder={`Enter your answer for ${row.field_name}`}
                     value={row.answer}
-                    onChange={(e) => updateRow(index, "answer", e.target.value)}
+                    onChange={(e) => updateAnswer(index, e.target.value)}
                   />
                 </div>
-              </div>
-            ))}
+              ))
+            )}
 
-            <div className="flex flex-wrap gap-3">
-              <Button type="button" variant="secondary" onClick={addRow}>
-                Add another field
-              </Button>
-              <Button type="submit">Save answers</Button>
-            </div>
+            {answers.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                <Button type="submit">Save answers</Button>
+              </div>
+            ) : null}
 
             {message ? (
               <p className="text-sm text-emerald-700">{message}</p>
