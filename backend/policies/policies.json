@@ -1,0 +1,44 @@
+
+{
+  "permission": {
+    "action": "modifyConsent",
+    "target": "study",
+    "constraint": {
+      "leftOperand": "studyStatus",
+      "operator": "eq",
+      "rightOperand": "open"
+    }
+  }
+}
+
+{
+  "prohibition": {
+    "action": "modifyConsent",
+    "constraint": {
+      "leftOperand": "studyStatus",
+      "operator": "neq",
+      "rightOperand": "open"
+    }
+  }
+}
+
+{
+  "duty": {
+    "action": "provideRequiredFields",
+    "constraint": {
+      "leftOperand": "requiredFieldsProvided",
+      "operator": "eq",
+      "rightOperand": true
+    }
+  }
+}
+{
+  "permission": {
+    "action": "accessData",
+    "constraint": {
+      "leftOperand": "studyStatus",
+      "operator": "eq",
+      "rightOperand": "ongoing"
+    }
+  }
+}
