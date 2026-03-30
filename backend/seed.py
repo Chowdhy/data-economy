@@ -96,21 +96,21 @@ def seed_data():
         description="A study exploring relationships between cardiovascular indicators and general health.",
         duration_months=6,
         creator_id=researcher_1.user_id,
-        status="approved",
+        status="ongoing",
     )
     study_2 = Study(
         study_name="Smoking Behaviour Study",
         description="A study exploring relationships between smoking and lifetyle.",
         duration_months=12,
         creator_id=researcher_1.user_id,
-        status="pending",
+        status="open",
     )
     study_3 = Study(
         study_name="General Wellness Study",
         description="A study exploring relationships between mental and general health.",
         duration_months=8,
         creator_id=researcher_2.user_id,
-        status="approved",
+        status="open",
     )
 
     db.session.add_all([study_1, study_2, study_3])

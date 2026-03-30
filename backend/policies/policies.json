@@ -1,44 +1,52 @@
-
 {
-  "permission": {
-    "action": "modifyConsent",
-    "target": "study",
-    "constraint": {
-      "leftOperand": "studyStatus",
-      "operator": "eq",
-      "rightOperand": "open"
+  "policies": [
+    {
+      "id": "modify-consent-permission",
+      "action": "modifyConsent",
+      "permission": true,
+      "constraints": [
+        {
+          "field": "studyStatus",
+          "operator": "eq",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "modify-consent-prohibition",
+      "action": "modifyConsent",
+      "permission": false,
+      "constraints": [
+        {
+          "field": "studyStatus",
+          "operator": "neq",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "required-fields-duty",
+      "action": "modifyConsent",
+      "duty": true,
+      "constraints": [
+        {
+          "field": "requiredFieldsProvided",
+          "operator": "eq",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "access-data",
+      "action": "accessData",
+      "permission": true,
+      "constraints": [
+        {
+          "field": "studyStatus",
+          "operator": "eq",
+          "value": "ongoing"
+        }
+      ]
     }
-  }
-}
-
-{
-  "prohibition": {
-    "action": "modifyConsent",
-    "constraint": {
-      "leftOperand": "studyStatus",
-      "operator": "neq",
-      "rightOperand": "open"
-    }
-  }
-}
-
-{
-  "duty": {
-    "action": "provideRequiredFields",
-    "constraint": {
-      "leftOperand": "requiredFieldsProvided",
-      "operator": "eq",
-      "rightOperand": true
-    }
-  }
-}
-{
-  "permission": {
-    "action": "accessData",
-    "constraint": {
-      "leftOperand": "studyStatus",
-      "operator": "eq",
-      "rightOperand": "ongoing"
-    }
-  }
+  ]
 }

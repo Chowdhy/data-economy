@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from sqlalchemy import and_
-
+from policies.policy_engine import get_policy_engine
 from .extensions import db
 from .models import (
     User,
@@ -13,7 +13,7 @@ from .models import (
 )
 
 api = Blueprint("api", __name__)
-
+policy_engine = get_policy_engine()
 
 def error(message, status=400):
     return jsonify({"error": message}), status
@@ -389,7 +389,7 @@ def regrant_consent_fields(study_id):
 @api.route("/studies/<int:study_id>/consent/modify", methods=["POST"])
 def modify_consent(study_id):
     data = request.get_json() or {}
-
+    
     participant_id = data.get("participant_id")
     consented_field_ids = data.get("consented_field_ids", [])
 
@@ -407,9 +407,7 @@ def modify_consent(study_id):
         return error("participant is not enrolled in this study", 404)
 
     study = Study.query.get(study_id)
-    if study.status != "open":
-        return error("consent cannot be modified because study is not open")
-
+   
     # Get all valid fields
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     all_field_ids = {f.field_id for f in study_fields}
@@ -424,7 +422,7 @@ def modify_consent(study_id):
         is_required=True
     ).all()
     required_ids = {f.field_id for f in required_fields}
-
+    
     if not required_ids.issubset(set(consented_field_ids)):
         db.session.delete(membership)
         db.session.commit()
@@ -434,6 +432,14 @@ def modify_consent(study_id):
             "study_id": study_id,
             "participant_id": participant_id
         }), 200
+    
+    context = {
+        "studyStatus": study.status,
+        "requiredFieldsProvided": True
+    }
+
+    if not policy_engine.is_allowed("modifyConsent", context):
+            return error("consent modification violates study policies and cannot be saved")
 
     # Update consent ONLY if valid
     StudyParticipantConsentedField.query.filter_by(
