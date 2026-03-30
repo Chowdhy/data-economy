@@ -41,7 +41,7 @@ class Study(db.Model):
         db.ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False
     )
-    status = db.Column(db.String(50), nullable=False, default="approved")
+    status = db.Column(db.String(50), nullable=False, default="open")
 
 
     creator = db.relationship("User", back_populates="created_studies")

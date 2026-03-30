@@ -147,7 +147,7 @@ def create_study():
         description=description.strip(),
         duration_months=duration_months,
         creator_id=creator_id,
-        status="approved",
+        status="open",
     )
     db.session.add(study)
     db.session.flush()
@@ -196,7 +196,9 @@ def join_study(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
-
+    # Modify so they can only join when the study is open: 
+    if study.status != "open":
+        return error("study is not open for participants")
     user = User.query.get(participant_id)
     if not user:
         return error("participant not found", 404)
@@ -404,6 +406,11 @@ def modify_consent(study_id):
     if not membership:
         return error("participant is not enrolled in this study", 404)
 
+    study = Study.query.get(study_id)
+    if study.status != "open":
+        return error("consent cannot be modified because study is not open")
+
+    # Get all valid fields
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     all_field_ids = {f.field_id for f in study_fields}
 
@@ -411,13 +418,29 @@ def modify_consent(study_id):
     if invalid:
         return error(f"invalid field_ids: {invalid}")
 
-    # clear old
+    # Required fields check FIRST
+    required_fields = StudyRequiredField.query.filter_by(
+        study_id=study_id,
+        is_required=True
+    ).all()
+    required_ids = {f.field_id for f in required_fields}
+
+    if not required_ids.issubset(set(consented_field_ids)):
+        db.session.delete(membership)
+        db.session.commit()
+
+        return jsonify({
+            "message": "withdrawn from study due to removing required fields",
+            "study_id": study_id,
+            "participant_id": participant_id
+        }), 200
+
+    # Update consent ONLY if valid
     StudyParticipantConsentedField.query.filter_by(
         study_id=study_id,
         participant_id=participant_id,
     ).delete(synchronize_session=False)
 
-    # add new
     for fid in consented_field_ids:
         db.session.add(StudyParticipantConsentedField(
             study_id=study_id,
@@ -425,15 +448,7 @@ def modify_consent(study_id):
             field_id=fid,
         ))
 
-    # update required check
-    required_fields = StudyRequiredField.query.filter_by(
-        study_id=study_id,
-        is_required=True
-    ).all()
-    required_ids = {f.field_id for f in required_fields}
-
-    membership.consent_all_fields = required_ids.issubset(set(consented_field_ids))
-
+    membership.consent_all_fields = True
     db.session.commit()
 
     return jsonify({
@@ -441,9 +456,8 @@ def modify_consent(study_id):
         "study_id": study_id,
         "participant_id": participant_id,
         "consented_field_ids": consented_field_ids,
-        "consent_all_fields": membership.consent_all_fields,
+        "consent_all_fields": True,
     }), 200
-
 
 
 
@@ -605,7 +619,7 @@ def list_researcher_studies(researcher_id):
             "description": study.description,
             "duration_months": study.duration_months,
             "status": study.status,
-            "required_field_ids": [row.field_id for row in required_field_rows],
+            "required_field_ids": [row.field_id for row in required_field_rows if row.is_required], # only allow them to view required fields maybe?,
             "participant_count": participant_count, 
         })
 
@@ -620,6 +634,8 @@ def get_study_data(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
+    if study.status != "ongoing":
+        return error ("study data can only be accessed when study is ongoing")
 
     rows = db.session.query(
         StudyParticipantConsentedField.participant_id,
@@ -687,4 +703,27 @@ def login():
             "email": user.email,
             "role_id": user.role_id,
         }
+    }), 200
+
+
+# Testing endpoint for status: 
+@api.route("/studies/<int:study_id>/status", methods=["PATCH"])
+def update_study_status(study_id):
+    data = request.get_json() or {}
+    new_status = data.get("status")
+
+    if new_status not in {"open", "ongoing", "complete"}:
+        return error("invalid status")
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    study.status = new_status
+    db.session.commit()
+
+    return jsonify({
+        "message": "status updated",
+        "study_id": study_id,
+        "status": study.status
     }), 200
