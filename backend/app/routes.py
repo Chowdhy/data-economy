@@ -112,7 +112,8 @@ def create_study():
     description = data.get("description")
     duration_months = data.get("duration_months")
     creator_id = data.get("creator_id")
-    field_ids = data.get("field_ids", [])
+    required_field_ids = data.get("required_field_ids", [])
+    optional_field_ids = data.get("optional_field_ids", [])
 
     if not study_name or not description or creator_id is None or duration_months is None:
         return error("study_name, description, duration_months, and creator_id are required")
@@ -127,12 +128,18 @@ def create_study():
     if not isinstance(duration_months, int) or duration_months <= 0:
         return error("duration_months must be a positive integer")
 
-    if not isinstance(field_ids, list) or not field_ids:
-        return error("field_ids must be a non-empty list")
+    if not isinstance(required_field_ids, list) or not required_field_ids:
+        return error("required_field_ids must be a non-empty list")
 
-    unique_field_ids = list(dict.fromkeys(field_ids))
-    fields = FieldDescription.query.filter(FieldDescription.field_id.in_(unique_field_ids)).all()
-    if len(fields) != len(unique_field_ids):
+    if not isinstance(optional_field_ids, list):
+        return error("optional_field_ids must be a list")
+    all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
+
+    fields = FieldDescription.query.filter(
+        FieldDescription.field_id.in_(all_field_ids)
+    ).all()
+
+    if len(fields) != len(all_field_ids):
         return error("one or more field_ids do not exist")
 
     study = Study(
@@ -145,10 +152,19 @@ def create_study():
     db.session.add(study)
     db.session.flush()
 
-    for field_id in unique_field_ids:
+    for field_id in required_field_ids:
         db.session.add(StudyRequiredField(
             study_id=study.study_id,
             field_id=field_id,
+            is_required=True
+        ))
+
+    # optional
+    for field_id in optional_field_ids:
+        db.session.add(StudyRequiredField(
+            study_id=study.study_id,
+            field_id=field_id,
+            is_required=False
         ))
 
     db.session.commit()
@@ -162,7 +178,8 @@ def create_study():
             "duration_months": study.duration_months,
             "creator_id": study.creator_id,
             "status": study.status,
-            "field_ids": unique_field_ids,
+            "required_field_ids": required_field_ids,
+            "optional_field_ids": optional_field_ids
         }
     }), 201
 
@@ -198,11 +215,13 @@ def join_study(study_id):
     link = StudyParticipant(
         study_id=study_id,
         participant_id=participant_id,
-        consent_all_fields=True,
+        consent_all_fields=False,
     )
     db.session.add(link)
-
-    required_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
+    required_fields = StudyRequiredField.query.filter_by(
+        study_id=study_id,
+        is_required=True
+    ).all()
     for required in required_fields:
         db.session.add(StudyParticipantConsentedField(
             study_id=study_id,
@@ -220,7 +239,7 @@ def join_study(study_id):
     }), 201
 
 
-@api.route("/studies/<int:study_id>/consent/withdraw", methods=["POST"])
+''' @api.route("/studies/<int:study_id>/consent/withdraw", methods=["POST"])
 def withdraw_consent_fields(study_id):
     data = request.get_json() or {}
 
@@ -268,7 +287,7 @@ def withdraw_consent_fields(study_id):
         "participant_id": participant_id,
         "withdrawn_field_ids": field_ids,
         "remaining_consented_field_count": remaining_count,
-    }), 200
+    }), 200 '''
 
 
 @api.route("/studies/<int:study_id>/withdraw", methods=["POST"])
@@ -297,7 +316,7 @@ def withdraw_from_study(study_id):
     }), 200
 
 
-@api.route("/studies/<int:study_id>/consent/regrant", methods=["POST"])
+''' @api.route("/studies/<int:study_id>/consent/regrant", methods=["POST"])
 def regrant_consent_fields(study_id):
     data = request.get_json() or {}
 
@@ -362,6 +381,66 @@ def regrant_consent_fields(study_id):
         "participant_id": participant_id,
         "added_field_ids": to_add,
         "already_consented_field_ids": list(existing_ids),
+        "consent_all_fields": membership.consent_all_fields,
+    }), 200 '''
+
+@api.route("/studies/<int:study_id>/consent/modify", methods=["POST"])
+def modify_consent(study_id):
+    data = request.get_json() or {}
+
+    participant_id = data.get("participant_id")
+    consented_field_ids = data.get("consented_field_ids", [])
+
+    if participant_id is None:
+        return error("participant_id is required")
+    if not isinstance(consented_field_ids, list):
+        return error("consented_field_ids must be a list")
+
+    membership = StudyParticipant.query.filter_by(
+        study_id=study_id,
+        participant_id=participant_id,
+    ).first()
+
+    if not membership:
+        return error("participant is not enrolled in this study", 404)
+
+    study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
+    all_field_ids = {f.field_id for f in study_fields}
+
+    invalid = [fid for fid in consented_field_ids if fid not in all_field_ids]
+    if invalid:
+        return error(f"invalid field_ids: {invalid}")
+
+    # clear old
+    StudyParticipantConsentedField.query.filter_by(
+        study_id=study_id,
+        participant_id=participant_id,
+    ).delete(synchronize_session=False)
+
+    # add new
+    for fid in consented_field_ids:
+        db.session.add(StudyParticipantConsentedField(
+            study_id=study_id,
+            participant_id=participant_id,
+            field_id=fid,
+        ))
+
+    # update required check
+    required_fields = StudyRequiredField.query.filter_by(
+        study_id=study_id,
+        is_required=True
+    ).all()
+    required_ids = {f.field_id for f in required_fields}
+
+    membership.consent_all_fields = required_ids.issubset(set(consented_field_ids))
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "consent updated",
+        "study_id": study_id,
+        "participant_id": participant_id,
+        "consented_field_ids": consented_field_ids,
         "consent_all_fields": membership.consent_all_fields,
     }), 200
 

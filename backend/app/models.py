@@ -104,6 +104,7 @@ class StudyRequiredField(db.Model):
         db.ForeignKey("field_descriptions.field_id", ondelete="CASCADE"),
         primary_key=True
     )
+    is_required = db.Column(db.Boolean, nullable=False, default=True)
 
     study = db.relationship("Study", back_populates="required_fields")
     field = db.relationship("FieldDescription", back_populates="study_links")

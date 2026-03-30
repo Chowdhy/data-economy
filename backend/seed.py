@@ -118,17 +118,17 @@ def seed_data():
 
     # Required fields for studies
     db.session.add_all([
-        StudyRequiredField(study_id=study_1.study_id, field_id=age.field_id),
-        StudyRequiredField(study_id=study_1.study_id, field_id=height.field_id),
-        StudyRequiredField(study_id=study_1.study_id, field_id=weight.field_id),
-        StudyRequiredField(study_id=study_1.study_id, field_id=heart_rate.field_id),
+        StudyRequiredField(study_id=study_1.study_id, field_id=age.field_id, is_required = True),
+        StudyRequiredField(study_id=study_1.study_id, field_id=height.field_id, is_required =  True),
+        StudyRequiredField(study_id=study_1.study_id, field_id=weight.field_id, is_required =  True),
+        StudyRequiredField(study_id=study_1.study_id, field_id=heart_rate.field_id, is_required = False),
 
-        StudyRequiredField(study_id=study_2.study_id, field_id=age.field_id),
-        StudyRequiredField(study_id=study_2.study_id, field_id=smoker.field_id),
+        StudyRequiredField(study_id=study_2.study_id, field_id=age.field_id, is_required = True),
+        StudyRequiredField(study_id=study_2.study_id, field_id=smoker.field_id, is_required = True),
 
-        StudyRequiredField(study_id=study_3.study_id, field_id=age.field_id),
-        StudyRequiredField(study_id=study_3.study_id, field_id=height.field_id),
-        StudyRequiredField(study_id=study_3.study_id, field_id=weight.field_id),
+        StudyRequiredField(study_id=study_3.study_id, field_id=age.field_id, is_required = True),
+        StudyRequiredField(study_id=study_3.study_id, field_id=height.field_id, is_required = True),
+        StudyRequiredField(study_id=study_3.study_id, field_id=weight.field_id, is_required = True),
     ])
     db.session.flush()
 
@@ -317,5 +317,6 @@ if __name__ == "__main__":
     app = create_app()
 
     with app.app_context():
+        db.create_all()  # Ensure tables are created
         clear_data()
         seed_data()
