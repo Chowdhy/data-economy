@@ -1,0 +1,35 @@
+# Python cache / compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Flask instance folder (contains DB, secrets, etc.)
+instance/
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Alembic cache
+migrations/__pycache__/
+
+# OS / editor junk
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Frontend
+.env
+node_modules/
+
+# React Router
+.react-router/
+build/
