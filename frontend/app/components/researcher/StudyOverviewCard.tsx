@@ -11,6 +11,7 @@ interface StudyOverviewCardProps {
     status: string;
     participant_count: number;
     required_field_ids: number[];
+    optional_field_ids: number[];
   };
   onView?: () => void;
 }
@@ -33,7 +34,10 @@ export default function StudyOverviewCard({
 
           <p className="mt-1 text-sm text-slate-500">
             Required fields: {study.required_field_ids.length}
-            {study.duration_months ? ` • ${study.duration_months} months` : ""}
+            {study.optional_field_ids.length > 0
+              ? ` | Optional fields: ${study.optional_field_ids.length}`
+              : ""}
+            {study.duration_months ? ` | ${study.duration_months} months` : ""}
           </p>
         </div>
 

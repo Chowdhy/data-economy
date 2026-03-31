@@ -14,9 +14,7 @@ export default function ResearcherStudiesPage() {
   const navigate = useNavigate();
 
   const [studies, setStudies] = useState<ResearcherStudy[]>([]);
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
-    []
-  );
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -61,7 +59,7 @@ export default function ResearcherStudiesPage() {
     <AppShell
       role="researcher"
       title="Studies"
-      subtitle="Review each study’s status, field requirements, and participant count."
+      subtitle="Review each study's status, field requirements, optional fields, and participant count."
     >
       <SectionHeading
         title="Study list"
@@ -100,6 +98,11 @@ export default function ResearcherStudiesPage() {
                       {study.duration_months ? (
                         <Badge tone="neutral">
                           {study.duration_months} months
+                        </Badge>
+                      ) : null}
+                      {study.optional_field_ids.length > 0 ? (
+                        <Badge tone="neutral">
+                          {study.optional_field_ids.length} optional fields
                         </Badge>
                       ) : null}
                       <Badge tone="success">

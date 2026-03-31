@@ -22,6 +22,15 @@ def error(message, status=400):
     return jsonify({"error": message}), status
 
 
+def split_study_field_ids(study_id):
+    study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
+    return {
+        "required_field_ids": [row.field_id for row in study_fields if row.is_required],
+        "optional_field_ids": [row.field_id for row in study_fields if not row.is_required],
+        "all_field_ids": [row.field_id for row in study_fields],
+    }
+
+
 @api.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
@@ -591,6 +600,7 @@ def list_participant_studies(participant_id):
         ).all()
 
         consented_field_ids = [row.field_id for row in consented_rows]
+        study_fields = split_study_field_ids(study.study_id)
 
         results.append({
             "study_id": study.study_id,
@@ -601,6 +611,8 @@ def list_participant_studies(participant_id):
             "joined_at": membership.joined_at.isoformat(),
             "consent_all_fields": membership.consent_all_fields,
             "consented_field_ids": consented_field_ids,
+            "required_field_ids": study_fields["required_field_ids"],
+            "optional_field_ids": study_fields["optional_field_ids"],
         })
 
     return jsonify({
@@ -622,9 +634,7 @@ def list_researcher_studies(researcher_id):
 
     results = []
     for study in studies:
-        required_field_rows = StudyRequiredField.query.filter_by(
-            study_id=study.study_id
-        ).all()
+        study_fields = split_study_field_ids(study.study_id)
         participant_count = StudyParticipant.query.filter_by(
             study_id=study.study_id
         ).count()
@@ -635,13 +645,37 @@ def list_researcher_studies(researcher_id):
             "description": study.description,
             "duration_months": study.duration_months,
             "status": study.status,
-            "required_field_ids": [row.field_id for row in required_field_rows if row.is_required], # only allow them to view required fields maybe?,
+            "required_field_ids": study_fields["required_field_ids"],
+            "optional_field_ids": study_fields["optional_field_ids"],
             "participant_count": participant_count, 
         })
 
     return jsonify({
         "researcher_id": researcher_id,
         "studies": results,
+    }), 200
+
+
+@api.route("/studies/<int:study_id>", methods=["GET"])
+def get_study(study_id):
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    study_fields = split_study_field_ids(study_id)
+    participant_count = StudyParticipant.query.filter_by(study_id=study_id).count()
+
+    return jsonify({
+        "study": {
+            "study_id": study.study_id,
+            "study_name": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
+            "status": study.status,
+            "required_field_ids": study_fields["required_field_ids"],
+            "optional_field_ids": study_fields["optional_field_ids"],
+            "participant_count": participant_count,
+        }
     }), 200
 
 

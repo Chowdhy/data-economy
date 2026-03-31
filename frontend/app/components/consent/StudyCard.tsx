@@ -15,15 +15,13 @@ interface StudyCardProps {
     consented_field_ids: number[];
   };
   onWithdrawStudy?: () => void;
-  onWithdrawConsent?: () => void;
-  onRegrantConsent?: () => void;
+  onModifyConsent?: () => void;
 }
 
 export default function StudyCard({
   study,
   onWithdrawStudy,
-  onWithdrawConsent,
-  onRegrantConsent,
+  onModifyConsent,
 }: StudyCardProps) {
   return (
     <Card>
@@ -52,11 +50,8 @@ export default function StudyCard({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={onRegrantConsent}>
-          Regrant consent
-        </Button>
-        <Button variant="danger" onClick={onWithdrawConsent}>
-          Withdraw consent
+        <Button variant="secondary" onClick={onModifyConsent}>
+          Manage consent
         </Button>
         <Button variant="ghost" onClick={onWithdrawStudy}>
           Leave study

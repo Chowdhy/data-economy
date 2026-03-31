@@ -2,6 +2,7 @@ import type {
   FieldDescription,
   ParticipantStudy,
   ResearcherStudy,
+  StudyDetail,
   StudyDataResponse,
   User,
   ParticipantAnswersResponse,
@@ -66,7 +67,8 @@ export const api = {
     description: string;
     duration_months: number;
     creator_id: number;
-    field_ids: number[];
+    required_field_ids: number[];
+    optional_field_ids: number[];
   }) =>
     request("/studies", {
       method: "POST",
@@ -83,6 +85,9 @@ export const api = {
       `/researchers/${researcherId}/studies`
     ),
 
+  getStudy: (studyId: number) =>
+    request<{ study: StudyDetail }>(`/studies/${studyId}`),
+
   getStudyData: (studyId: number) =>
     request<StudyDataResponse>(`/studies/${studyId}/data`),
 
@@ -92,24 +97,20 @@ export const api = {
       body: JSON.stringify({ participant_id }),
     }),
 
-  withdrawConsentFields: (
+  modifyConsent: (
     studyId: number,
     participant_id: number,
-    field_ids: number[]
+    consented_field_ids: number[]
   ) =>
-    request(`/studies/${studyId}/consent/withdraw`, {
+    request<{
+      message: string;
+      study_id: number;
+      participant_id: number;
+      consented_field_ids?: number[];
+      consent_all_fields?: boolean;
+    }>(`/studies/${studyId}/consent/modify`, {
       method: "POST",
-      body: JSON.stringify({ participant_id, field_ids }),
-    }),
-
-  regrantConsentFields: (
-    studyId: number,
-    participant_id: number,
-    field_ids: number[]
-  ) =>
-    request(`/studies/${studyId}/consent/regrant`, {
-      method: "POST",
-      body: JSON.stringify({ participant_id, field_ids }),
+      body: JSON.stringify({ participant_id, consented_field_ids }),
     }),
 
   withdrawFromStudy: (studyId: number, participant_id: number) =>
@@ -129,4 +130,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ answers }),
     }),
+
+  updateStudyStatus: (studyId: number, status: "open" | "ongoing" | "complete") =>
+    request<{ message: string; study_id: number; status: string }>(
+      `/studies/${studyId}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }
+    ),
 };

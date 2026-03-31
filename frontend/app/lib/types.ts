@@ -1,6 +1,13 @@
 export type Role = "participant" | "researcher";
 
-export type StudyStatus = "pending" | "approved" | "rejected" | "closed";
+export type StudyStatus =
+  | "open"
+  | "ongoing"
+  | "complete"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "closed";
 
 export interface User {
   user_id: number;
@@ -35,6 +42,8 @@ export interface ParticipantStudy {
   joined_at: string;
   consent_all_fields: boolean;
   consented_field_ids: number[];
+  required_field_ids: number[];
+  optional_field_ids: number[];
 }
 
 export interface ResearcherStudy {
@@ -44,6 +53,18 @@ export interface ResearcherStudy {
   duration_months?: number;
   status: StudyStatus;
   required_field_ids: number[];
+  optional_field_ids: number[];
+  participant_count: number;
+}
+
+export interface StudyDetail {
+  study_id: number;
+  study_name: string;
+  description?: string;
+  duration_months?: number;
+  status: StudyStatus;
+  required_field_ids: number[];
+  optional_field_ids: number[];
   participant_count: number;
 }
 

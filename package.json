@@ -1,0 +1,7 @@
+{
+  "name": "data-economy",
+  "private": true,
+  "scripts": {
+    "dev": "python run_dev.py"
+  }
+}

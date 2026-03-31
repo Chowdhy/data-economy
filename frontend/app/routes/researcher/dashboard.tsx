@@ -42,7 +42,8 @@ export default function ResearcherDashboard() {
     loadStudies();
   }, [researcherId]);
 
-  const approvedCount = studies.filter((s) => s.status === "approved").length;
+  const openCount = studies.filter((s) => s.status === "open").length;
+  const ongoingCount = studies.filter((s) => s.status === "ongoing").length;
   const totalParticipants = studies.reduce(
     (sum, study) => sum + study.participant_count,
     0
@@ -55,7 +56,7 @@ export default function ResearcherDashboard() {
       subtitle="Manage studies, review participation, and access only consented data."
     >
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card>
             <p className="text-sm text-slate-500">Studies created</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">
@@ -64,9 +65,16 @@ export default function ResearcherDashboard() {
           </Card>
 
           <Card>
-            <p className="text-sm text-slate-500">Approved studies</p>
+            <p className="text-sm text-slate-500">Open studies</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {approvedCount}
+              {openCount}
+            </p>
+          </Card>
+
+          <Card>
+            <p className="text-sm text-slate-500">Ongoing studies</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">
+              {ongoingCount}
             </p>
           </Card>
 

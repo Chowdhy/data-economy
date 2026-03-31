@@ -53,7 +53,7 @@ export default function ParticipantDataTable({
                           {field.field_name}
                         </td>
                         <td className="px-4 py-3 text-slate-600">
-                          {field.field_desc || "—"}
+                          {field.field_desc || "-"}
                         </td>
                         <td className="px-4 py-3 text-slate-900">
                           {field.answer || "No answer provided"}

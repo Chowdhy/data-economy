@@ -19,10 +19,9 @@ export default function CreateStudyPage() {
   const [studyName, setStudyName] = useState("");
   const [description, setDescription] = useState("");
   const [durationMonths, setDurationMonths] = useState("");
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
-    []
-  );
-  const [selectedFieldIds, setSelectedFieldIds] = useState<number[]>([]);
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
+  const [requiredFieldIds, setRequiredFieldIds] = useState<number[]>([]);
+  const [optionalFieldIds, setOptionalFieldIds] = useState<number[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -51,12 +50,23 @@ export default function CreateStudyPage() {
     loadFields();
   }, [researcherId]);
 
-  function toggleField(fieldId: number) {
-    setSelectedFieldIds((current) =>
+  function toggleField(fieldId: number, group: "required" | "optional") {
+    if (group === "required") {
+      setRequiredFieldIds((current) =>
+        current.includes(fieldId)
+          ? current.filter((id) => id !== fieldId)
+          : [...current, fieldId],
+      );
+      setOptionalFieldIds((current) => current.filter((id) => id !== fieldId));
+      return;
+    }
+
+    setOptionalFieldIds((current) =>
       current.includes(fieldId)
         ? current.filter((id) => id !== fieldId)
-        : [...current, fieldId]
+        : [...current, fieldId],
     );
+    setRequiredFieldIds((current) => current.filter((id) => id !== fieldId));
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -86,8 +96,8 @@ export default function CreateStudyPage() {
       return;
     }
 
-    if (selectedFieldIds.length === 0) {
-      setError("Please select at least one requested field.");
+    if (requiredFieldIds.length === 0) {
+      setError("Please select at least one required field.");
       return;
     }
 
@@ -99,14 +109,16 @@ export default function CreateStudyPage() {
         description: description.trim(),
         duration_months: parsedDuration,
         creator_id: researcherId,
-        field_ids: selectedFieldIds,
+        required_field_ids: requiredFieldIds,
+        optional_field_ids: optionalFieldIds,
       });
 
       setMessage("Study created successfully.");
       setStudyName("");
       setDescription("");
       setDurationMonths("");
-      setSelectedFieldIds([]);
+      setRequiredFieldIds([]);
+      setOptionalFieldIds([]);
 
       setTimeout(() => {
         navigate("/researcher/studies");
@@ -122,18 +134,18 @@ export default function CreateStudyPage() {
     <AppShell
       role="researcher"
       title="Create Study"
-      subtitle="Set up a new study with a description, duration, and requested fields."
+      subtitle="Set up an open study with required and optional participant fields."
     >
       <SectionHeading
         title="New study"
-        description="Enter the study details and choose the preset fields participants will be asked to provide."
+        description="Required fields keep participants enrolled. Optional fields can be added for broader, voluntary sharing."
       />
 
-      <Card className="max-w-3xl">
+      <Card className="max-w-4xl">
         {!researcherId ? (
           <p className="text-sm text-rose-600">No logged-in researcher found.</p>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label
                 htmlFor="study-name"
@@ -185,44 +197,98 @@ export default function CreateStudyPage() {
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Requested fields
-              </label>
-
-              {loadingFields ? (
-                <p className="text-sm text-slate-500">Loading fields...</p>
-              ) : availableFields.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  No fields are currently available.
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Required fields
+                </label>
+                <p className="mb-3 text-sm text-slate-500">
+                  Participants must keep these fields consented to stay in the study.
                 </p>
-              ) : (
-                <div className="space-y-2">
-                  {availableFields.map((field) => (
-                    <label
-                      key={field.field_id}
-                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedFieldIds.includes(field.field_id)}
-                        onChange={() => toggleField(field.field_id)}
-                        className="mt-1"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {field.field_name}
-                        </p>
-                        {field.field_desc ? (
-                          <p className="text-sm text-slate-500">
-                            {field.field_desc}
+
+                {loadingFields ? (
+                  <p className="text-sm text-slate-500">Loading fields...</p>
+                ) : availableFields.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No fields are currently available.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {availableFields.map((field) => (
+                      <label
+                        key={`required-${field.field_id}`}
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={requiredFieldIds.includes(field.field_id)}
+                          onChange={() => toggleField(field.field_id, "required")}
+                          className="mt-1"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">
+                            {field.field_name}
                           </p>
-                        ) : null}
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
+                          {field.field_desc ? (
+                            <p className="text-sm text-slate-500">
+                              {field.field_desc}
+                            </p>
+                          ) : null}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Optional fields
+                </label>
+                <p className="mb-3 text-sm text-slate-500">
+                  These can be shared voluntarily by participants after joining.
+                </p>
+
+                {loadingFields ? (
+                  <p className="text-sm text-slate-500">Loading fields...</p>
+                ) : availableFields.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    No fields are currently available.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {availableFields.map((field) => (
+                      <label
+                        key={`optional-${field.field_id}`}
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={optionalFieldIds.includes(field.field_id)}
+                          onChange={() => toggleField(field.field_id, "optional")}
+                          className="mt-1"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">
+                            {field.field_name}
+                          </p>
+                          {field.field_desc ? (
+                            <p className="text-sm text-slate-500">
+                              {field.field_desc}
+                            </p>
+                          ) : null}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              Required fields selected: {requiredFieldIds.length}
+              <br />
+              Optional fields selected: {optionalFieldIds.length}
             </div>
 
             <div className="flex flex-wrap gap-3">

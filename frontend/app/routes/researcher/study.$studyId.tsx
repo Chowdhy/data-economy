@@ -2,60 +2,93 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import ParticipantDataTable from "~/components/researcher/ParticipantDataTable";
+import Badge from "~/components/ui/Badge";
+import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
-import type { StudyDataResponse } from "~/lib/types";
+import type { StudyDataResponse, StudyDetail } from "~/lib/types";
+import { titleCase } from "~/lib/utils";
 
 export default function ResearcherStudyDetailPage() {
   const params = useParams();
   const studyId = Number(params.studyId);
 
+  const [study, setStudy] = useState<StudyDetail | null>(null);
   const [data, setData] = useState<StudyDataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dataMessage, setDataMessage] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState("");
 
-  useEffect(() => {
-    async function loadStudyData() {
-      if (!studyId || Number.isNaN(studyId)) {
-        setError("Invalid study ID.");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError("");
-        const response = await api.getStudyData(studyId);
-        setData(response);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load study data",
-        );
-      } finally {
-        setLoading(false);
-      }
+  async function loadStudy() {
+    if (!studyId || Number.isNaN(studyId)) {
+      setError("Invalid study ID.");
+      setLoading(false);
+      return;
     }
 
-    loadStudyData();
+    try {
+      setLoading(true);
+      setError("");
+      setDataMessage("");
+
+      const studyResponse = await api.getStudy(studyId);
+      setStudy(studyResponse.study);
+
+      try {
+        const dataResponse = await api.getStudyData(studyId);
+        setData(dataResponse);
+      } catch (err) {
+        setData(null);
+        setDataMessage(
+          err instanceof Error
+            ? err.message
+            : "Study data is not currently available.",
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load study");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStatusChange(status: "open" | "ongoing" | "complete") {
+    if (!study) return;
+
+    try {
+      setUpdatingStatus(status);
+      setError("");
+      await api.updateStudyStatus(study.study_id, status);
+      await loadStudy();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update status");
+    } finally {
+      setUpdatingStatus("");
+    }
+  }
+
+  useEffect(() => {
+    loadStudy();
   }, [studyId]);
 
   return (
     <AppShell
       role="researcher"
-      title={data ? data.study.study_name : "Study Details"}
-      subtitle="Only data for consented fields should appear here."
+      title={study ? study.study_name : "Study Details"}
+      subtitle="Study data is only available while the study is ongoing."
     >
       <SectionHeading
         title="Study data"
-        description="This view groups participant responses by participant ID and only shows fields that are currently consented."
+        description="Use the status controls below to move between open, ongoing, and complete. Participant responses appear only when the study is ongoing."
       />
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading study data...</p>
       ) : error ? (
         <p className="text-sm text-rose-600">{error}</p>
-      ) : !data ? (
+      ) : !study ? (
         <Card>
           <p className="text-sm text-slate-500">No study data found.</p>
         </Card>
@@ -66,45 +99,89 @@ export default function ResearcherStudyDetailPage() {
               <div>
                 <p className="text-sm text-slate-500">Study ID</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
-                  {data.study.study_id}
+                  {study.study_id}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm text-slate-500">Study name</p>
+                <p className="text-sm text-slate-500">Status</p>
+                <div className="mt-1">
+                  <Badge tone="neutral">{titleCase(study.status)}</Badge>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-slate-500">Participants</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
-                  {data.study.study_name}
+                  {study.participant_count}
                 </p>
               </div>
 
               <div>
                 <p className="text-sm text-slate-500">Duration</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
-                  {data.study.duration_months
-                    ? `${data.study.duration_months} months`
-                    : "—"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-sm text-slate-500">Status</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {data.study.status}
+                  {study.duration_months ? `${study.duration_months} months` : "-"}
                 </p>
               </div>
             </div>
 
-            {data.study.description ? (
+            {study.description ? (
               <div className="mt-4">
                 <p className="text-sm text-slate-500">Description</p>
                 <p className="mt-1 text-sm text-slate-700">
-                  {data.study.description}
+                  {study.description}
                 </p>
               </div>
             ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge tone="success">
+                {study.required_field_ids.length} required fields
+              </Badge>
+              {study.optional_field_ids.length > 0 ? (
+                <Badge tone="neutral">
+                  {study.optional_field_ids.length} optional fields
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant={study.status === "open" ? "primary" : "secondary"}
+                disabled={updatingStatus !== "" || study.status === "open"}
+                onClick={() => handleStatusChange("open")}
+              >
+                {updatingStatus === "open" ? "Updating..." : "Mark Open"}
+              </Button>
+              <Button
+                type="button"
+                variant={study.status === "ongoing" ? "primary" : "secondary"}
+                disabled={updatingStatus !== "" || study.status === "ongoing"}
+                onClick={() => handleStatusChange("ongoing")}
+              >
+                {updatingStatus === "ongoing" ? "Updating..." : "Mark Ongoing"}
+              </Button>
+              <Button
+                type="button"
+                variant={study.status === "complete" ? "primary" : "secondary"}
+                disabled={updatingStatus !== "" || study.status === "complete"}
+                onClick={() => handleStatusChange("complete")}
+              >
+                {updatingStatus === "complete" ? "Updating..." : "Mark Complete"}
+              </Button>
+            </div>
           </Card>
 
-          <ParticipantDataTable data={data} />
+          {data ? (
+            <ParticipantDataTable data={data} />
+          ) : (
+            <Card>
+              <p className="text-sm text-slate-600">
+                {dataMessage || "Participant data is not currently available."}
+              </p>
+            </Card>
+          )}
         </div>
       )}
     </AppShell>

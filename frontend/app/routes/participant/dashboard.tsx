@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import ConsentSummary from "~/components/consent/ConsentSummary";
 import StudyCard from "~/components/consent/StudyCard";
@@ -8,6 +9,7 @@ import type { ParticipantStudy } from "~/lib/types";
 import { getCurrentUser } from "~/lib/auth";
 
 export default function ParticipantDashboard() {
+  const navigate = useNavigate();
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,16 +99,7 @@ export default function ParticipantDashboard() {
                   onWithdrawStudy={() =>
                     handleWithdrawFromStudy(study.study_id)
                   }
-                  onWithdrawConsent={() =>
-                    alert(
-                      "Wire this button to a consent management form or modal next."
-                    )
-                  }
-                  onRegrantConsent={() =>
-                    alert(
-                      "Wire this button to a consent management form or modal next."
-                    )
-                  }
+                  onModifyConsent={() => navigate("/participant/studies")}
                 />
               ))}
             </div>
