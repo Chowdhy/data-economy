@@ -621,6 +621,45 @@ def list_participant_studies(participant_id):
     }), 200
 
 
+@api.route("/participants/<int:participant_id>/available-studies", methods=["GET"])
+def list_available_studies(participant_id):
+    participant = User.query.get(participant_id)
+    if not participant:
+        return error("participant not found", 404)
+
+    if participant.role_id != "participant":
+        return error("user is not a participant", 403)
+
+    joined_study_ids = {
+        row.study_id
+        for row in StudyParticipant.query.filter_by(participant_id=participant_id).all()
+    }
+
+    studies = Study.query.filter_by(status="open").all()
+
+    results = []
+    for study in studies:
+        if study.study_id in joined_study_ids:
+            continue
+
+        study_fields = split_study_field_ids(study.study_id)
+
+        results.append({
+            "study_id": study.study_id,
+            "study_name": study.study_name,
+            "description": study.description,
+            "duration_months": study.duration_months,
+            "status": study.status,
+            "required_field_ids": study_fields["required_field_ids"],
+            "optional_field_ids": study_fields["optional_field_ids"],
+        })
+
+    return jsonify({
+        "participant_id": participant_id,
+        "studies": results,
+    }), 200
+
+
 @api.route("/researchers/<int:researcher_id>/studies", methods=["GET"])
 def list_researcher_studies(researcher_id):
     researcher = User.query.get(researcher_id)

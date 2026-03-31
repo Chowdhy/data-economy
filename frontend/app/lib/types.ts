@@ -46,6 +46,16 @@ export interface ParticipantStudy {
   optional_field_ids: number[];
 }
 
+export interface AvailableStudy {
+  study_id: number;
+  study_name: string;
+  description?: string;
+  duration_months?: number;
+  status: StudyStatus;
+  required_field_ids: number[];
+  optional_field_ids: number[];
+}
+
 export interface ResearcherStudy {
   study_id: number;
   study_name: string;

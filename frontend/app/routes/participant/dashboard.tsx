@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import ConsentSummary from "~/components/consent/ConsentSummary";
 import StudyCard from "~/components/consent/StudyCard";
+import Button from "~/components/ui/Button";
+import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import type { ParticipantStudy } from "~/lib/types";
@@ -75,6 +77,36 @@ export default function ParticipantDashboard() {
           fullConsentCount={fullConsentCount}
           partialConsentCount={partialConsentCount}
         />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Discover open studies
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Browse studies you can join and review the required information before opting in.
+            </p>
+            <Button className="mt-4" onClick={() => navigate("/participant/discover")}>
+              Find studies
+            </Button>
+          </Card>
+
+          <Card>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Update your answers
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Keep your saved participant data current so studies can use your latest information.
+            </p>
+            <Button
+              className="mt-4"
+              variant="secondary"
+              onClick={() => navigate("/participant/profile")}
+            >
+              Edit answers
+            </Button>
+          </Card>
+        </div>
 
         <section>
           <SectionHeading

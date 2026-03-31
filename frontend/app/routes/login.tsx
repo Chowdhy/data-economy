@@ -31,11 +31,8 @@ export default function LoginPage() {
       });
 
       const user = response.user;
-
-      // Store logged-in user
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Redirect based on role
       if (user.role_id === "participant") {
         navigate("/participant/dashboard");
       } else {
@@ -81,7 +78,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Login"}
@@ -89,7 +86,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-600">
-          Don’t have an account?{" "}
+          Don't have an account?{" "}
           <Link
             to="/signup"
             className="font-medium text-emerald-700 hover:text-emerald-800"

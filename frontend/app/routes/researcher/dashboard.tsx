@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import StudyOverviewCard from "~/components/researcher/StudyOverviewCard";
+import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
@@ -84,6 +85,18 @@ export default function ResearcherDashboard() {
               {totalParticipants}
             </p>
           </Card>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => navigate("/researcher/create-study")}>
+            Create study
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate("/researcher/fields")}
+          >
+            Manage fields
+          </Button>
         </div>
 
         <section>

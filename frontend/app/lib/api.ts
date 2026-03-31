@@ -1,4 +1,5 @@
 import type {
+  AvailableStudy,
   FieldDescription,
   ParticipantStudy,
   ResearcherStudy,
@@ -78,6 +79,11 @@ export const api = {
   getParticipantStudies: (participantId: number) =>
     request<{ participant_id: number; studies: ParticipantStudy[] }>(
       `/participants/${participantId}/studies`
+    ),
+
+  getAvailableStudies: (participantId: number) =>
+    request<{ participant_id: number; studies: AvailableStudy[] }>(
+      `/participants/${participantId}/available-studies`
     ),
 
   getResearcherStudies: (researcherId: number) =>

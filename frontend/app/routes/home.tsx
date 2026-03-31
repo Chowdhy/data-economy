@@ -46,12 +46,20 @@ export default function Home() {
         </div>
 
         <div className="mt-6">
-          <Link
-            to="/login"
-            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
-          >
-            Go to login
-          </Link>
+          <div className="flex flex-wrap gap-4 text-sm font-medium">
+            <Link
+              to="/login"
+              className="text-emerald-700 hover:text-emerald-800"
+            >
+              Go to login
+            </Link>
+            <Link
+              to="/signup"
+              className="text-slate-700 hover:text-slate-900"
+            >
+              Create account
+            </Link>
+          </div>
         </div>
       </div>
     </div>

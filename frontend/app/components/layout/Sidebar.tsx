@@ -12,11 +12,13 @@ export default function Sidebar({ role }: SidebarProps) {
     role === "participant"
       ? [
           { to: "/participant/dashboard", label: "Dashboard" },
+          { to: "/participant/discover", label: "Join Studies" },
           { to: "/participant/studies", label: "My Studies" },
           { to: "/participant/profile", label: "My Answers" },
         ]
       : [
           { to: "/researcher/dashboard", label: "Dashboard" },
+          { to: "/researcher/fields", label: "Fields" },
           { to: "/researcher/studies", label: "Studies" },
           { to: "/researcher/create-study", label: "Create Study" },
         ];
@@ -29,7 +31,9 @@ export default function Sidebar({ role }: SidebarProps) {
 
       <nav className="space-y-2" aria-label={`${role} navigation`}>
         {links.map((link) => {
-          const active = location.pathname === link.to;
+          const active =
+            location.pathname === link.to ||
+            (link.to !== "/" && location.pathname.startsWith(`${link.to}/`));
 
           return (
             <Link
