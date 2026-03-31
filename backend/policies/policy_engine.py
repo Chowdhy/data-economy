@@ -2,6 +2,7 @@ import json
 import os
 
 class PolicyEngine:
+    # Load .json file: 
     def __init__(self, policy_file):
         with open(policy_file, "r") as f:
             self.policies = json.load(f)["policies"]
@@ -11,16 +12,18 @@ class PolicyEngine:
             if policy.get("action") != action:
                 continue
 
-            # Check constraints: 
+        
             constraints = policy.get("constraints", [])
-            if not self._check_constraints(constraints, context):
-                # If permission rule fails → deny
-                if policy.get("permission"):
-                    return False
-
+            matches = self._check_constraints(constraints, context)
+            # Prohibition check (deny if a match is found):
+            if policy.get("permission") is False and matches:
+                return False
+            # Permission check (allow if a match is found):
+            if policy.get("permission") is True and not matches:
+                return False
             # Duty check (must satisfy):
             if policy.get("duty"):
-                if not self._check_constraints(constraints, context):
+                if policy.get("duty") and not matches:
                     return False
 
         return True

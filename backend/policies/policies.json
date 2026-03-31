@@ -1,7 +1,7 @@
 {
   "policies": [
     {
-      "id": "modify-consent-permission",
+      "id": "modify-consent-allowed",
       "action": "modifyConsent",
       "permission": true,
       "constraints": [
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "modify-consent-prohibition",
+      "id": "modify-consent-denied",
       "action": "modifyConsent",
       "permission": false,
       "constraints": [
@@ -25,25 +25,49 @@
       ]
     },
     {
-      "id": "required-fields-duty",
-      "action": "modifyConsent",
-      "duty": true,
+      "id": "join-study-allowed",
+      "action": "joinStudy",
+      "permission": true,
       "constraints": [
         {
-          "field": "requiredFieldsProvided",
+          "field": "studyStatus",
           "operator": "eq",
-          "value": true
+          "value": "open"
         }
       ]
-    },
+    }, 
     {
-      "id": "access-data",
+      "id": "join-study-denied",
+      "action": "joinStudy",
+      "permission": false,
+      "constraints": [
+        {
+          "field": "studyStatus",
+          "operator": "neq",
+          "value": "open"
+        }
+      ]
+    }, 
+    {
+      "id": "access-data-allowed",
       "action": "accessData",
       "permission": true,
       "constraints": [
         {
           "field": "studyStatus",
           "operator": "eq",
+          "value": "ongoing"
+        }
+      ]
+    },
+    {
+      "id": "access-data-denied-not-ongoing",
+      "action": "accessData",
+      "permission": false,
+      "constraints": [
+        {
+          "field": "studyStatus",
+          "operator": "neq",
           "value": "ongoing"
         }
       ]

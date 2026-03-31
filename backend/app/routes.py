@@ -14,6 +14,9 @@ from .models import (
 
 api = Blueprint("api", __name__)
 policy_engine = get_policy_engine()
+def check_policy(action, context):
+    if not policy_engine.is_allowed(action, context):
+        return error(f"action '{action}' is not allowed under current policies", 403)
 
 def error(message, status=400):
     return jsonify({"error": message}), status
@@ -196,9 +199,12 @@ def join_study(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
-    # Modify so they can only join when the study is open: 
-    if study.status != "open":
-        return error("study is not open for participants")
+    
+    context = {"studyStatus": study.status}
+    policy_error = check_policy("joinStudy", context)
+    if policy_error:
+        return policy_error
+    
     user = User.query.get(participant_id)
     if not user:
         return error("participant not found", 404)
@@ -407,8 +413,10 @@ def modify_consent(study_id):
         return error("participant is not enrolled in this study", 404)
 
     study = Study.query.get(study_id)
+    if not study: 
+        return error("study not found", 404)
    
-    # Get all valid fields
+    # Get all valid fields:
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     all_field_ids = {f.field_id for f in study_fields}
 
@@ -416,13 +424,23 @@ def modify_consent(study_id):
     if invalid:
         return error(f"invalid field_ids: {invalid}")
 
-    # Required fields check FIRST
+    # Required fields check: 
     required_fields = StudyRequiredField.query.filter_by(
         study_id=study_id,
         is_required=True
     ).all()
     required_ids = {f.field_id for f in required_fields}
+    # First check, can they modify at all or is the study closed: 
+    context = {
+        "studyStatus": study.status,
+        "requiredFieldsProvided": required_ids.issubset(set(consented_field_ids))
+    }
+
+    policy_error = check_policy("modifyConsent", context)
+    if policy_error:
+        return policy_error
     
+    # Only if modifications are allowed: 
     if not required_ids.issubset(set(consented_field_ids)):
         db.session.delete(membership)
         db.session.commit()
@@ -433,14 +451,6 @@ def modify_consent(study_id):
             "participant_id": participant_id
         }), 200
     
-    context = {
-        "studyStatus": study.status,
-        "requiredFieldsProvided": True
-    }
-
-    if not policy_engine.is_allowed("modifyConsent", context):
-            return error("consent modification violates study policies and cannot be saved")
-
     # Update consent ONLY if valid
     StudyParticipantConsentedField.query.filter_by(
         study_id=study_id,
@@ -640,8 +650,11 @@ def get_study_data(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
-    if study.status != "ongoing":
-        return error ("study data can only be accessed when study is ongoing")
+    
+    context = {"studyStatus": study.status}
+    policy_error = check_policy("accessData", context)
+    if policy_error:
+        return policy_error
 
     rows = db.session.query(
         StudyParticipantConsentedField.participant_id,
