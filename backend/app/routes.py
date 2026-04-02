@@ -235,13 +235,19 @@ def create_study():
 
 
 @api.route("/studies/<int:study_id>/join", methods=["POST"])
+@jwt_required()
 def join_study(study_id):
-    data = request.get_json() or {}
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    
+    if current_user.role_id != "participant":
+        return error("only participants can join studies", 403)
+    
+    #data = request.get_json() or {}
 
-    participant_id = data.get("participant_id")
-
-    if participant_id is None:
-        return error("participant_id is required")
+    # Here anyone can pretend to be anyone: 
+    #participant_id = data.get("participant_id")
 
     study = Study.query.get(study_id)
     if not study:
@@ -252,16 +258,9 @@ def join_study(study_id):
     if policy_error:
         return policy_error
     
-    user = User.query.get(participant_id)
-    if not user:
-        return error("participant not found", 404)
-
-    if user.role_id != "participant":
-        return error("user is not a participant", 403)
-
     existing_link = StudyParticipant.query.filter_by(
         study_id=study_id,
-        participant_id=participant_id,
+        participant_id=current_user.user_id,
     ).first()
 
     if existing_link:
@@ -269,7 +268,7 @@ def join_study(study_id):
 
     link = StudyParticipant(
         study_id=study_id,
-        participant_id=participant_id,
+        participant_id=current_user.user_id,
         consent_all_fields=False,
     )
     db.session.add(link)
@@ -280,7 +279,7 @@ def join_study(study_id):
     for required in required_fields:
         db.session.add(StudyParticipantConsentedField(
             study_id=study_id,
-            participant_id=participant_id,
+            participant_id=current_user.user_id,
             field_id=required.field_id,
         ))
 
@@ -289,8 +288,7 @@ def join_study(study_id):
     return jsonify({
         "message": "participant joined study and consented to all required fields by default",
         "study_id": study_id,
-        "participant_id": participant_id,
-        "consented_field_ids": [rf.field_id for rf in required_fields],
+        "participant_id": current_user.user_id,
     }), 201
 
 
@@ -346,30 +344,40 @@ def withdraw_consent_fields(study_id):
 
 
 @api.route("/studies/<int:study_id>/withdraw", methods=["POST"])
+@jwt_required()
 def withdraw_from_study(study_id):
-    data = request.get_json() or {}
+    current_user = get_current_user()
 
-    participant_id = data.get("participant_id")
-    if participant_id is None:
-        return error("participant_id is required")
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.role_id != "participant":
+        return error("only participants can withdraw", 403)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    # 🔒 Optional: enforce only during open phase
+    if study.status != "open":
+        return error("cannot withdraw after study is closed", 403)
 
     membership = StudyParticipant.query.filter_by(
         study_id=study_id,
-        participant_id=participant_id,
+        participant_id=current_user.user_id,
     ).first()
 
     if not membership:
-        return error("participant is not enrolled in this study", 404)
+        return error("not enrolled in this study", 404)
 
     db.session.delete(membership)
     db.session.commit()
 
     return jsonify({
-        "message": "participant withdrawn from study",
+        "message": "withdrawn from study",
         "study_id": study_id,
-        "participant_id": participant_id,
+        "participant_id": current_user.user_id,
     }), 200
-
 
 ''' @api.route("/studies/<int:study_id>/consent/regrant", methods=["POST"])
 def regrant_consent_fields(study_id):
@@ -441,19 +449,21 @@ def regrant_consent_fields(study_id):
 
 @api.route("/studies/<int:study_id>/consent/modify", methods=["POST"])
 def modify_consent(study_id):
-    data = request.get_json() or {}
-    
-    participant_id = data.get("participant_id")
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    if current_user.role_id != "participant":
+        return error("only participants can modify consent", 403)
+
+    data = request.get_json() or {}    
     consented_field_ids = data.get("consented_field_ids", [])
 
-    if participant_id is None:
-        return error("participant_id is required")
     if not isinstance(consented_field_ids, list):
         return error("consented_field_ids must be a list")
 
     membership = StudyParticipant.query.filter_by(
         study_id=study_id,
-        participant_id=participant_id,
+        participant_id=current_user.user_id,
     ).first()
 
     if not membership:
@@ -494,32 +504,27 @@ def modify_consent(study_id):
 
         return jsonify({
             "message": "withdrawn from study due to removing required fields",
-            "study_id": study_id,
-            "participant_id": participant_id
         }), 200
     
     # Update consent ONLY if valid
     StudyParticipantConsentedField.query.filter_by(
         study_id=study_id,
-        participant_id=participant_id,
+        participant_id=current_user.user_id,
     ).delete(synchronize_session=False)
 
     for fid in consented_field_ids:
         db.session.add(StudyParticipantConsentedField(
             study_id=study_id,
-            participant_id=participant_id,
+            participant_id=current_user.user_id,
             field_id=fid,
         ))
 
-    membership.consent_all_fields = True
+    membership.consent_all_fields = (len(consented_field_ids) == len(all_field_ids))
     db.session.commit()
 
     return jsonify({
         "message": "consent updated",
-        "study_id": study_id,
-        "participant_id": participant_id,
         "consented_field_ids": consented_field_ids,
-        "consent_all_fields": True,
     }), 200
 
 
