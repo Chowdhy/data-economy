@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
 from policies.policy_engine import get_policy_engine
@@ -31,6 +32,18 @@ def split_study_field_ids(study_id):
         "all_field_ids": [row.field_id for row in study_fields],
     }
 
+def get_current_user():
+    user_id = get_jwt_identity()
+    if user_id is None:
+        return None
+    return User.query.get(int(user_id))
+
+def require_role(*allowed_roles):
+    user = get_current_user()
+    if not user: 
+        return None, error ("user not found", 404)
+    if user.role_id not in allowed_roles:
+        return None, error("user does not have required role", 403)
 
 @api.route("/health", methods=["GET"])
 def health():
@@ -117,8 +130,13 @@ def create_field():
         }
     }), 201
 
+# Testing token:
 @api.route("/fields", methods=["GET"])
+@jwt_required()
 def list_fields():
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
     fields = FieldDescription.query.order_by(FieldDescription.field_name.asc()).all()
 
     return jsonify({
@@ -133,7 +151,11 @@ def list_fields():
     }), 200
 
 @api.route("/studies", methods=["POST"])
+@jwt_required()
 def create_study():
+    current_user, role_error = require_role("researcher")
+    if role_error:
+        return role_error
     data = request.get_json() or {}
 
     study_name = data.get("study_name") 
@@ -807,8 +829,17 @@ def login():
     if user.requested_role == "researcher" and not user.is_approved:
         return error("researcher account pending approval by regulator", 403)
 
+    # Create access JWT token with role_id and email as identity:
+    access_token = create_access_token(
+        identity=str(user.user_id),
+        additional_claims={
+            "role_id": user.role_id,
+            "email": user.email
+        }
+    )
     return jsonify({
         "message": "login successful",
+        "access_token": access_token,
         "user": {
             "user_id": user.user_id,
             "name": user.name,
