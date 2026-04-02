@@ -1,5 +1,6 @@
 from app import create_app
 from app.extensions import db
+from werkzeug.security import generate_password_hash
 from app.models import (
     User,
     Study,
@@ -24,41 +25,80 @@ def clear_data():
 
 
 def seed_data():
-    # Users
+    # Updated Users
+
+    # REGULATOR (needed for approvals)
+    regulator = User(
+        name="Admin Regulator",
+        email="admin@system.com",
+        password_hash=generate_password_hash("admin123"),
+        role_id="regulator",
+        requested_role=None,
+        is_approved=True,
+    )
+
+    # APPROVED researchers
     researcher_1 = User(
         name="Dr Alice Smith",
         email="alice.researcher@example.com",
-        password_hash="test123",
+        password_hash=generate_password_hash("test123"),
         role_id="researcher",
+        requested_role=None,
+        is_approved=True,
     )
+
     researcher_2 = User(
         name="Dr Bob Jones",
         email="bob.researcher@example.com",
-        password_hash="test123",
+        password_hash=generate_password_hash("test123"),
         role_id="researcher",
+        requested_role=None,
+        is_approved=True,
     )
+
+    # PENDING researcher (VERY useful for testing)
+    pending_researcher = User(
+        name="Pending Researcher",
+        email="pending.researcher@example.com",
+        password_hash=generate_password_hash("test123"),
+        role_id="participant",  # still participant
+        requested_role="researcher",
+        is_approved=False,
+    )
+
+    # Participants
     participant_1 = User(
         name="John Doe",
         email="john.participant@example.com",
-        password_hash="test123",
+        password_hash=generate_password_hash("test123"),
         role_id="participant",
+        requested_role=None,
+        is_approved=True,
     )
+
     participant_2 = User(
         name="Jane Roe",
         email="jane.participant@example.com",
-        password_hash="test123",
+        password_hash=generate_password_hash("test123"),
         role_id="participant",
+        requested_role=None,
+        is_approved=True,
     )
+
     participant_3 = User(
         name="Sam Lee",
         email="sam.participant@example.com",
-        password_hash="test123",
+        password_hash=generate_password_hash("test123"),
         role_id="participant",
+        requested_role=None,
+        is_approved=True,
     )
 
     db.session.add_all([
+        regulator,
         researcher_1,
         researcher_2,
+        pending_researcher,
         participant_1,
         participant_2,
         participant_3,
@@ -300,17 +340,20 @@ def seed_data():
     db.session.commit()
 
     print("Seed data inserted successfully.")
+    print("Regulator:")
+    print(f"  {regulator.user_id}: {regulator.email}")
+
     print("Researchers:")
     print(f"  {researcher_1.user_id}: {researcher_1.email}")
     print(f"  {researcher_2.user_id}: {researcher_2.email}")
+
+    print("Pending Researchers:")
+    print(f"  {pending_researcher.user_id}: {pending_researcher.email}")
+
     print("Participants:")
     print(f"  {participant_1.user_id}: {participant_1.email}")
     print(f"  {participant_2.user_id}: {participant_2.email}")
     print(f"  {participant_3.user_id}: {participant_3.email}")
-    print("Studies:")
-    print(f"  {study_1.study_id}: {study_1.study_name}")
-    print(f"  {study_2.study_id}: {study_2.study_name}")
-    print(f"  {study_3.study_id}: {study_3.study_name}")
 
 
 if __name__ == "__main__":

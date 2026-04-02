@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
 from policies.policy_engine import get_policy_engine
 from .extensions import db
@@ -43,23 +44,37 @@ def create_user():
     name = data.get("name")
     email = data.get("email")
     password = data.get("password")
-    role_id = data.get("role_id")
+    requested_role = data.get("role_id", "participant")
 
-    if not all([name, email, password, role_id]):
-        return error("name, email, password, and role_id are required")
 
-    if role_id not in {"participant", "researcher"}:
-        return error("role_id must be 'participant' or 'researcher'")
+    if not all([name, email, password]):
+        return error("name, email, and password are required")
 
+    if requested_role not in {"participant", "researcher"}:
+        return error("can only request role of 'participant' or 'researcher' at signup")
+    
     existing = User.query.filter_by(email=email).first()
     if existing:
         return error("email already exists", 409)
+    
+    # Hash plain text password: 
+    hashed_password = generate_password_hash(password)
+
+    if requested_role == "participant":
+        role_id = "participant"
+        is_approved = True
+    else:
+        role_id = "participant" # still partipant until approved by regulator
+        is_approved = False
+
 
     user = User(
         name=name,
         email=email,
-        password_hash=password,
+        password_hash=hashed_password,
         role_id=role_id,
+        requested_role=requested_role if requested_role!= "participant" else None,
+        is_approved=is_approved
     )
     db.session.add(user)
     db.session.commit()
@@ -68,9 +83,10 @@ def create_user():
         "message": "user created",
         "user": {
             "user_id": user.user_id,
-            "name": user.name,
             "email": user.email,
             "role_id": user.role_id,
+            "requested_role": user.requested_role,
+            "is_approved": user.is_approved
         }
     }), 201
 
@@ -784,8 +800,12 @@ def login():
     if not user:
         return error("invalid email or password", 401)
 
-    if user.password_hash != password:
+    # Check hashed password: 
+    if not check_password_hash(user.password_hash, password):
         return error("invalid email or password", 401)
+    # Block unapproved researcher requests: 
+    if user.requested_role == "researcher" and not user.is_approved:
+        return error("researcher account pending approval by regulator", 403)
 
     return jsonify({
         "message": "login successful",
@@ -797,6 +817,34 @@ def login():
         }
     }), 200
 
+# NEW Endpoint: add regulator approval
+@api.route("/admin/users/<int:user_id>/approve", methods=["POST"])
+def approve_user(user_id):
+    data = request.get_json() or {}
+    regulator_id = data.get("regulator_id")
+
+    regulator = User.query.get(regulator_id) # not secure yet, will add more authentication later
+    if not regulator or regulator.role_id != "regulator":
+        return error("only regulators can approve users", 403)
+
+    user = User.query.get(user_id)
+    if not user:
+        return error("user not found", 404)
+
+    if not user.requested_role:
+        return error("user has no pending role request")
+
+    user.role_id = user.requested_role
+    user.requested_role = None
+    user.is_approved = True
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "user approved",
+        "user_id": user.user_id,
+        "new_role": user.role_id
+    }), 200
 
 # Testing endpoint for status: 
 @api.route("/studies/<int:study_id>/status", methods=["PATCH"])
