@@ -45,6 +45,7 @@ def seed_data():
         role_id="researcher",
         requested_role=None,
         is_approved=True,
+        is_active=False
     )
 
     researcher_2 = User(

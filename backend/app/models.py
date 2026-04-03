@@ -12,6 +12,7 @@ class User(db.Model):
     # Adding a requested_role flag for researchers - regulators need to approve them in order for them to be active researchers on the platform: 
     requested_role = db.Column(db.String(50), nullable=True)
     is_approved = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
 
     # Logging element (when the user was created):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

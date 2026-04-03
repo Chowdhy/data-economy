@@ -44,6 +44,7 @@ def require_role(*allowed_roles):
         return None, error ("user not found", 404)
     if user.role_id not in allowed_roles:
         return None, error("user does not have required role", 403)
+    return user, None
 
 @api.route("/health", methods=["GET"])
 def health():
@@ -822,18 +823,19 @@ def login():
 
     if not email or not password:
         return error("email and password are required")
-
     user = User.query.filter_by(email=email).first()
     if not user:
         return error("invalid email or password", 401)
-
     # Check hashed password: 
     if not check_password_hash(user.password_hash, password):
         return error("invalid email or password", 401)
     # Block unapproved researcher requests: 
     if user.requested_role == "researcher" and not user.is_approved:
         return error("researcher account pending approval by regulator", 403)
-
+    # Block inactive users:
+    if not user.is_active:
+        return error("account is inactive", 403)
+    
     # Create access JWT token with role_id and email as identity:
     access_token = create_access_token(
         identity=str(user.user_id),
