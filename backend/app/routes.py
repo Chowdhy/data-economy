@@ -106,7 +106,12 @@ def create_user():
 
 
 @api.route("/fields", methods=["POST"])
+@jwt_required()
 def create_field():
+    current_user , role_error = require_role("researcher")
+    if role_error:
+        return role_error
+    
     data = request.get_json() or {}
 
     field_name = data.get("field_name")
@@ -114,10 +119,17 @@ def create_field():
 
     if not field_name:
         return error("field_name is required")
+    
+    # Prevent duplicates: 
+    existing = FieldDescription.query.filter_by(field_name=field_name).first()
+    if existing:
+        return error("field_name already exists", 409)
 
     field = FieldDescription(
         field_name=field_name,
         field_desc=field_desc,
+        status="pending",
+        created_by=current_user.user_id
     )
     db.session.add(field)
     db.session.commit()
@@ -131,14 +143,74 @@ def create_field():
         }
     }), 201
 
-# Testing token:
+# Approval of fields by regualtor endpoint: 
+@api.route("/fields/<int:field_id>/approve", methods=["POST"])
+@jwt_required()
+def approve_field(field_id):
+    current_user, role_error = require_role("regulator")
+    if role_error:
+        return role_error
+
+    field = FieldDescription.query.get(field_id)
+    if not field:
+        return error("field not found", 404)
+
+    if field.status == "approved":
+        return error("field already approved", 400)
+
+    field.status = "approved"
+    field.approved_by = current_user.user_id
+    field.rejection_reason = None
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "field approved",
+        "field_id": field.field_id
+    }), 200
+
+# Rejection of fields by regulator endpoint:
+@api.route("/fields/<int:field_id>/reject", methods=["POST"])
+@jwt_required()
+def reject_field(field_id):
+    current_user, role_error = require_role("regulator")
+    if role_error:
+        return role_error
+
+    data = request.get_json() or {}
+    reason = data.get("reason", "no reason provided")
+
+    field = FieldDescription.query.get(field_id)
+    if not field:
+        return error("field not found", 404)
+
+    field.status = "rejected"
+    field.approved_by = current_user.user_id
+    field.rejection_reason = reason
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "field rejected",
+        "reason": reason
+    }), 200
+
+
 @api.route("/fields", methods=["GET"])
 @jwt_required()
 def list_fields():
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
-    fields = FieldDescription.query.order_by(FieldDescription.field_name.asc()).all()
+    
+    if current_user.role_id == "regulator":
+        fields = FieldDescription.query.all()
+    elif current_user.role_id == "researcher":
+        fields = FieldDescription.query.order_by((FieldDescription.status == "approved") |
+            (FieldDescription.created_by == current_user.user_id)
+        ).all()
+    else: 
+        fields = FieldDescription.query.filter_by(status="approved").all() 
 
     return jsonify({
         "fields": [
@@ -146,6 +218,7 @@ def list_fields():
                 "field_id": field.field_id,
                 "field_name": field.field_name,
                 "field_desc": field.field_desc,
+                "status": field.status
             }
             for field in fields
         ]
