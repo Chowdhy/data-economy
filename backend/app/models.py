@@ -48,7 +48,7 @@ class Study(db.Model):
         db.ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False
     )
-    status = db.Column(db.String(50), nullable=False, default="open")
+    status = db.Column(db.String(50), nullable=False, default="pending")
 
 
     creator = db.relationship("User", back_populates="created_studies")
@@ -78,10 +78,7 @@ class FieldDescription(db.Model):
     field_id = db.Column(db.Integer, primary_key=True)
     field_name = db.Column(db.String(255), unique=True, nullable=False)
     field_desc = db.Column(db.Text)
-    status = db.Column(db.String(50), default="pending")  # pending, approved, rejected
     created_by = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True)
-    approved_by = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True)
-    rejection_reason = db.Column(db.Text, nullable=True)
 
     study_links = db.relationship(
         "StudyRequiredField",

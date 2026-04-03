@@ -71,6 +71,22 @@
           "value": "ongoing"
         }
       ]
-    }
-  ]
+    },
+  {
+    "id": "view-fields-participant",
+    "action": "viewFieldsParticipant",
+    "permission": true,
+    "constraints": [
+      { "field": "studyStatus", "operator": "eq", "value": "open" }
+    ]
+  },
+  {
+    "id": "view-fields-regulator",
+    "action": "viewFieldsRegulator",
+    "permission": true,
+    "constraints": [
+    { "field": "studyStatus", "operator": "eq", "value": "pending" }
+    ]
+  }]
+
 }

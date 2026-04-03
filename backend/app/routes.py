@@ -128,14 +128,13 @@ def create_field():
     field = FieldDescription(
         field_name=field_name,
         field_desc=field_desc,
-        status="pending",
         created_by=current_user.user_id
     )
     db.session.add(field)
     db.session.commit()
 
     return jsonify({
-        "message": "field created",
+        "message": "field created by researcher",
         "field": {
             "field_id": field.field_id,
             "field_name": field.field_name,
@@ -143,86 +142,99 @@ def create_field():
         }
     }), 201
 
-# Approval of fields by regualtor endpoint: 
-@api.route("/fields/<int:field_id>/approve", methods=["POST"])
-@jwt_required()
-def approve_field(field_id):
-    current_user, role_error = require_role("regulator")
-    if role_error:
-        return role_error
-
-    field = FieldDescription.query.get(field_id)
-    if not field:
-        return error("field not found", 404)
-
-    if field.status == "approved":
-        return error("field already approved", 400)
-
-    field.status = "approved"
-    field.approved_by = current_user.user_id
-    field.rejection_reason = None
-
-    db.session.commit()
-
-    return jsonify({
-        "message": "field approved",
-        "field_id": field.field_id
-    }), 200
-
-# Rejection of fields by regulator endpoint:
-@api.route("/fields/<int:field_id>/reject", methods=["POST"])
-@jwt_required()
-def reject_field(field_id):
-    current_user, role_error = require_role("regulator")
-    if role_error:
-        return role_error
-
-    data = request.get_json() or {}
-    reason = data.get("reason", "no reason provided")
-
-    field = FieldDescription.query.get(field_id)
-    if not field:
-        return error("field not found", 404)
-
-    field.status = "rejected"
-    field.approved_by = current_user.user_id
-    field.rejection_reason = reason
-
-    db.session.commit()
-
-    return jsonify({
-        "message": "field rejected",
-        "reason": reason
-    }), 200
-
 
 @api.route("/fields", methods=["GET"])
 @jwt_required()
-def list_fields():
-    current_user = get_current_user()
-    if not current_user:
-        return error("user not found", 404)
-    
-    if current_user.role_id == "regulator":
-        fields = FieldDescription.query.all()
-    elif current_user.role_id == "researcher":
-        fields = FieldDescription.query.order_by((FieldDescription.status == "approved") |
-            (FieldDescription.created_by == current_user.user_id)
-        ).all()
-    else: 
-        fields = FieldDescription.query.filter_by(status="approved").all() 
+def list_all_fields():
+    current_user, role_error = require_role("researcher")
+    if role_error:
+        return role_error
+
+    fields = FieldDescription.query.all()
 
     return jsonify({
         "fields": [
             {
-                "field_id": field.field_id,
-                "field_name": field.field_name,
-                "field_desc": field.field_desc,
-                "status": field.status
+                "field_id": f.field_id,
+                "field_name": f.field_name,
+                "field_desc": f.field_desc
             }
-            for field in fields
+            for f in fields
         ]
     }), 200
+
+
+
+''' @api.route("/studies/<int:study_id>/fields", methods=["GET"])
+@jwt_required()
+def get_study_fields(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    # Policy context: 
+    context = {"studyStatus": study.status} # pending, open, ongoing, complete
+
+    # Regulator can only see fields for pending status they have not approved yet:
+    if current_user.role_id == "regulator":
+        policy_error = check_policy("viewFieldsRegulator", context)
+        if policy_error:
+            return policy_error
+
+        fields = db.session.query(FieldDescription).join(
+            StudyRequiredField
+        ).filter(
+            StudyRequiredField.study_id == study_id
+        ).all()
+
+    # Researcher can only see fields for their own studies:
+    elif current_user.role_id == "researcher":
+        if study.creator_id != current_user.user_id:
+            return error("not your study", 403)
+
+        fields = db.session.query(FieldDescription).join(
+            StudyRequiredField
+        ).filter(
+            StudyRequiredField.study_id == study_id
+        ).all()
+
+    # Participants can only see fields when the study is open:
+    else:
+        policy_error = check_policy("viewFieldsParticipant", context)
+        if policy_error:
+            return policy_error
+
+        # Must be enrolled:
+        membership = StudyParticipant.query.filter_by(
+            study_id=study_id,
+            participant_id=current_user.user_id
+        ).first()
+
+        if not membership:
+            return error("not enrolled in this study", 403)
+
+        fields = db.session.query(FieldDescription).join(
+            StudyRequiredField
+        ).filter(
+            StudyRequiredField.study_id == study_id
+        ).all()
+
+    return jsonify({
+        "study_id": study_id,
+        "fields": [
+            {
+                "field_id": f.field_id,
+                "field_name": f.field_name,
+                "field_desc": f.field_desc
+            }
+            for f in fields
+        ]
+    }), 200 '''
+
 
 @api.route("/studies", methods=["POST"])
 @jwt_required()
@@ -271,7 +283,7 @@ def create_study():
         description=description.strip(),
         duration_months=duration_months,
         creator_id=creator_id,
-        status="open",
+        status="pending",
     )
     db.session.add(study)
     db.session.flush()
@@ -957,24 +969,56 @@ def approve_user(user_id):
         "new_role": user.role_id
     }), 200
 
-# Testing endpoint for status: 
-@api.route("/studies/<int:study_id>/status", methods=["PATCH"])
-def update_study_status(study_id):
-    data = request.get_json() or {}
-    new_status = data.get("status")
-
-    if new_status not in {"open", "ongoing", "complete"}:
-        return error("invalid status")
+# Approval and rejection endpoints by regulator for pending studies: 
+@api.route("/studies/<int:study_id>/approve", methods=["POST"])
+@jwt_required()
+def approve_study(study_id):
+    current_user, role_error = require_role("regulator")
+    if role_error:
+        return role_error
 
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
 
-    study.status = new_status
+    # Only pending can be approved
+    if study.status != "pending":
+        return error("only pending studies can be approved", 400)
+
+    study.status = "open"
+
     db.session.commit()
 
     return jsonify({
-        "message": "status updated",
+        "message": "study approved",
         "study_id": study_id,
-        "status": study.status
+        "new_status": "open"
+    }), 200
+
+
+@api.route("/studies/<int:study_id>/reject", methods=["POST"])
+@jwt_required()
+def reject_study(study_id):
+    current_user, role_error = require_role("regulator")
+    if role_error:
+        return role_error
+
+    data = request.get_json() or {}
+    reason = data.get("reason", "no reason provided")
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    if study.status != "pending":
+        return error("only pending studies can be rejected", 400)
+
+    study.status = "rejected"
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "study rejected",
+        "study_id": study_id,
+        "reason": reason
     }), 200
