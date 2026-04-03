@@ -132,7 +132,7 @@ def seed_data():
     db.session.flush()
 
     # Studies
-    study_1 = Study(
+    ''' study_1 = Study(
         study_name="Cardiovascular Health Study",
         description="A study exploring relationships between cardiovascular indicators and general health.",
         duration_months=6,
@@ -152,7 +152,7 @@ def seed_data():
         duration_months=8,
         creator_id=researcher_2.user_id,
         status="open",
-    )
+    ) 
 
     db.session.add_all([study_1, study_2, study_3])
     db.session.flush()
@@ -338,7 +338,6 @@ def seed_data():
         ),
     ])
 
-    db.session.commit()
 
     print("Seed data inserted successfully.")
     print("Regulator:")
@@ -354,7 +353,8 @@ def seed_data():
     print("Participants:")
     print(f"  {participant_1.user_id}: {participant_1.email}")
     print(f"  {participant_2.user_id}: {participant_2.email}")
-    print(f"  {participant_3.user_id}: {participant_3.email}")
+    print(f"  {participant_3.user_id}: {participant_3.email}") '''
+    db.session.commit()
 
 
 if __name__ == "__main__":

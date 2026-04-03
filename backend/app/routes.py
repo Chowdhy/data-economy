@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
+from datetime import datetime, timedelta
 from policies.policy_engine import get_policy_engine
 from .extensions import db
 from .models import (
@@ -45,6 +46,29 @@ def require_role(*allowed_roles):
     if user.role_id not in allowed_roles:
         return None, error("user does not have required role", 403)
     return user, None
+
+def add_months_as_days(start_dt, months):
+    return start_dt + timedelta(days=30 * months)
+
+def refresh_study_status(study):
+    if not study:
+        return None
+
+    now = datetime.utcnow()
+    changed = False
+
+    if study.status == "open" and study.open_until and now >= study.open_until:
+        study.status = "ongoing"
+        changed = True
+
+    if study.status == "ongoing" and study.ongoing_until and now >= study.ongoing_until:
+        study.status = "complete"
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+    return study
 
 @api.route("/health", methods=["GET"])
 def health():
@@ -242,33 +266,37 @@ def create_study():
     current_user, role_error = require_role("researcher")
     if role_error:
         return role_error
+
     data = request.get_json() or {}
 
-    study_name = data.get("study_name") 
+    study_name = data.get("study_name")
     description = data.get("description")
-    duration_months = data.get("duration_months")
-    creator_id = data.get("creator_id")
+    data_collection_months = data.get("data_collection_months")
+    research_duration_months = data.get("research_duration_months")
+
     required_field_ids = data.get("required_field_ids", [])
     optional_field_ids = data.get("optional_field_ids", [])
 
-    if not study_name or not description or creator_id is None or duration_months is None:
-        return error("study_name, description, duration_months, and creator_id are required")
+    creator_id = current_user.user_id
 
-    creator = User.query.get(creator_id)
-    if not creator:
-        return error("creator not found", 404)
+    if not study_name or not description:
+        return error("study_name and description are required")
 
-    if creator.role_id != "researcher":
-        return error("creator must be a researcher", 403)
+    if data_collection_months is None or research_duration_months is None:
+        return error("data_collection_months and research_duration_months are required")
 
-    if not isinstance(duration_months, int) or duration_months <= 0:
-        return error("duration_months must be a positive integer")
+    if not isinstance(data_collection_months, int) or data_collection_months <= 0:
+        return error("data_collection_months must be a positive integer")
+
+    if not isinstance(research_duration_months, int) or research_duration_months <= 0:
+        return error("research_duration_months must be a positive integer")
 
     if not isinstance(required_field_ids, list) or not required_field_ids:
         return error("required_field_ids must be a non-empty list")
 
     if not isinstance(optional_field_ids, list):
         return error("optional_field_ids must be a list")
+
     all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
 
     fields = FieldDescription.query.filter(
@@ -278,13 +306,27 @@ def create_study():
     if len(fields) != len(all_field_ids):
         return error("one or more field_ids do not exist")
 
+    active_count = Study.query.filter(
+        Study.creator_id == creator_id,
+        Study.status.in_(["pending", "open", "ongoing"])
+    ).count()
+
+    MAX_ACTIVE_STUDIES = 5
+    if active_count >= MAX_ACTIVE_STUDIES:
+        return error(f"researcher cannot have more than {MAX_ACTIVE_STUDIES} pending/open/ongoing studies", 403)
+
     study = Study(
         study_name=study_name.strip(),
         description=description.strip(),
-        duration_months=duration_months,
+        data_collection_months=data_collection_months,
+        research_duration_months=research_duration_months,
         creator_id=creator_id,
         status="pending",
+        approved_at=None,
+        open_until=None,
+        ongoing_until=None
     )
+
     db.session.add(study)
     db.session.flush()
 
@@ -295,7 +337,6 @@ def create_study():
             is_required=True
         ))
 
-    # optional
     for field_id in optional_field_ids:
         db.session.add(StudyRequiredField(
             study_id=study.study_id,
@@ -306,19 +347,22 @@ def create_study():
     db.session.commit()
 
     return jsonify({
-        "message": "study created",
+        "message": "study created and is pending regulator approval",
         "study": {
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "duration_months": study.duration_months,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
             "creator_id": study.creator_id,
             "status": study.status,
+            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+            "open_until": study.open_until.isoformat() if study.open_until else None,
+            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
             "required_field_ids": required_field_ids,
             "optional_field_ids": optional_field_ids
         }
     }), 201
-
 
 @api.route("/studies/<int:study_id>/join", methods=["POST"])
 @jwt_required()
@@ -338,6 +382,8 @@ def join_study(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
+    
+    refresh_study_status(study)
     
     context = {"studyStatus": study.status}
     policy_error = check_policy("joinStudy", context)
@@ -444,7 +490,8 @@ def withdraw_from_study(study_id):
     if not study:
         return error("study not found", 404)
 
-    # 🔒 Optional: enforce only during open phase
+    # Optional: enforce only during open phase
+    refresh_study_status(study)
     if study.status != "open":
         return error("cannot withdraw after study is closed", 403)
 
@@ -554,10 +601,11 @@ def modify_consent(study_id):
 
     if not membership:
         return error("participant is not enrolled in this study", 404)
-
     study = Study.query.get(study_id)
     if not study: 
         return error("study not found", 404)
+    refresh_study_status(study)
+
    
     # Get all valid fields:
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
@@ -722,6 +770,7 @@ def list_participant_studies(participant_id):
     results = []
     for membership in memberships:
         study = membership.study
+        refresh_study_status(study)
 
         consented_rows = StudyParticipantConsentedField.query.filter_by(
             study_id=study.study_id,
@@ -735,13 +784,17 @@ def list_participant_studies(participant_id):
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "duration_months": study.duration_months,
             "status": study.status,
             "joined_at": membership.joined_at.isoformat(),
             "consent_all_fields": membership.consent_all_fields,
             "consented_field_ids": consented_field_ids,
             "required_field_ids": study_fields["required_field_ids"],
             "optional_field_ids": study_fields["optional_field_ids"],
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+            "open_until": study.open_until.isoformat() if study.open_until else None,
+            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None
         })
 
     return jsonify({
@@ -764,11 +817,12 @@ def list_available_studies(participant_id):
         for row in StudyParticipant.query.filter_by(participant_id=participant_id).all()
     }
 
-    studies = Study.query.filter_by(status="open").all()
+    studies = Study.query.all()
 
     results = []
     for study in studies:
-        if study.study_id in joined_study_ids:
+        refresh_study_status(study)
+        if study.status!= "open":
             continue
 
         study_fields = split_study_field_ids(study.study_id)
@@ -777,7 +831,11 @@ def list_available_studies(participant_id):
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "duration_months": study.duration_months,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+            "open_until": study.open_until.isoformat() if study.open_until else None,
+            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
             "status": study.status,
             "required_field_ids": study_fields["required_field_ids"],
             "optional_field_ids": study_fields["optional_field_ids"],
@@ -802,6 +860,7 @@ def list_researcher_studies(researcher_id):
 
     results = []
     for study in studies:
+        refresh_study_status(study)
         study_fields = split_study_field_ids(study.study_id)
         participant_count = StudyParticipant.query.filter_by(
             study_id=study.study_id
@@ -811,7 +870,11 @@ def list_researcher_studies(researcher_id):
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "duration_months": study.duration_months,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+            "open_until": study.open_until.isoformat() if study.open_until else None,
+            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
             "status": study.status,
             "required_field_ids": study_fields["required_field_ids"],
             "optional_field_ids": study_fields["optional_field_ids"],
@@ -829,6 +892,9 @@ def get_study(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
+    
+    refresh_study_status(study)
+
 
     study_fields = split_study_field_ids(study_id)
     participant_count = StudyParticipant.query.filter_by(study_id=study_id).count()
@@ -838,7 +904,11 @@ def get_study(study_id):
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "duration_months": study.duration_months,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+            "open_until": study.open_until.isoformat() if study.open_until else None,
+            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
             "status": study.status,
             "required_field_ids": study_fields["required_field_ids"],
             "optional_field_ids": study_fields["optional_field_ids"],
@@ -852,7 +922,7 @@ def get_study_data(study_id):
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
-    
+    refresh_study_status(study)
     context = {"studyStatus": study.status}
     policy_error = check_policy("accessData", context)
     if policy_error:
@@ -893,7 +963,11 @@ def get_study_data(study_id):
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "duration_months": study.duration_months,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+            "open_until": study.open_until.isoformat() if study.open_until else None,
+            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
             "status": study.status,
         },
         "participants": grouped,
@@ -981,18 +1055,27 @@ def approve_study(study_id):
     if not study:
         return error("study not found", 404)
 
-    # Only pending can be approved
+    refresh_study_status(study)
+
     if study.status != "pending":
         return error("only pending studies can be approved", 400)
 
+    approved_at = datetime.utcnow()
+
     study.status = "open"
+    study.approved_at = approved_at
+    study.open_until = add_months_as_days(approved_at, study.data_collection_months)
+    study.ongoing_until = add_months_as_days(study.open_until, study.research_duration_months)
 
     db.session.commit()
 
     return jsonify({
         "message": "study approved",
-        "study_id": study_id,
-        "new_status": "open"
+        "study_id": study.study_id,
+        "new_status": study.status,
+        "approved_at": study.approved_at.isoformat(),
+        "open_until": study.open_until.isoformat(),
+        "ongoing_until": study.ongoing_until.isoformat()
     }), 200
 
 
@@ -1010,6 +1093,8 @@ def reject_study(study_id):
     if not study:
         return error("study not found", 404)
 
+    refresh_study_status(study)
+
     if study.status != "pending":
         return error("only pending studies can be rejected", 400)
 
@@ -1019,6 +1104,25 @@ def reject_study(study_id):
 
     return jsonify({
         "message": "study rejected",
-        "study_id": study_id,
-        "reason": reason
+        "study_id": study.study_id,
+        "reason": reason,
+        "new_status": study.status
+    }), 200
+
+
+@api.route("/studies/<int:study_id>/status", methods=["GET"])
+@jwt_required()
+def get_study_status(study_id):
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    refresh_study_status(study)
+
+    return jsonify({
+        "study_id": study.study_id,
+        "status": study.status,
+        "approved_at": study.approved_at.isoformat() if study.approved_at else None,
+        "open_until": study.open_until.isoformat() if study.open_until else None,
+        "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None
     }), 200

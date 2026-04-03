@@ -42,14 +42,20 @@ class Study(db.Model):
     study_id = db.Column(db.Integer, primary_key=True)
     study_name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    duration_months = db.Column(db.Integer, nullable=False)
+    # Duration for data collection: 
+    data_collection_months = db.Column(db.Integer, nullable=False)
+    # Duration for research study: 
+    research_duration_months = db.Column(db.Integer, nullable=False)
+
     creator_id = db.Column(
         db.Integer,
         db.ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False
     )
     status = db.Column(db.String(50), nullable=False, default="pending")
-
+    approved_at = db.Column(db.DateTime, nullable=True)
+    open_until = db.Column(db.DateTime, nullable=True)
+    ongoing_until = db.Column(db.DateTime, nullable=True)
 
     creator = db.relationship("User", back_populates="created_studies")
 
