@@ -19,16 +19,25 @@ api = Blueprint("api", __name__)
 policy_engine = get_policy_engine()
 
 # Helper functions:
-# check_policy will return an error response if the action is not allowed under current policies, otherwise returns None:
+# check_policy will return an error response if the action is not allowed under current policies, otherwise returns None (will remove):
 def check_policy(action, context):
     if not policy_engine.is_allowed(action, context):
         return error(f"action '{action}' is not allowed under current policies", 403)
-
+# Main autorhization entry point for all protected endpoints: 
+def authorize(action, context):
+    decision = policy_engine.evaluate(action, context)
+    if not decision.allowed:
+        return error({
+            "message": f"action '{action}' is not allowed",
+            "failures": decision.failures,
+            "matched_permissions": decision.matched_permissions,
+            "matched_prohibitions": decision.matched_prohibitions,
+            "duties": decision.duties,
+        }, 403)
+    return None
 # Standardized error response function:
 def error(message, status=400):
     return jsonify({"error": message}), status
-
-
 # Utility function to split required vs optional field ids for a study:
 def split_study_field_ids(study_id):
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
@@ -37,15 +46,54 @@ def split_study_field_ids(study_id):
         "optional_field_ids": [row.field_id for row in study_fields if not row.is_required],
         "all_field_ids": [row.field_id for row in study_fields],
     }
-
 # Get current user based on JWT identity:
 def get_current_user():
     user_id = get_jwt_identity()
     if user_id is None:
         return None
     return User.query.get(int(user_id))
+# Shared context builder for policy evaluation
+# This function constructs a context dictionary that includes information about the current user, the action being performed, the resource involved, any target user (for actions involving another user), membership status (e.g., whether the user is enrolled in a study), and any extra context needed for specific policy checks. This standardized context can then be used across different policy evaluations to determine if an action is allowed.
+def build_auth_context(
+    current_user,
+    action,
+    resource=None,
+    target_user=None,
+    membership=None,
+    extra=None
+):
+    context = {
+        "action": action,
+        "subject": {
+            "userId": current_user.user_id if current_user else None,
+            "role": current_user.role_id if current_user else None,
+            "isApproved": getattr(current_user, "is_approved", None),
+            "isActive": getattr(current_user, "is_active", None),
+        },
+        "resource": {
+            "studyId": getattr(resource, "study_id", None),
+            "creatorId": getattr(resource, "creator_id", None),
+            "status": getattr(resource, "status", None),
+            "hasPendingRoleRequest": bool(getattr(target_user, "requested_role", None)) if target_user else None,
+        },
+        "env": {
+            "isOwner": bool(current_user and resource and getattr(resource, "creator_id", None) == current_user.user_id),
+            "isOwnerOrRegulator": bool(
+                current_user and (
+                    getattr(current_user, "role_id", None) == "regulator" or
+                    (resource and getattr(resource, "creator_id", None) == current_user.user_id)
+                )
+            ),
+            "isEnrolled": membership is not None,
+            "isSelf": bool(current_user and target_user and current_user.user_id == target_user.user_id),
+        }
+    }
 
-# Role check helper - returns (user, error_response) tuple:
+    if extra:
+        context["env"].update(extra)
+
+    return context
+# Role check helper (will remove):
 def require_role(*allowed_roles):
     user = get_current_user()
     if not user: 
@@ -53,11 +101,9 @@ def require_role(*allowed_roles):
     if user.role_id not in allowed_roles:
         return None, error("user does not have required role", 403)
     return user, None
-
 # Utility function to add months to a datetime (approximate as 30 days per month):
 def add_months_as_days(start_dt, months):
     return start_dt + timedelta(days=30 * months)
-
 # Utility function to refresh study status based on current time and study timelines:
 def refresh_study_status(study):
     if not study:
