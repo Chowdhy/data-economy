@@ -131,6 +131,67 @@ def seed_data():
     db.session.add_all([age, smoker, height, weight, heart_rate])
     db.session.flush()
 
+    study = Study(
+        study_name="Test Study",
+        description="Testing study for API",
+        data_collection_months=3,
+        research_duration_months=6,
+        creator_id=researcher_2.user_id,
+        status="open",  # IMPORTANT
+    )
+
+    db.session.add(study)
+    db.session.flush()
+
+
+    db.session.add_all([
+        StudyRequiredField(
+            study_id=study.study_id,
+            field_id=age.field_id,
+            is_required=True
+        ),
+        StudyRequiredField(
+            study_id=study.study_id,
+            field_id=height.field_id,
+            is_required=True
+        ),
+    ])
+
+    db.session.flush()
+
+
+    membership = StudyParticipant(
+        study_id=study.study_id,
+        participant_id=participant_1.user_id,
+        consent_all_fields=True,
+    )
+
+    db.session.add(membership)
+    db.session.flush()
+
+ 
+    db.session.add_all([
+        StudyParticipantConsentedField(
+            study_id=study.study_id,
+            participant_id=participant_1.user_id,
+            field_id=age.field_id,
+        ),
+        StudyParticipantConsentedField(
+            study_id=study.study_id,
+            participant_id=participant_1.user_id,
+            field_id=height.field_id,
+        ),
+    ])
+
+    db.session.flush()
+
+
+    db.session.add(ParticipantAnswer(
+        participant_id=participant_1.user_id,
+        field_id=age.field_id,
+        answer="25"
+    ))
+
     # Studies: 
     ''' study_1 = Study(
         study_name="Cardiovascular Health Study",

@@ -764,15 +764,27 @@ def modify_consent(study_id):
     if invalid:
         return error(f"invalid field_ids: {invalid}")
     
+    if not required_ids.issubset(set(consented_field_ids)):
+        StudyParticipant.query.filter_by(
+            study_id=study_id,
+            participant_id=current_user.user_id,
+        ).delete(synchronize_session=False)
+        db.session.delete(membership)
+        db.session.commit()
+        return jsonify({
+            "message": "withdrawn from study due to missing required consent",
+            "study_id": study_id,
+        }), 200
+    
     context = build_auth_context(
-        current_user=current_user,
-        action="modifyConsent",
-        resource=study,
-        membership=membership,
-        extra={
-            "requiredFieldsProvided": required_ids.issubset(set(consented_field_ids))
-        }
-    )
+    current_user=current_user,
+    action="modifyConsent",
+    resource=study,
+    membership=membership,
+    extra={
+        "requiredFieldsProvided": True  # now guaranteed
+    }
+)
 
     authori_error = authorize("modifyConsent", context)
     if authori_error:
@@ -810,27 +822,59 @@ def modify_consent(study_id):
 @api.route("/participants/<int:participant_id>/answers", methods=["POST"])
 @jwt_required()
 def upsert_participant_answers(participant_id):
-    data = request.get_json() or {}
-    answers = data.get("answers", [])
-
-    if not isinstance(answers, list) or not answers:
-        return error("answers must be a non-empty list")
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
 
     participant = User.query.get(participant_id)
     if not participant:
         return error("participant not found", 404)
 
-    if participant.role_id != "participant":
-        return error("user is not a participant", 403)
+    data = request.get_json() or {}
+    answers = data.get("answers", [])
 
+
+    if not isinstance(answers, list) or not answers:
+        return error("answers must be a non-empty list")
+
+    consented_fields = StudyParticipantConsentedField.query.filter_by(
+        participant_id=participant_id
+    ).all()
+    consented_field_ids = {c.field_id for c in consented_fields}
+
+
+     # Check all answers are within consent
+    field_names = [a.get("field_name") for a in answers]
+    fields = FieldDescription.query.filter(
+        FieldDescription.field_name.in_(field_names)
+    ).all()
+
+    field_map = {f.field_name: f.field_id for f in fields}
+
+    answers_valid = all(
+        field_map.get(a.get("field_name")) in consented_field_ids
+        for a in answers
+    )
+
+    context = build_auth_context(
+        current_user=current_user,
+        action="submitAnswers",
+        target_user=participant,
+        extra={
+            "answersWithinConsentedFields": answers_valid
+        }
+    )
+
+    auth_error = authorize("submitAnswers", context)
+    if auth_error:
+        return auth_error
+
+    # Business logic
     updated = []
 
     for item in answers:
         field_name = item.get("field_name")
         answer_value = item.get("answer")
-
-        if not field_name:
-            return error("each answer must include field_name")
 
         field = FieldDescription.query.filter_by(field_name=field_name).first()
         if not field:
@@ -843,21 +887,14 @@ def upsert_participant_answers(participant_id):
 
         if existing:
             existing.answer = answer_value
-            updated.append({
-                "field_name": field.field_name,
-                "action": "updated"
-            })
+            updated.append({"field_name": field_name, "action": "updated"})
         else:
-            new_answer = ParticipantAnswer(
+            db.session.add(ParticipantAnswer(
                 participant_id=participant_id,
                 field_id=field.field_id,
                 answer=answer_value,
-            )
-            db.session.add(new_answer)
-            updated.append({
-                "field_name": field.field_name,
-                "action": "created"
-            })
+            ))
+            updated.append({"field_name": field_name, "action": "created"})
 
     db.session.commit()
 
@@ -876,17 +913,27 @@ def upsert_participant_answers(participant_id):
 @api.route("/participants/<int:participant_id>/answers", methods=["GET"])
 @jwt_required()
 def get_participant_answers(participant_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
     participant = User.query.get(participant_id)
     if not participant:
         return error("participant not found", 404)
 
-    if participant.role_id != "participant":
-        return error("user is not a participant", 403)
+    context = build_auth_context(
+        current_user=current_user,
+        action="viewOwnAnswers",
+        target_user=participant
+    )
+
+    auth_error = authorize("viewOwnAnswers", context)
+    if auth_error:
+        return auth_error
 
     fields = FieldDescription.query.all()
 
     results = []
-
     for field in fields:
         existing = ParticipantAnswer.query.filter_by(
             participant_id=participant_id,
@@ -903,8 +950,6 @@ def get_participant_answers(participant_id):
         "participant_id": participant_id,
         "answers": results,
     }), 200
-
-
 # Current functionality:
 # - Get participant studies
 # - Check participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
@@ -915,12 +960,23 @@ def get_participant_answers(participant_id):
 @api.route("/participants/<int:participant_id>/studies", methods=["GET"])
 @jwt_required()
 def list_participant_studies(participant_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
     participant = User.query.get(participant_id)
     if not participant:
         return error("participant not found", 404)
 
-    if participant.role_id != "participant":
-        return error("user is not a participant", 403)
+    context = build_auth_context(
+        current_user=current_user,
+        action="viewParticipantStudies",
+        target_user=participant
+    )
+
+    auth_error = authorize("viewParticipantStudies", context)
+    if auth_error:
+        return auth_error
 
     memberships = StudyParticipant.query.filter_by(
         participant_id=participant_id
@@ -948,19 +1004,13 @@ def list_participant_studies(participant_id):
             "consent_all_fields": membership.consent_all_fields,
             "consented_field_ids": consented_field_ids,
             "required_field_ids": study_fields["required_field_ids"],
-            "optional_field_ids": study_fields["optional_field_ids"],
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
-            "open_until": study.open_until.isoformat() if study.open_until else None,
-            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None
+            "optional_field_ids": study_fields["optional_field_ids"]
         })
 
     return jsonify({
         "participant_id": participant_id,
         "studies": results,
     }), 200
-
 
 # Current functionality:
 # - Validate participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
@@ -970,16 +1020,28 @@ def list_participant_studies(participant_id):
 @api.route("/participants/<int:participant_id>/available-studies", methods=["GET"])
 @jwt_required()
 def list_available_studies(participant_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
     participant = User.query.get(participant_id)
     if not participant:
         return error("participant not found", 404)
 
-    if participant.role_id != "participant":
-        return error("user is not a participant", 403)
+    context = build_auth_context(
+        current_user=current_user,
+        action="viewAvailableStudies",
+        target_user=participant
+    )
 
-    joined_study_ids = {
-        row.study_id
-        for row in StudyParticipant.query.filter_by(participant_id=participant_id).all()
+    auth_error = authorize("viewAvailableStudies", context)
+    if auth_error:
+        return auth_error
+
+    joined_ids = {
+        s.study_id for s in StudyParticipant.query.filter_by(
+            participant_id=participant_id
+        ).all()
     }
 
     studies = Study.query.all()
@@ -987,28 +1049,22 @@ def list_available_studies(participant_id):
     results = []
     for study in studies:
         refresh_study_status(study)
-        if study.status!= "open":
-            continue
 
-        study_fields = split_study_field_ids(study.study_id)
+        if study.status != "open":
+            continue
+        if study.study_id in joined_ids:
+            continue
 
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
-            "open_until": study.open_until.isoformat() if study.open_until else None,
-            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
-            "status": study.status,
-            "required_field_ids": study_fields["required_field_ids"],
-            "optional_field_ids": study_fields["optional_field_ids"],
+            "status": study.status
         })
 
     return jsonify({
         "participant_id": participant_id,
-        "studies": results,
+        "available_studies": results
     }), 200
 
 
@@ -1018,19 +1074,36 @@ def list_available_studies(participant_id):
 @api.route("/researchers/<int:researcher_id>/studies", methods=["GET"])
 @jwt_required()
 def list_researcher_studies(researcher_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
     researcher = User.query.get(researcher_id)
     if not researcher:
         return error("researcher not found", 404)
 
-    if researcher.role_id != "researcher":
-        return error("user is not a researcher", 403)
+    context = build_auth_context(
+        current_user=current_user,
+        action="viewResearcherStudies",
+        target_user=researcher,
+        extra={
+            "isOwnerOrRegulator": (
+                current_user.user_id == researcher_id or
+                current_user.role_id == "regulator"
+            )
+        }
+    )
+
+    auth_error = authorize("viewResearcherStudies", context)
+    if auth_error:
+        return auth_error
 
     studies = Study.query.filter_by(creator_id=researcher_id).all()
 
     results = []
     for study in studies:
         refresh_study_status(study)
-        study_fields = split_study_field_ids(study.study_id)
+
         participant_count = StudyParticipant.query.filter_by(
             study_id=study.study_id
         ).count()
@@ -1038,112 +1111,113 @@ def list_researcher_studies(researcher_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
-            "description": study.description,
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
-            "open_until": study.open_until.isoformat() if study.open_until else None,
-            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
             "status": study.status,
-            "required_field_ids": study_fields["required_field_ids"],
-            "optional_field_ids": study_fields["optional_field_ids"],
-            "participant_count": participant_count, 
+            "participant_count": participant_count
         })
 
     return jsonify({
         "researcher_id": researcher_id,
-        "studies": results,
+        "studies": results
     }), 200
-
 
 # Do we need this? 
 @api.route("/studies/<int:study_id>", methods=["GET"])
 def get_study(study_id):
+    current_user = get_current_user() if get_jwt_identity() else None
+
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
-    
+
     refresh_study_status(study)
 
-
-    study_fields = split_study_field_ids(study_id)
-    participant_count = StudyParticipant.query.filter_by(study_id=study_id).count()
-
-    return jsonify({
-        "study": {
+    # Public access for open studies
+    if study.status == "open":
+        return jsonify({
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
-            "open_until": study.open_until.isoformat() if study.open_until else None,
-            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
-            "status": study.status,
-            "required_field_ids": study_fields["required_field_ids"],
-            "optional_field_ids": study_fields["optional_field_ids"],
-            "participant_count": participant_count,
-        }
-    }), 200
+            "status": study.status
+        }), 200
 
+    # Otherwise require auth
+    if not current_user:
+        return error("authentication required", 401)
+
+    context = build_auth_context(
+        current_user=current_user,
+        action="viewStudy",
+        resource=study
+    )
+
+    auth_error = authorize("viewStudy", context)
+    if auth_error:
+        return auth_error
+
+    return jsonify({
+        "study_id": study.study_id,
+        "study_name": study.study_name,
+        "description": study.description,
+        "status": study.status
+    }), 200
 # Do we need this? (it doesn't really role checking)
 # IT NEEDS TO BE ONLY FOR RESEARCHERS WHEN THE STUDY IS ONGOING AND WE NEED ANONYMISATION ASAP (CHECK DATA PRIV LECTURES)
 @api.route("/researchers/<int:researcher_id>/studies/<int:study_id>/data", methods=["GET"])
 def get_study_data(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
+
     refresh_study_status(study)
-    context = {"studyStatus": study.status}
-    policy_error = check_policy("accessData", context)
-    if policy_error:
-        return policy_error
+
+    context = build_auth_context(
+        current_user=current_user,
+        action="accessStudyData",
+        resource=study,
+        extra={
+            "isOwnerOrRegulator": (
+                study.creator_id == current_user.user_id or
+                current_user.role_id == "regulator"
+            )
+        }
+    )
+
+    auth_error = authorize("accessStudyData", context)
+    if auth_error:
+        return auth_error
 
     rows = db.session.query(
-        StudyParticipantConsentedField.participant_id,
-        StudyParticipantConsentedField.field_id,
+        StudyParticipant.participant_id,
         FieldDescription.field_name,
-        FieldDescription.field_desc,
-        ParticipantAnswer.answer,
+        ParticipantAnswer.answer
+    ).join(
+        StudyParticipant,
+        StudyParticipant.study_id == study_id
+    ).join(
+        StudyParticipantConsentedField,
+        (StudyParticipantConsentedField.participant_id == StudyParticipant.participant_id) &
+        (StudyParticipantConsentedField.study_id == study_id)
     ).join(
         FieldDescription,
-        FieldDescription.field_id == StudyParticipantConsentedField.field_id,
+        FieldDescription.field_id == StudyParticipantConsentedField.field_id
     ).outerjoin(
         ParticipantAnswer,
-        and_(
-            ParticipantAnswer.participant_id == StudyParticipantConsentedField.participant_id,
-            ParticipantAnswer.field_id == StudyParticipantConsentedField.field_id,
-        )
-    ).filter(
-        StudyParticipantConsentedField.study_id == study_id
+        (ParticipantAnswer.participant_id == StudyParticipant.participant_id) &
+        (ParticipantAnswer.field_id == FieldDescription.field_id)
     ).all()
 
-    grouped = {}
-    for row in rows:
-        participant_key = str(row.participant_id)
-        grouped.setdefault(participant_key, [])
-        grouped[participant_key].append({
-            "field_id": row.field_id,
-            "field_name": row.field_name,
-            "field_desc": row.field_desc,
-            "answer": row.answer,
-        })
+    data = {}
+    for pid, fname, ans in rows:
+        data.setdefault(pid, {})[fname] = ans
 
     return jsonify({
-        "study": {
-            "study_id": study.study_id,
-            "study_name": study.study_name,
-            "description": study.description,
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "approved_at": study.approved_at.isoformat() if study.approved_at else None,
-            "open_until": study.open_until.isoformat() if study.open_until else None,
-            "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None,
-            "status": study.status,
-        },
-        "participants": grouped,
+        "study_id": study_id,
+        "data": data
     }), 200
-
 
 # Current functionality: 
 # - Get email and password from request
