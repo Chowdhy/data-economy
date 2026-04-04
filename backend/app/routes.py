@@ -204,13 +204,14 @@ def create_user():
 # - Save field and return field info
 # Future functionality: 
 # Should researchers be able to create new fields? Or should they be able somehow pick from a list of predefined fields. 
+# Trying to make this more polic-engine based. 
 @api.route("/fields", methods=["POST"])
 @jwt_required()
 def create_field():
-    current_user , role_error = require_role("researcher")
-    if role_error:
-        return role_error
-    
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
     data = request.get_json() or {}
 
     field_name = data.get("field_name")
@@ -219,6 +220,14 @@ def create_field():
     if not field_name:
         return error("field_name is required")
     
+    context = build_auth_context(
+        current_user=current_user,
+        action="createField"
+    )
+
+    authori_error = authorize("createField", context)
+    if authori_error:
+        return authori_error
     # Prevent duplicates: 
     existing = FieldDescription.query.filter_by(field_name=field_name).first()
     if existing:
@@ -248,9 +257,18 @@ def create_field():
 @api.route("/fields", methods=["GET"])
 @jwt_required()
 def list_all_fields():
-    current_user, role_error = require_role("researcher")
-    if role_error:
-        return role_error
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    
+    context = build_auth_context(
+        current_user=current_user,
+        action="listFields"
+    )
+
+    authori_error = authorize("listFields", context)
+    if authori_error:
+        return authori_error
 
     fields = FieldDescription.query.all()
 
@@ -352,21 +370,19 @@ def get_study_fields(study_id):
 @api.route("/studies", methods=["POST"])
 @jwt_required()
 def create_study():
-    current_user, role_error = require_role("researcher")
-    if role_error:
-        return role_error
-
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    
     data = request.get_json() or {}
 
     study_name = data.get("study_name")
     description = data.get("description")
     data_collection_months = data.get("data_collection_months")
     research_duration_months = data.get("research_duration_months")
-
     required_field_ids = data.get("required_field_ids", [])
     optional_field_ids = data.get("optional_field_ids", [])
 
-    creator_id = current_user.user_id
 
     if not study_name or not description:
         return error("study_name and description are required")
@@ -386,6 +402,11 @@ def create_study():
     if not isinstance(optional_field_ids, list):
         return error("optional_field_ids must be a list")
 
+    active_count = Study.query.filter(
+        Study.creator_id == current_user.user_id,
+        Study.status.in_(["pending", "open", "ongoing"]) # shall I add complete? 
+    ).count()
+
     all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
 
     fields = FieldDescription.query.filter(
@@ -394,22 +415,32 @@ def create_study():
 
     if len(fields) != len(all_field_ids):
         return error("one or more field_ids do not exist")
+    else:
+        valid_field_ids  = (len(fields) == len(all_field_ids))
 
-    active_count = Study.query.filter(
-        Study.creator_id == creator_id,
-        Study.status.in_(["pending", "open", "ongoing"]) # shall I add complete? 
-    ).count()
+    
 
-    MAX_ACTIVE_STUDIES = 5
-    if active_count >= MAX_ACTIVE_STUDIES:
-        return error(f"researcher cannot have more than {MAX_ACTIVE_STUDIES} pending/open/ongoing studies", 403)
+    context = build_auth_context(
+        current_user=current_user,
+        action="createStudy",
+        extra={
+            "activeStudyCount": active_count,
+            "hasStudyName": bool(study_name),
+            "hasDescription": bool(description),
+            "hasRequiredFields": bool(required_field_ids),
+            "validFieldIds": valid_field_ids
+        }
+    )
 
+    authori_error = authorize("createStudy", context)
+    if authori_error:
+        return authori_error
     study = Study(
         study_name=study_name.strip(),
         description=description.strip(),
         data_collection_months=data_collection_months,
         research_duration_months=research_duration_months,
-        creator_id=creator_id,
+        creator_id=current_user.user_id,
         status="pending",
         approved_at=None,
         open_until=None,
