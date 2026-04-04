@@ -17,14 +17,19 @@ from .models import (
 
 api = Blueprint("api", __name__)
 policy_engine = get_policy_engine()
+
+# Helper functions:
+# check_policy will return an error response if the action is not allowed under current policies, otherwise returns None:
 def check_policy(action, context):
     if not policy_engine.is_allowed(action, context):
         return error(f"action '{action}' is not allowed under current policies", 403)
 
+# Standardized error response function:
 def error(message, status=400):
     return jsonify({"error": message}), status
 
 
+# Utility function to split required vs optional field ids for a study:
 def split_study_field_ids(study_id):
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     return {
@@ -33,12 +38,14 @@ def split_study_field_ids(study_id):
         "all_field_ids": [row.field_id for row in study_fields],
     }
 
+# Get current user based on JWT identity:
 def get_current_user():
     user_id = get_jwt_identity()
     if user_id is None:
         return None
     return User.query.get(int(user_id))
 
+# Role check helper - returns (user, error_response) tuple:
 def require_role(*allowed_roles):
     user = get_current_user()
     if not user: 
@@ -47,9 +54,12 @@ def require_role(*allowed_roles):
         return None, error("user does not have required role", 403)
     return user, None
 
+# Utility function to add months to a datetime (approximate as 30 days per month):
 def add_months_as_days(start_dt, months):
     return start_dt + timedelta(days=30 * months)
 
+
+# Utility function to refresh study status based on current time and study timelines:
 def refresh_study_status(study):
     if not study:
         return None
@@ -70,11 +80,22 @@ def refresh_study_status(study):
 
     return study
 
+# Health check: 
 @api.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
 
-
+# Creating a new user: 
+# Current functionality: 
+# - Get name, email, password, and requested_role
+# - Validate required fields
+# - Ensure role is either participant or researcher
+# - Check email uniqueness
+# - Hash password before storing it 
+# - Assign: participant = approved, researcher = pending approval
+# - Save user 
+# - Return user info
+# Future functionality: 
 @api.route("/users", methods=["POST"])
 def create_user():
     data = request.get_json() or {}
@@ -129,6 +150,15 @@ def create_user():
     }), 201
 
 
+# Current functionality: 
+# - Require JWT and role check for researcher
+# - Get field_name and field_desc from request
+# - Validate field_name 
+# - Check field name uniqueness
+# - Create field with created_by 
+# - Save field and return field info
+# Future functionality: 
+# Should researchers be able to create new fields? Or should they be able somehow pick from a list of predefined fields. 
 @api.route("/fields", methods=["POST"])
 @jwt_required()
 def create_field():
@@ -166,7 +196,10 @@ def create_field():
         }
     }), 201
 
-
+# Current functionality:
+# - Require JWT and role check for researcher
+# - List all fields with their descriptions
+# - Return list  
 @api.route("/fields", methods=["GET"])
 @jwt_required()
 def list_all_fields():
@@ -259,7 +292,18 @@ def get_study_fields(study_id):
         ]
     }), 200 '''
 
-
+# Current functionality: 
+# - Require JWT and role check for researcher
+# - Get study data and field IDs
+# - Validate inputs
+# - Validate field_ids exist
+# - Enforce max active studies per researcher (I will move this to the policy engine later)
+# - Create study with pending status
+# - Insert required vs optional field links
+# - Return study info
+# Future functionality: 
+# - Should researchers be able to create new fields? Or should they be able somehow pick from a list of predefined fields.
+# - More policy engine-based checks 
 @api.route("/studies", methods=["POST"])
 @jwt_required()
 def create_study():
@@ -308,7 +352,7 @@ def create_study():
 
     active_count = Study.query.filter(
         Study.creator_id == creator_id,
-        Study.status.in_(["pending", "open", "ongoing"])
+        Study.status.in_(["pending", "open", "ongoing"]) # shall I add complete? 
     ).count()
 
     MAX_ACTIVE_STUDIES = 5
@@ -364,6 +408,17 @@ def create_study():
         }
     }), 201
 
+# Current functionality: 
+# - Require JWT and role check for participant
+# - Get study by ID and validate it exists
+# - Policy check that the study is open for joining
+# - Check already joined
+# - Create StudyParticipant link with consent_all_fields=False by default
+# - Auto-consent to required fields (maybe this is wrong?)
+# - Return success message
+# Future functionality:
+# - More policy engine-based checks (max active pending studies?)
+# - Should participants be auto-consented to required fields upon joining? Or should they have to explicitly consent to each field (with required fields enforced at the policy level)?
 @api.route("/studies/<int:study_id>/join", methods=["POST"])
 @jwt_required()
 def join_study(study_id):
@@ -374,11 +429,6 @@ def join_study(study_id):
     if current_user.role_id != "participant":
         return error("only participants can join studies", 403)
     
-    #data = request.get_json() or {}
-
-    # Here anyone can pretend to be anyone: 
-    #participant_id = data.get("participant_id")
-
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
@@ -475,6 +525,13 @@ def withdraw_consent_fields(study_id):
     }), 200 '''
 
 
+# Current functionality:
+# - Require JWT and role check for participant
+# - Get study by ID and validate it exists
+# - Refresh study status and enforce that modifications are only allowed during open status
+# - Validate that the participant is enrolled in the study
+# - Delete membership link to withdraw from study
+# - Save and return
 @api.route("/studies/<int:study_id>/withdraw", methods=["POST"])
 @jwt_required()
 def withdraw_from_study(study_id):
@@ -580,6 +637,20 @@ def regrant_consent_fields(study_id):
         "consent_all_fields": membership.consent_all_fields,
     }), 200 '''
 
+
+# Current functionality:
+# - Get current use
+# - Ensure participant role
+# - Get study by ID and validate it exists
+# - Get consented_field_ids from request
+# - Validate consented_field_ids is a list
+# - Get study and refresh status
+# - Validate the field_ids exist for the study
+# - Policy check: studyStatus and whether required fields are included in the consented_field_ids
+# - If required fields are missing, delete membership automatically
+# - Else: delete old consent, insert new consent, update consent_all_fields if all fields are consented, and return success message
+# Future functionality:
+# - NO JWT need to implement that 
 @api.route("/studies/<int:study_id>/consent/modify", methods=["POST"])
 def modify_consent(study_id):
     current_user = get_current_user()
@@ -640,7 +711,7 @@ def modify_consent(study_id):
             "message": "withdrawn from study due to removing required fields",
         }), 200
     
-    # Update consent ONLY if valid
+    # Update consent ONLY if valid:
     StudyParticipantConsentedField.query.filter_by(
         study_id=study_id,
         participant_id=current_user.user_id,
@@ -663,7 +734,12 @@ def modify_consent(study_id):
 
 
 
-
+# Current functionality (for participants): 
+# - Get participant answers (check needs to change to be updated with everything else)
+# - Validate list 
+# - Check participant exists and is a participant
+# - For each answer: validate field_name, check field exists, then upsert answer
+# - Return success message with list of created vs updated answers
 @api.route("/participants/<int:participant_id>/answers", methods=["POST"])
 def upsert_participant_answers(participant_id):
     data = request.get_json() or {}
@@ -724,6 +800,11 @@ def upsert_participant_answers(participant_id):
     }), 200
 
 
+# Current functionality:
+# - Get participant answers (check for role needs to be updated with the updated tokens)
+# - Check participant exists and is a participant
+# - Fetch all fields and left join to participant answers to return list of field_name, field_desc, and answer (if exists) for each field
+# - Return list of answers with field descriptions
 @api.route("/participants/<int:participant_id>/answers", methods=["GET"])
 def get_participant_answers(participant_id):
     participant = User.query.get(participant_id)
@@ -754,6 +835,14 @@ def get_participant_answers(participant_id):
         "answers": results,
     }), 200
 
+
+# Current functionality:
+# - Get participant studies
+# - Check participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
+# - For each study, refresh study status, get consented field IDs for the participant, split required vs optional field IDs, and return study info along with consent details
+# - Return 
+# Future functionality: 
+# - Should the participants of a study be notified when a study changes statuses? 
 @api.route("/participants/<int:participant_id>/studies", methods=["GET"])
 def list_participant_studies(participant_id):
     participant = User.query.get(participant_id)
@@ -803,6 +892,11 @@ def list_participant_studies(participant_id):
     }), 200
 
 
+# Current functionality:
+# - Validate participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
+# - Fetch all studies, refresh their statuses, and return info for studies that are currently open along with required vs optional field splits
+# Future functionality:
+# - More policy engine-based checks 
 @api.route("/participants/<int:participant_id>/available-studies", methods=["GET"])
 def list_available_studies(participant_id):
     participant = User.query.get(participant_id)
@@ -847,6 +941,9 @@ def list_available_studies(participant_id):
     }), 200
 
 
+# Current functionality: 
+# - Validate researcher exists and is a researcher (check needs to be updated based on the JWT tokens added to the functionality)
+# - Fetch all studies created by the researcher, refresh their statuses, and return study info along with required vs optional field splits and participant counts
 @api.route("/researchers/<int:researcher_id>/studies", methods=["GET"])
 def list_researcher_studies(researcher_id):
     researcher = User.query.get(researcher_id)
@@ -887,6 +984,7 @@ def list_researcher_studies(researcher_id):
     }), 200
 
 
+# Do we need this? 
 @api.route("/studies/<int:study_id>", methods=["GET"])
 def get_study(study_id):
     study = Study.query.get(study_id)
@@ -916,8 +1014,9 @@ def get_study(study_id):
         }
     }), 200
 
-
-@api.route("/studies/<int:study_id>/data", methods=["GET"])
+# Do we need this? (it doesn't really role checking)
+# IT NEEDS TO BE ONLY FOR RESEARCHERS WHEN THE STUDY IS ONGOING AND WE NEED ANONYMISATION ASAP (CHECK DATA PRIV LECTURES)
+@api.route("/researchers/<int:researcher_id>/studies/<int:study_id>/data", methods=["GET"])
 def get_study_data(study_id):
     study = Study.query.get(study_id)
     if not study:
@@ -973,6 +1072,14 @@ def get_study_data(study_id):
         "participants": grouped,
     }), 200
 
+
+# Current functionality: 
+# - Get email and password from request
+# - Validate they exist
+# - Find user 
+# - Check password hash
+# - Block unapproved researcher requests
+# - Generate JWT token with role_id and email as identity
 @api.route("/login", methods=["POST"])
 def login():
     data = request.get_json() or {}
@@ -1015,6 +1122,13 @@ def login():
     }), 200
 
 # NEW Endpoint: add regulator approval
+# Current functionality: 
+# - Get user_id from URL and regulator_id from request body
+# - Validate regulator_id belongs to a regulator user
+# - Validate user_id belongs to a user with a pending role request
+# - Update user's role_id to requested_role, set requested_role to None, and set is_approved to True
+# Future functionality:
+# - Make this more policy-engine based. 
 @api.route("/admin/users/<int:user_id>/approve", methods=["POST"])
 def approve_user(user_id):
     data = request.get_json() or {}
@@ -1044,7 +1158,16 @@ def approve_user(user_id):
     }), 200
 
 # Approval and rejection endpoints by regulator for pending studies: 
-@api.route("/studies/<int:study_id>/approve", methods=["POST"])
+# Current functionality:
+# - Get study_id from URL and regulator_id from request body
+# - Validate regulator_id belongs to a regulator user
+# - Validate study_id belongs to a pending study
+# - For approval: update study status to open, set approved_at to now, and calculate
+# - open_until and ongoing_until based on approved_at and the study's data_collection_months and research_duration_months
+# - For rejection: update study status to rejected
+# Future functionality:
+# - Make this more policy-engine based.
+@api.route("/admin/studies/<int:study_id>/approve", methods=["POST"])
 @jwt_required()
 def approve_study(study_id):
     current_user, role_error = require_role("regulator")
@@ -1079,7 +1202,7 @@ def approve_study(study_id):
     }), 200
 
 
-@api.route("/studies/<int:study_id>/reject", methods=["POST"])
+@api.route("/admin/studies/<int:study_id>/reject", methods=["POST"])
 @jwt_required()
 def reject_study(study_id):
     current_user, role_error = require_role("regulator")
@@ -1110,6 +1233,11 @@ def reject_study(study_id):
     }), 200
 
 
+# Current functionality:
+# - Get study_id from URL
+# - Validate study_id belongs to a study
+# - Refresh study status based on current time and the study's approved_at, open_until, and ongoing_until timestamps
+# - Return study status along with approved_at, open_until, and ongoing_until timestamps for frontend
 @api.route("/studies/<int:study_id>/status", methods=["GET"])
 @jwt_required()
 def get_study_status(study_id):
