@@ -502,27 +502,27 @@ def join_study(study_id):
     if not current_user:
         return error("user not found", 404)
     
-    if current_user.role_id != "participant":
-        return error("only participants can join studies", 403)
-    
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
     
     refresh_study_status(study)
     
-    context = {"studyStatus": study.status}
-    policy_error = check_policy("joinStudy", context)
-    if policy_error:
-        return policy_error
-    
-    existing_link = StudyParticipant.query.filter_by(
+    membership = StudyParticipant.query.filter_by(
         study_id=study_id,
-        participant_id=current_user.user_id,
+        participant_id=current_user.user_id
     ).first()
 
-    if existing_link:
-        return error("participant is already in this study", 409)
+    context = build_auth_context(
+        current_user=current_user,
+        action="joinStudy",
+        resource=study,
+        membership=membership
+    )
+
+    auth_error = authorize("joinStudy", context)
+    if auth_error:
+        return auth_error
 
     link = StudyParticipant(
         study_id=study_id,
@@ -530,7 +530,9 @@ def join_study(study_id):
         consent_all_fields=False,
     )
     db.session.add(link)
-    required_fields = StudyRequiredField.query.filter_by(
+    db.session.commit()
+    # Remove auto consent logic:
+    ''' required_fields = StudyRequiredField.query.filter_by(
         study_id=study_id,
         is_required=True
     ).all()
@@ -539,9 +541,7 @@ def join_study(study_id):
             study_id=study_id,
             participant_id=current_user.user_id,
             field_id=required.field_id,
-        ))
-
-    db.session.commit()
+        )) '''
 
     return jsonify({
         "message": "participant joined study and consented to all required fields by default",
@@ -616,25 +616,26 @@ def withdraw_from_study(study_id):
     if not current_user:
         return error("user not found", 404)
 
-    if current_user.role_id != "participant":
-        return error("only participants can withdraw", 403)
-
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
 
-    # Optional: enforce only during open phase
     refresh_study_status(study)
-    if study.status != "open":
-        return error("cannot withdraw after study is closed", 403)
-
     membership = StudyParticipant.query.filter_by(
         study_id=study_id,
         participant_id=current_user.user_id,
     ).first()
 
-    if not membership:
-        return error("not enrolled in this study", 404)
+    context = build_auth_context(
+        current_user=current_user,
+        action="withdrawStudy",
+        resource=study,
+        membership=membership
+    )
+
+    authori_error = authorize("withdrawStudy", context)
+    if authori_error:
+        return authori_error
 
     db.session.delete(membership)
     db.session.commit()
@@ -733,14 +734,17 @@ def modify_consent(study_id):
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
-    if current_user.role_id != "participant":
-        return error("only participants can modify consent", 403)
-
+   
     data = request.get_json() or {}    
     consented_field_ids = data.get("consented_field_ids", [])
 
     if not isinstance(consented_field_ids, list):
         return error("consented_field_ids must be a list")
+
+    study = Study.query.get(study_id)
+    if not study: 
+        return error("study not found", 404)
+    refresh_study_status(study)
 
     membership = StudyParticipant.query.filter_by(
         study_id=study_id,
@@ -749,45 +753,31 @@ def modify_consent(study_id):
 
     if not membership:
         return error("participant is not enrolled in this study", 404)
-    study = Study.query.get(study_id)
-    if not study: 
-        return error("study not found", 404)
-    refresh_study_status(study)
 
    
     # Get all valid fields:
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     all_field_ids = {f.field_id for f in study_fields}
+    required_ids = {f.field_id for f in study_fields if f.is_required}
 
     invalid = [fid for fid in consented_field_ids if fid not in all_field_ids]
     if invalid:
         return error(f"invalid field_ids: {invalid}")
-
-    # Required fields check: 
-    required_fields = StudyRequiredField.query.filter_by(
-        study_id=study_id,
-        is_required=True
-    ).all()
-    required_ids = {f.field_id for f in required_fields}
-    # First check, can they modify at all or is the study closed: 
-    context = {
-        "studyStatus": study.status,
-        "requiredFieldsProvided": required_ids.issubset(set(consented_field_ids))
-    }
-
-    policy_error = check_policy("modifyConsent", context)
-    if policy_error:
-        return policy_error
     
-    # Only if modifications are allowed: 
-    if not required_ids.issubset(set(consented_field_ids)):
-        db.session.delete(membership)
-        db.session.commit()
+    context = build_auth_context(
+        current_user=current_user,
+        action="modifyConsent",
+        resource=study,
+        membership=membership,
+        extra={
+            "requiredFieldsProvided": required_ids.issubset(set(consented_field_ids))
+        }
+    )
 
-        return jsonify({
-            "message": "withdrawn from study due to removing required fields",
-        }), 200
-    
+    authori_error = authorize("modifyConsent", context)
+    if authori_error:
+        return authori_error
+
     # Update consent ONLY if valid:
     StudyParticipantConsentedField.query.filter_by(
         study_id=study_id,
