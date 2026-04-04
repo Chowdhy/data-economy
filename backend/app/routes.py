@@ -651,6 +651,7 @@ def regrant_consent_fields(study_id):
 # Future functionality:
 # - NO JWT need to implement that 
 @api.route("/studies/<int:study_id>/consent/modify", methods=["POST"])
+@jwt_required()
 def modify_consent(study_id):
     current_user = get_current_user()
     if not current_user:
@@ -740,6 +741,7 @@ def modify_consent(study_id):
 # - For each answer: validate field_name, check field exists, then upsert answer
 # - Return success message with list of created vs updated answers
 @api.route("/participants/<int:participant_id>/answers", methods=["POST"])
+@jwt_required()
 def upsert_participant_answers(participant_id):
     data = request.get_json() or {}
     answers = data.get("answers", [])
@@ -805,6 +807,7 @@ def upsert_participant_answers(participant_id):
 # - Fetch all fields and left join to participant answers to return list of field_name, field_desc, and answer (if exists) for each field
 # - Return list of answers with field descriptions
 @api.route("/participants/<int:participant_id>/answers", methods=["GET"])
+@jwt_required()
 def get_participant_answers(participant_id):
     participant = User.query.get(participant_id)
     if not participant:
@@ -843,6 +846,7 @@ def get_participant_answers(participant_id):
 # Future functionality: 
 # - Should the participants of a study be notified when a study changes statuses? 
 @api.route("/participants/<int:participant_id>/studies", methods=["GET"])
+@jwt_required()
 def list_participant_studies(participant_id):
     participant = User.query.get(participant_id)
     if not participant:
@@ -897,6 +901,7 @@ def list_participant_studies(participant_id):
 # Future functionality:
 # - More policy engine-based checks 
 @api.route("/participants/<int:participant_id>/available-studies", methods=["GET"])
+@jwt_required()
 def list_available_studies(participant_id):
     participant = User.query.get(participant_id)
     if not participant:
@@ -944,6 +949,7 @@ def list_available_studies(participant_id):
 # - Validate researcher exists and is a researcher (check needs to be updated based on the JWT tokens added to the functionality)
 # - Fetch all studies created by the researcher, refresh their statuses, and return study info along with required vs optional field splits and participant counts
 @api.route("/researchers/<int:researcher_id>/studies", methods=["GET"])
+@jwt_required()
 def list_researcher_studies(researcher_id):
     researcher = User.query.get(researcher_id)
     if not researcher:
