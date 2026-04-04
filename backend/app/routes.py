@@ -1180,32 +1180,34 @@ def login():
 # - Update user's role_id to requested_role, set requested_role to None, and set is_approved to True
 # Future functionality:
 # - Make this more policy-engine based. 
+# - Currently trying to do that :), current changes: added jwt_required, removed regulator_id, regulator now comes from JWT, authorization now goes through authorize function with an "approveUserRole" action and context that includes the current_user and target_user. 
 @api.route("/admin/users/<int:user_id>/approve", methods=["POST"])
+@jwt_required()
 def approve_user(user_id):
-    data = request.get_json() or {}
-    regulator_id = data.get("regulator_id")
-
-    regulator = User.query.get(regulator_id) # not secure yet, will add more authentication later
-    if not regulator or regulator.role_id != "regulator":
-        return error("only regulators can approve users", 403)
-
-    user = User.query.get(user_id)
-    if not user:
+    current_user = get_current_user()
+    if not current_user:
         return error("user not found", 404)
+    
+    target_user = User.query.get(user_id)
+    if not target_user:
+        return error("target user not found", 404)
+    
+    context = build_auth_context(current_user = current_user, action= "approveUserRole", target_user = target_user)
+    authori_error = authorize("approveUserRole", context)
+    if authori_error:
+        return authori_error
+   
 
-    if not user.requested_role:
-        return error("user has no pending role request")
-
-    user.role_id = user.requested_role
-    user.requested_role = None
-    user.is_approved = True
+    target_user.role_id = target_user.requested_role
+    target_user.requested_role = None
+    target_user.is_approved = True
 
     db.session.commit()
 
     return jsonify({
         "message": "user approved",
-        "user_id": user.user_id,
-        "new_role": user.role_id
+        "user_id": target_user.user_id,
+        "new_role": target_user.role_id
     }), 200
 
 # Approval and rejection endpoints by regulator for pending studies: 
@@ -1218,22 +1220,31 @@ def approve_user(user_id):
 # - For rejection: update study status to rejected
 # Future functionality:
 # - Make this more policy-engine based.
+# - Currently trying to do that, changes: removed the require_role call, removed manual auth-style logic from the route, moved regulator and pending study logic into policy eval, kept the actual DB update as business logic.
 @api.route("/admin/studies/<int:study_id>/approve", methods=["POST"])
 @jwt_required()
 def approve_study(study_id):
-    current_user, role_error = require_role("regulator")
-    if role_error:
-        return role_error
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    
 
+    
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
 
     refresh_study_status(study)
 
-    if study.status != "pending":
-        return error("only pending studies can be approved", 400)
+    context = build_auth_context(
+        current_user=current_user,
+        action="approveStudy",
+        resource=study
+    )
 
+    authori_error = authorize("approveStudy", context)
+    if authori_error:
+        return authori_error
     approved_at = datetime.utcnow()
 
     study.status = "open"
@@ -1256,9 +1267,9 @@ def approve_study(study_id):
 @api.route("/admin/studies/<int:study_id>/reject", methods=["POST"])
 @jwt_required()
 def reject_study(study_id):
-    current_user, role_error = require_role("regulator")
-    if role_error:
-        return role_error
+    current_user = get_current_user()
+    if not current_user: 
+        return error ("user not found", 404)
 
     data = request.get_json() or {}
     reason = data.get("reason", "no reason provided")
@@ -1268,10 +1279,18 @@ def reject_study(study_id):
         return error("study not found", 404)
 
     refresh_study_status(study)
+    context = build_auth_context(
+        current_user=current_user,
+        action="rejectStudy",
+        resource=study,
+        extra={
+            "hasReason": bool(reason)
+        }
+    )
 
-    if study.status != "pending":
-        return error("only pending studies can be rejected", 400)
-
+    authori_error = authorize("rejectStudy", context)
+    if authori_error:
+        return authori_error
     study.status = "rejected"
 
     db.session.commit()
