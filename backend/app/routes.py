@@ -58,7 +58,6 @@ def require_role(*allowed_roles):
 def add_months_as_days(start_dt, months):
     return start_dt + timedelta(days=30 * months)
 
-
 # Utility function to refresh study status based on current time and study timelines:
 def refresh_study_status(study):
     if not study:
