@@ -51,6 +51,8 @@ export interface AvailableStudy {
   study_name: string;
   description?: string;
   duration_months?: number;
+  data_collection_months?: number;
+  research_duration_months?: number;
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];

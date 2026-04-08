@@ -116,9 +116,9 @@ export default function ParticipantDiscoverPage() {
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Badge tone="neutral">{study.status}</Badge>
-                      {study.duration_months ? (
+                      {study.data_collection_months ? (
                         <Badge tone="neutral">
-                          {study.duration_months} months
+                          {study.data_collection_months} months
                         </Badge>
                       ) : null}
                       <Badge tone="success">

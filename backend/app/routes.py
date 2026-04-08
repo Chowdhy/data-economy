@@ -1055,16 +1055,22 @@ def list_available_studies(participant_id):
         if study.study_id in joined_ids:
             continue
 
+        study_fields = split_study_field_ids(study.study_id)
+
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
             "description": study.description,
-            "status": study.status
+            "status": study.status,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "required_field_ids": study_fields["required_field_ids"],
+            "optional_field_ids": study_fields["optional_field_ids"]
         })
 
     return jsonify({
         "participant_id": participant_id,
-        "available_studies": results
+        "studies": results
     }), 200
 
 
