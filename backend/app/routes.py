@@ -170,7 +170,7 @@ def create_field():
 @api.route("/fields", methods=["GET"])
 @jwt_required()
 def list_all_fields():
-    current_user, role_error = require_role("researcher")
+    current_user, role_error = require_role("participant", "researcher")
     if role_error:
         return role_error
 

@@ -146,7 +146,8 @@ class StudyParticipant(db.Model):
     consented_fields = db.relationship(
         "StudyParticipantConsentedField",
         back_populates="study_participant",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        overlaps="consented_fields"
     )
 
 
@@ -169,8 +170,8 @@ class StudyParticipantConsentedField(db.Model):
         primary_key=True
     )
 
-    study = db.relationship("Study", back_populates="consented_fields")
-    participant = db.relationship("User")
+    study = db.relationship("Study", back_populates="consented_fields", overlaps="consented_fields")
+    participant = db.relationship("User", overlaps="consented_fields")
     field = db.relationship("FieldDescription", back_populates="consent_links")
 
     __table_args__ = (
@@ -181,7 +182,11 @@ class StudyParticipantConsentedField(db.Model):
         ),
     )
 
-    study_participant = db.relationship("StudyParticipant", back_populates="consented_fields")
+    study_participant = db.relationship(
+        "StudyParticipant",
+        back_populates="consented_fields",
+        overlaps="consented_fields,participant,study"
+    )
 
 
 class ParticipantAnswer(db.Model):

@@ -8,13 +8,16 @@ import type {
   User,
   ParticipantAnswersResponse,
 } from "./types";
+import { getAccessToken } from "./auth";
 
 const API_BASE = "http://127.0.0.1:5000/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const accessToken = getAccessToken();
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(options?.headers || {}),
     },
     ...options,
@@ -23,7 +26,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(data.error || data.msg || "Request failed");
   }
 
   return data;
@@ -35,6 +38,7 @@ export const api = {
   login: (payload: { email: string; password: string }) =>
     request<{
       message: string;
+      access_token: string;
       user: User;
     }>("/login", {
       method: "POST",

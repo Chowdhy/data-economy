@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "~/lib/api";
+import { setAuthSession } from "~/lib/auth";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import Input from "~/components/ui/Input";
@@ -31,7 +32,7 @@ export default function LoginPage() {
       });
 
       const user = response.user;
-      localStorage.setItem("user", JSON.stringify(user));
+      setAuthSession(user, response.access_token);
 
       if (user.role_id === "participant") {
         navigate("/participant/dashboard");
