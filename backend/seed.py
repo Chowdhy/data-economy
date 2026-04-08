@@ -13,7 +13,7 @@ from app.models import (
 
 
 def clear_data():
-    # Delete children first to avoid FK issues
+    # Delete children first to avoid FK issues:
     db.session.query(StudyParticipantConsentedField).delete()
     db.session.query(StudyParticipant).delete()
     db.session.query(StudyRequiredField).delete()
@@ -25,52 +25,52 @@ def clear_data():
 
 
 def seed_data():
-    # Updated Users
+    # Updated Users (changed to test some new updates)
 
-    # REGULATOR (needed for approvals)
+    # REGULATOR (needed for approvals):
     regulator = User(
-        name="Admin Regulator",
-        email="admin@system.com",
+        name="Regulator 1",
+        email="regulator@gmai.com",
         password_hash=generate_password_hash("admin123"),
         role_id="regulator",
         requested_role=None,
         is_approved=True,
     )
 
-    # APPROVED researchers
+    # APPROVED researchers: 
     researcher_1 = User(
-        name="Dr Alice Smith",
-        email="alice.researcher@example.com",
+        name="Dr. Alice Smith",
+        email="alice@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="researcher",
         requested_role=None,
         is_approved=True,
-        is_active=False
+        is_active=False # testing active/incactive accounts
     )
 
     researcher_2 = User(
-        name="Dr Bob Jones",
-        email="bob.researcher@example.com",
+        name="Dr. Bob Jones",
+        email="bob@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="researcher",
         requested_role=None,
         is_approved=True,
     )
 
-    # PENDING researcher (VERY useful for testing)
+    # PENDING researcher (for testing): 
     pending_researcher = User(
-        name="Pending Researcher",
-        email="pending.researcher@example.com",
+        name="Dr. Mary Jonas",
+        email="mary@gmail.com",
         password_hash=generate_password_hash("test123"),
-        role_id="participant",  # still participant
+        role_id="participant",  # STILL participant
         requested_role="researcher",
         is_approved=False,
     )
 
-    # Participants
+    # Participants:
     participant_1 = User(
         name="John Doe",
-        email="john.participant@example.com",
+        email="john@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",
         requested_role=None,
@@ -79,7 +79,7 @@ def seed_data():
 
     participant_2 = User(
         name="Jane Roe",
-        email="jane.participant@example.com",
+        email="jane@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",
         requested_role=None,
@@ -88,7 +88,7 @@ def seed_data():
 
     participant_3 = User(
         name="Sam Lee",
-        email="sam.participant@example.com",
+        email="sam@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",
         requested_role=None,
@@ -106,7 +106,7 @@ def seed_data():
     ])
     db.session.flush()
 
-    # Fields
+    # Fields already added: 
     age = FieldDescription(
         field_name="age",
         field_desc="Participant age in years",
@@ -131,7 +131,68 @@ def seed_data():
     db.session.add_all([age, smoker, height, weight, heart_rate])
     db.session.flush()
 
-    # Studies
+    study = Study(
+        study_name="Test Study",
+        description="Testing study for API",
+        data_collection_months=3,
+        research_duration_months=6,
+        creator_id=researcher_2.user_id,
+        status="open",  # IMPORTANT
+    )
+
+    db.session.add(study)
+    db.session.flush()
+
+
+    db.session.add_all([
+        StudyRequiredField(
+            study_id=study.study_id,
+            field_id=age.field_id,
+            is_required=True
+        ),
+        StudyRequiredField(
+            study_id=study.study_id,
+            field_id=height.field_id,
+            is_required=True
+        ),
+    ])
+
+    db.session.flush()
+
+
+    membership = StudyParticipant(
+        study_id=study.study_id,
+        participant_id=participant_1.user_id,
+        consent_all_fields=True,
+    )
+
+    db.session.add(membership)
+    db.session.flush()
+
+ 
+    db.session.add_all([
+        StudyParticipantConsentedField(
+            study_id=study.study_id,
+            participant_id=participant_1.user_id,
+            field_id=age.field_id,
+        ),
+        StudyParticipantConsentedField(
+            study_id=study.study_id,
+            participant_id=participant_1.user_id,
+            field_id=height.field_id,
+        ),
+    ])
+
+    db.session.flush()
+
+
+    db.session.add(ParticipantAnswer(
+        participant_id=participant_1.user_id,
+        field_id=age.field_id,
+        answer="25"
+    ))
+
+    # Studies: 
     ''' study_1 = Study(
         study_name="Cardiovascular Health Study",
         description="A study exploring relationships between cardiovascular indicators and general health.",
@@ -361,6 +422,7 @@ if __name__ == "__main__":
     app = create_app()
 
     with app.app_context():
-        db.create_all()  # Ensure tables are created
+        # Tables need to be created first: 
+        db.create_all()  
         clear_data()
         seed_data()
