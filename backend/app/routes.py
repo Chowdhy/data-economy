@@ -167,9 +167,11 @@ def create_user():
     if requested_role == "participant":
         role_id = "participant"
         is_approved = True
+        stored_requested_role = None
     else:
-        role_id = "participant" # still partipant until approved by regulator
-        is_approved = False
+        role_id = "researcher"
+        is_approved = True
+        stored_requested_role = None
 
 
     user = User(
@@ -177,7 +179,7 @@ def create_user():
         email=email,
         password_hash=hashed_password,
         role_id=role_id,
-        requested_role=requested_role if requested_role!= "participant" else None,
+        requested_role=stored_requested_role,
         is_approved=is_approved
     )
     db.session.add(user)
@@ -1109,6 +1111,7 @@ def list_researcher_studies(researcher_id):
     results = []
     for study in studies:
         refresh_study_status(study)
+        study_fields = split_study_field_ids(study.study_id)
 
         participant_count = StudyParticipant.query.filter_by(
             study_id=study.study_id
@@ -1117,7 +1120,12 @@ def list_researcher_studies(researcher_id):
         results.append({
             "study_id": study.study_id,
             "study_name": study.study_name,
+            "description": study.description,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
             "status": study.status,
+            "required_field_ids": study_fields["required_field_ids"],
+            "optional_field_ids": study_fields["optional_field_ids"],
             "participant_count": participant_count
         })
 
@@ -1128,23 +1136,35 @@ def list_researcher_studies(researcher_id):
 
 # Do we need this? 
 @api.route("/studies/<int:study_id>", methods=["GET"])
+@jwt_required(optional=True)
 def get_study(study_id):
-    current_user = get_current_user() if get_jwt_identity() else None
+    current_user = get_current_user()
 
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
 
     refresh_study_status(study)
+    study_fields = split_study_field_ids(study.study_id)
+    participant_count = StudyParticipant.query.filter_by(
+        study_id=study.study_id
+    ).count()
+
+    payload = {
+        "study_id": study.study_id,
+        "study_name": study.study_name,
+        "description": study.description,
+        "data_collection_months": study.data_collection_months,
+        "research_duration_months": study.research_duration_months,
+        "status": study.status,
+        "required_field_ids": study_fields["required_field_ids"],
+        "optional_field_ids": study_fields["optional_field_ids"],
+        "participant_count": participant_count,
+    }
 
     # Public access for open studies
     if study.status == "open":
-        return jsonify({
-            "study_id": study.study_id,
-            "study_name": study.study_name,
-            "description": study.description,
-            "status": study.status
-        }), 200
+        return jsonify({"study": payload}), 200
 
     # Otherwise require auth
     if not current_user:
@@ -1160,16 +1180,13 @@ def get_study(study_id):
     if auth_error:
         return auth_error
 
-    return jsonify({
-        "study_id": study.study_id,
-        "study_name": study.study_name,
-        "description": study.description,
-        "status": study.status
-    }), 200
+    return jsonify({"study": payload}), 200
 # Do we need this? (it doesn't really role checking)
 # IT NEEDS TO BE ONLY FOR RESEARCHERS WHEN THE STUDY IS ONGOING AND WE NEED ANONYMISATION ASAP (CHECK DATA PRIV LECTURES)
 @api.route("/researchers/<int:researcher_id>/studies/<int:study_id>/data", methods=["GET"])
-def get_study_data(study_id):
+@api.route("/studies/<int:study_id>/data", methods=["GET"])
+@jwt_required()
+def get_study_data(study_id, researcher_id=None):
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1198,15 +1215,16 @@ def get_study_data(study_id):
 
     rows = db.session.query(
         StudyParticipant.participant_id,
+        FieldDescription.field_id,
         FieldDescription.field_name,
+        FieldDescription.field_desc,
         ParticipantAnswer.answer
-    ).join(
+    ).select_from(StudyParticipantConsentedField).join(
         StudyParticipant,
-        StudyParticipant.study_id == study_id
-    ).join(
-        StudyParticipantConsentedField,
-        (StudyParticipantConsentedField.participant_id == StudyParticipant.participant_id) &
-        (StudyParticipantConsentedField.study_id == study_id)
+        and_(
+            StudyParticipant.study_id == StudyParticipantConsentedField.study_id,
+            StudyParticipant.participant_id == StudyParticipantConsentedField.participant_id,
+        )
     ).join(
         FieldDescription,
         FieldDescription.field_id == StudyParticipantConsentedField.field_id
@@ -1214,15 +1232,30 @@ def get_study_data(study_id):
         ParticipantAnswer,
         (ParticipantAnswer.participant_id == StudyParticipant.participant_id) &
         (ParticipantAnswer.field_id == FieldDescription.field_id)
+    ).filter(
+        StudyParticipantConsentedField.study_id == study_id
     ).all()
 
     data = {}
-    for pid, fname, ans in rows:
-        data.setdefault(pid, {})[fname] = ans
+    for pid, field_id, field_name, field_desc, answer in rows:
+        participant_key = str(pid)
+        data.setdefault(participant_key, []).append({
+            "field_id": field_id,
+            "field_name": field_name,
+            "field_desc": field_desc,
+            "answer": answer
+        })
 
     return jsonify({
-        "study_id": study_id,
-        "data": data
+        "study": {
+            "study_id": study.study_id,
+            "study_name": study.study_name,
+            "description": study.description,
+            "data_collection_months": study.data_collection_months,
+            "research_duration_months": study.research_duration_months,
+            "status": study.status,
+        },
+        "participants": data
     }), 200
 
 # Current functionality: 

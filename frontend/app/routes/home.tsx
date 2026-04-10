@@ -20,27 +20,26 @@ export default function Home() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <Link
-            to="/participant/dashboard"
+            to="/login"
             className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 transition hover:bg-emerald-100"
           >
             <h2 className="text-lg font-semibold text-slate-900">
-              Participant dashboard
+              Participant access
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              View joined studies, update answers, and manage consent choices.
+              Sign in to review studies, update answers, and manage consent choices.
             </p>
           </Link>
 
           <Link
-            to="/researcher/dashboard"
+            to="/login"
             className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:bg-slate-100"
           >
             <h2 className="text-lg font-semibold text-slate-900">
-              Researcher dashboard
+              Researcher access
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Create studies, view participant counts, and inspect consented
-              data.
+              Sign in to create studies, review participation, and inspect consented data.
             </p>
           </Link>
         </div>

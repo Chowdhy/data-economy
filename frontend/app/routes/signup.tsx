@@ -28,20 +28,22 @@ export default function SignupPage() {
     try {
       setLoading(true);
 
-      const response = await api.createUser({
+      await api.createUser({
         name: name.trim(),
         email: email.trim(),
         password,
         role_id: roleId,
       });
 
-      localStorage.setItem("user", JSON.stringify(response.user));
-
-      if (response.user.role_id === "participant") {
-        navigate("/participant/dashboard");
-      } else {
-        navigate("/researcher/dashboard");
-      }
+      navigate("/login", {
+        replace: true,
+        state: {
+          signupMessage:
+            roleId === "researcher"
+              ? "Researcher account created. You can now sign in."
+              : "Account created. You can now sign in.",
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed");
     } finally {

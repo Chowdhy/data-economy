@@ -14,6 +14,9 @@ export interface User {
   name: string;
   email: string;
   role_id: Role;
+  requested_role?: Role | null;
+  is_approved?: boolean;
+  is_active?: boolean;
 }
 
 export interface FieldDescription {
@@ -62,7 +65,8 @@ export interface ResearcherStudy {
   study_id: number;
   study_name: string;
   description?: string;
-  duration_months?: number;
+  data_collection_months?: number;
+  research_duration_months?: number;
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];
@@ -73,7 +77,8 @@ export interface StudyDetail {
   study_id: number;
   study_name: string;
   description?: string;
-  duration_months?: number;
+  data_collection_months?: number;
+  research_duration_months?: number;
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];
@@ -92,7 +97,8 @@ export interface StudyDataResponse {
     study_id: number;
     study_name: string;
     description?: string;
-    duration_months?: number;
+    data_collection_months?: number;
+    research_duration_months?: number;
     status: StudyStatus | string;
   };
   participants: Record<string, StudyDataField[]>;

@@ -24,7 +24,6 @@ export default function ParticipantStudiesPage() {
 
   async function loadStudies() {
     if (!participantId) {
-      setError("No logged-in participant found");
       setLoading(false);
       return;
     }
@@ -71,7 +70,6 @@ export default function ParticipantStudiesPage() {
 
   async function handleSave(study: ParticipantStudy) {
     if (!participantId) {
-      setError("No logged-in participant found");
       return;
     }
 

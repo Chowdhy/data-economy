@@ -18,7 +18,8 @@ export default function CreateStudyPage() {
 
   const [studyName, setStudyName] = useState("");
   const [description, setDescription] = useState("");
-  const [durationMonths, setDurationMonths] = useState("");
+  const [dataCollectionMonths, setDataCollectionMonths] = useState("");
+  const [researchDurationMonths, setResearchDurationMonths] = useState("");
   const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
   const [requiredFieldIds, setRequiredFieldIds] = useState<number[]>([]);
   const [optionalFieldIds, setOptionalFieldIds] = useState<number[]>([]);
@@ -30,7 +31,6 @@ export default function CreateStudyPage() {
   useEffect(() => {
     async function loadFields() {
       if (!researcherId) {
-        setError("No logged-in researcher found");
         setLoadingFields(false);
         return;
       }
@@ -75,11 +75,11 @@ export default function CreateStudyPage() {
     setError("");
 
     if (!researcherId) {
-      setError("No logged-in researcher found");
       return;
     }
 
-    const parsedDuration = Number(durationMonths);
+    const parsedDataCollectionMonths = Number(dataCollectionMonths);
+    const parsedResearchDurationMonths = Number(researchDurationMonths);
 
     if (!studyName.trim()) {
       setError("Please enter a study name.");
@@ -91,8 +91,19 @@ export default function CreateStudyPage() {
       return;
     }
 
-    if (!Number.isInteger(parsedDuration) || parsedDuration <= 0) {
-      setError("Please enter a valid duration in whole months.");
+    if (
+      !Number.isInteger(parsedDataCollectionMonths) ||
+      parsedDataCollectionMonths <= 0
+    ) {
+      setError("Please enter a valid data collection duration in whole months.");
+      return;
+    }
+
+    if (
+      !Number.isInteger(parsedResearchDurationMonths) ||
+      parsedResearchDurationMonths <= 0
+    ) {
+      setError("Please enter a valid research duration in whole months.");
       return;
     }
 
@@ -107,8 +118,8 @@ export default function CreateStudyPage() {
       await api.createStudy({
         study_name: studyName.trim(),
         description: description.trim(),
-        duration_months: parsedDuration,
-        creator_id: researcherId,
+        data_collection_months: parsedDataCollectionMonths,
+        research_duration_months: parsedResearchDurationMonths,
         required_field_ids: requiredFieldIds,
         optional_field_ids: optionalFieldIds,
       });
@@ -116,7 +127,8 @@ export default function CreateStudyPage() {
       setMessage("Study created successfully.");
       setStudyName("");
       setDescription("");
-      setDurationMonths("");
+      setDataCollectionMonths("");
+      setResearchDurationMonths("");
       setRequiredFieldIds([]);
       setOptionalFieldIds([]);
 
@@ -134,7 +146,7 @@ export default function CreateStudyPage() {
     <AppShell
       role="researcher"
       title="Create Study"
-      subtitle="Set up an open study with required and optional participant fields."
+      subtitle="Set up a study with collection and research durations before it goes for approval."
     >
       <SectionHeading
         title="New study"
@@ -143,7 +155,7 @@ export default function CreateStudyPage() {
 
       <Card className="max-w-4xl">
         {!researcherId ? (
-          <p className="text-sm text-rose-600">No logged-in researcher found.</p>
+          <p className="text-sm text-slate-600">Redirecting to login...</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -181,19 +193,37 @@ export default function CreateStudyPage() {
 
             <div>
               <label
-                htmlFor="study-duration"
+                htmlFor="study-data-duration"
                 className="mb-1 block text-sm font-medium text-slate-700"
               >
-                Duration (months)
+                Data collection duration (months)
               </label>
               <Input
-                id="study-duration"
+                id="study-data-duration"
                 type="number"
                 min="1"
                 step="1"
                 placeholder="e.g. 6"
-                value={durationMonths}
-                onChange={(e) => setDurationMonths(e.target.value)}
+                value={dataCollectionMonths}
+                onChange={(e) => setDataCollectionMonths(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="study-research-duration"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
+                Research duration (months)
+              </label>
+              <Input
+                id="study-research-duration"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="e.g. 12"
+                value={researchDurationMonths}
+                onChange={(e) => setResearchDurationMonths(e.target.value)}
               />
             </div>
 

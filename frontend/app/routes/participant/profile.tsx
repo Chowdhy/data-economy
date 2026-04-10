@@ -58,7 +58,6 @@ export default function ParticipantProfilePage() {
     setError("");
 
     if (!participantId) {
-      setError("No logged-in participant found");
       return;
     }
 
@@ -93,9 +92,7 @@ export default function ParticipantProfilePage() {
 
       <Card className="max-w-3xl">
         {!participantId ? (
-          <p className="text-sm text-rose-600">
-            No logged-in participant found.
-          </p>
+          <p className="text-sm text-slate-600">Redirecting to login...</p>
         ) : loading ? (
           <p className="text-sm text-slate-600">Loading your answers...</p>
         ) : (

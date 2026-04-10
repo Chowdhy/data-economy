@@ -3,7 +3,6 @@ import { useParams } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import ParticipantDataTable from "~/components/researcher/ParticipantDataTable";
 import Badge from "~/components/ui/Badge";
-import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
@@ -19,7 +18,6 @@ export default function ResearcherStudyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dataMessage, setDataMessage] = useState("");
-  const [updatingStatus, setUpdatingStatus] = useState("");
 
   async function loadStudy() {
     if (!studyId || Number.isNaN(studyId)) {
@@ -54,21 +52,6 @@ export default function ResearcherStudyDetailPage() {
     }
   }
 
-  async function handleStatusChange(status: "open" | "ongoing" | "complete") {
-    if (!study) return;
-
-    try {
-      setUpdatingStatus(status);
-      setError("");
-      await api.updateStudyStatus(study.study_id, status);
-      await loadStudy();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update status");
-    } finally {
-      setUpdatingStatus("");
-    }
-  }
-
   useEffect(() => {
     loadStudy();
   }, [studyId]);
@@ -81,7 +64,7 @@ export default function ResearcherStudyDetailPage() {
     >
       <SectionHeading
         title="Study data"
-        description="Use the status controls below to move between open, ongoing, and complete. Participant responses appear only when the study is ongoing."
+        description="Participant responses appear when the study is active and the backend allows access to the consented dataset."
       />
 
       {loading ? (
@@ -118,9 +101,22 @@ export default function ResearcherStudyDetailPage() {
               </div>
 
               <div>
-                <p className="text-sm text-slate-500">Duration</p>
+                <p className="text-sm text-slate-500">Collection</p>
                 <p className="mt-1 text-base font-semibold text-slate-900">
-                  {study.duration_months ? `${study.duration_months} months` : "-"}
+                  {study.data_collection_months
+                    ? `${study.data_collection_months} months`
+                    : "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm text-slate-500">Research duration</p>
+                <p className="mt-1 text-base font-semibold text-slate-900">
+                  {study.research_duration_months
+                    ? `${study.research_duration_months} months`
+                    : "-"}
                 </p>
               </div>
             </div>
@@ -143,33 +139,6 @@ export default function ResearcherStudyDetailPage() {
                   {study.optional_field_ids.length} optional fields
                 </Badge>
               ) : null}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button
-                type="button"
-                variant={study.status === "open" ? "primary" : "secondary"}
-                disabled={updatingStatus !== "" || study.status === "open"}
-                onClick={() => handleStatusChange("open")}
-              >
-                {updatingStatus === "open" ? "Updating..." : "Mark Open"}
-              </Button>
-              <Button
-                type="button"
-                variant={study.status === "ongoing" ? "primary" : "secondary"}
-                disabled={updatingStatus !== "" || study.status === "ongoing"}
-                onClick={() => handleStatusChange("ongoing")}
-              >
-                {updatingStatus === "ongoing" ? "Updating..." : "Mark Ongoing"}
-              </Button>
-              <Button
-                type="button"
-                variant={study.status === "complete" ? "primary" : "secondary"}
-                disabled={updatingStatus !== "" || study.status === "complete"}
-                onClick={() => handleStatusChange("complete")}
-              >
-                {updatingStatus === "complete" ? "Updating..." : "Mark Complete"}
-              </Button>
             </div>
           </Card>
 

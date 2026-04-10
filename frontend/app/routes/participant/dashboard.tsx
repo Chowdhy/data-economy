@@ -22,7 +22,6 @@ export default function ParticipantDashboard() {
 
   async function loadStudies() {
     if (!participantId) {
-      setError("No logged-in participant found");
       setLoading(false);
       return;
     }
@@ -41,7 +40,6 @@ export default function ParticipantDashboard() {
 
   async function handleWithdrawFromStudy(studyId: number) {
     if (!participantId) {
-      setError("No logged-in participant found");
       return;
     }
 

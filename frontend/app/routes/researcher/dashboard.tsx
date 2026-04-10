@@ -22,7 +22,6 @@ export default function ResearcherDashboard() {
 
   async function loadStudies() {
     if (!researcherId) {
-      setError("No logged-in researcher found");
       setLoading(false);
       return;
     }

@@ -12,8 +12,12 @@ import { getAccessToken } from "./auth";
 
 const API_BASE = "http://127.0.0.1:5000/api";
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const accessToken = getAccessToken();
+interface RequestOptions extends RequestInit {
+  includeAuth?: boolean;
+}
+
+async function request<T>(path: string, options?: RequestOptions): Promise<T> {
+  const accessToken = options?.includeAuth === false ? null : getAccessToken();
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -41,6 +45,7 @@ export const api = {
       access_token: string;
       user: User;
     }>("/login", {
+      includeAuth: false,
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -55,6 +60,7 @@ export const api = {
       message: string;
       user: User;
     }>("/users", {
+      includeAuth: false,
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -70,8 +76,8 @@ export const api = {
   createStudy: (payload: {
     study_name: string;
     description: string;
-    duration_months: number;
-    creator_id: number;
+    data_collection_months: number;
+    research_duration_months: number;
     required_field_ids: number[];
     optional_field_ids: number[];
   }) =>
@@ -141,12 +147,4 @@ export const api = {
       body: JSON.stringify({ answers }),
     }),
 
-  updateStudyStatus: (studyId: number, status: "open" | "ongoing" | "complete") =>
-    request<{ message: string; study_id: number; status: string }>(
-      `/studies/${studyId}/status`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }
-    ),
 };

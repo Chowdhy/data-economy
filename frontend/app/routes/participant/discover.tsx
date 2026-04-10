@@ -22,7 +22,6 @@ export default function ParticipantDiscoverPage() {
 
   async function loadData() {
     if (!participantId) {
-      setError("No logged-in participant found");
       setLoading(false);
       return;
     }
@@ -51,7 +50,6 @@ export default function ParticipantDiscoverPage() {
 
   async function handleJoinStudy(studyId: number) {
     if (!participantId) {
-      setError("No logged-in participant found");
       return;
     }
 

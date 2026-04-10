@@ -77,7 +77,7 @@ export default function ResearcherFieldsPage() {
 
       {!isResearcher ? (
         <Card>
-          <p className="text-sm text-rose-600">No logged-in researcher found.</p>
+          <p className="text-sm text-slate-600">Redirecting to login...</p>
         </Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">

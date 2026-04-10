@@ -7,7 +7,8 @@ interface StudyOverviewCardProps {
     study_id: number;
     study_name: string;
     description?: string;
-    duration_months?: number;
+    data_collection_months?: number;
+    research_duration_months?: number;
     status: string;
     participant_count: number;
     required_field_ids: number[];
@@ -37,7 +38,12 @@ export default function StudyOverviewCard({
             {study.optional_field_ids.length > 0
               ? ` | Optional fields: ${study.optional_field_ids.length}`
               : ""}
-            {study.duration_months ? ` | ${study.duration_months} months` : ""}
+            {study.data_collection_months
+              ? ` | Collection: ${study.data_collection_months} months`
+              : ""}
+            {study.research_duration_months
+              ? ` | Research: ${study.research_duration_months} months`
+              : ""}
           </p>
         </div>
 

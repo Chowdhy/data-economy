@@ -8,7 +8,18 @@ from .routes import api
 def create_app():
     app = Flask(__name__)
 
-    CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+    CORS(
+        app,
+        resources={
+            r"/*": {
+                "origins": [
+                    r"http://localhost:\d+",
+                    r"http://127\.0\.0\.1:\d+",
+                    r"http://\[::1\]:\d+",
+                ]
+            }
+        },
+    )
 
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

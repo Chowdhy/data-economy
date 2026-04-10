@@ -25,7 +25,6 @@ export default function ResearcherStudiesPage() {
   useEffect(() => {
     async function loadData() {
       if (!researcherId) {
-        setError("No logged-in researcher found");
         setLoading(false);
         return;
       }
@@ -95,9 +94,14 @@ export default function ResearcherStudiesPage() {
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Badge tone="neutral">{study.status}</Badge>
-                      {study.duration_months ? (
+                      {study.data_collection_months ? (
                         <Badge tone="neutral">
-                          {study.duration_months} months
+                          Collection: {study.data_collection_months} months
+                        </Badge>
+                      ) : null}
+                      {study.research_duration_months ? (
+                        <Badge tone="neutral">
+                          Research: {study.research_duration_months} months
                         </Badge>
                       ) : null}
                       {study.optional_field_ids.length > 0 ? (
