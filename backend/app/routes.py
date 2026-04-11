@@ -1542,3 +1542,148 @@ def get_study_status(study_id):
         "open_until": study.open_until.isoformat() if study.open_until else None,
         "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None
     }), 200
+
+
+#Used to return the pending studies with all the info
+@api.route("/admin/studies/pending", methods=["GET"])
+@jwt_required()
+def list_pending_studies():
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.role_id != "regulator":
+        return error("only regulators can view pending studies", 403)
+
+    studies = Study.query.filter_by(status="pending").order_by(Study.study_id.desc()).all()
+
+    results = []
+    for study in studies:
+        refresh_study_status(study)
+        if study.status == "pending":
+            results.append(serialise_study_summary(study))
+
+    return jsonify({"studies": results}), 200
+
+@api.route("/admin/studies/<int:study_id>", methods=["GET"])
+@jwt_required()
+def get_regulator_study_detail(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.role_id != "regulator":
+        return error("only regulators can view study review details", 403)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    refresh_study_status(study)
+
+    return jsonify({
+        "study": serialise_regulator_study_detail(study)
+    }), 200
+
+
+#Endpoint to raise issues for studies
+@api.route("/admin/studies/<int:study_id>/issues", methods=["POST"])
+@jwt_required()
+def raise_study_issues(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.role_id != "regulator":
+        return error("only regulators can raise study issues", 403)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    refresh_study_status(study)
+
+    if study.status != "pending":
+        return error("issues can only be raised for pending studies", 400)
+
+    data = request.get_json() or {}
+    comment = data.get("comment")
+    flagged_field_ids = data.get("flagged_field_ids", [])
+
+    if not isinstance(flagged_field_ids, list):
+        return error("flagged_field_ids must be a list", 400)
+
+    study_field_ids = split_study_field_ids(study_id)["all_field_ids"]
+    invalid_ids = [field_id for field_id in flagged_field_ids if field_id not in study_field_ids]
+    if invalid_ids:
+        return error(
+            {
+                "message": "one or more flagged fields do not belong to this study",
+                "invalid_field_ids": invalid_ids,
+            },
+            400,
+        )
+
+    cleaned_comment = None
+    if isinstance(comment, str):
+        stripped = comment.strip()
+        if stripped:
+            cleaned_comment = stripped
+
+    if not cleaned_comment and not flagged_field_ids:
+        return error("at least one flagged field or a comment is required", 400)
+
+    issue = StudyIssue(
+        study_id=study.study_id,
+        regulator_id=current_user.user_id,
+        comment=cleaned_comment,
+        status="open",
+    )
+    db.session.add(issue)
+    db.session.flush()
+
+    for field_id in flagged_field_ids:
+        db.session.add(
+            StudyIssueField(
+                issue_id=issue.issue_id,
+                field_id=field_id,
+            )
+        )
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "study issues raised",
+        "issue": serialise_study_issue(issue),
+    }), 201
+
+#List issues - can be used to show researchers
+@api.route("/admin/studies/<int:study_id>/issues", methods=["GET"])
+@jwt_required()
+def list_study_issues(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    if current_user.role_id == "regulator":
+        pass
+    elif current_user.role_id == "researcher":
+        if study.creator_id != current_user.user_id:
+            return error("not allowed to view issues for this study", 403)
+    else:
+        return error("not allowed to view study issues", 403)
+
+    issues = (
+        StudyIssue.query
+        .filter_by(study_id=study_id)
+        .order_by(StudyIssue.created_at.desc())
+        .all()
+    )
+
+    return jsonify({
+        "issues": [serialise_study_issue(issue) for issue in issues]
+    }), 200
