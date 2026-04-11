@@ -7,6 +7,7 @@ import type {
   StudyDataResponse,
   User,
   ParticipantAnswersResponse,
+  RegulatorStudyDetail,
 } from "./types";
 import { getAccessToken } from "./auth";
 
@@ -147,4 +148,58 @@ export const api = {
       body: JSON.stringify({ answers }),
     }),
 
+  approveStudy: (studyId: number) =>
+  request<{
+    message: string;
+    study_id: number;
+    new_status: string;
+    approved_at: string;
+    open_until: string;
+    ongoing_until: string;
+  }>(`/admin/studies/${studyId}/approve`, {
+    method: "POST",
+  }),
+
+  rejectStudy: (studyId: number, reason?: string) =>
+  request<{
+    message: string;
+    study_id: number;
+    reason: string;
+    new_status: string;
+  }>(`/admin/studies/${studyId}/reject`, {
+    method: "POST",
+    body: JSON.stringify(reason ? { reason } : {}),
+  }),
+
+  getRegulatorStudyDetail: async (
+  studyId: number,
+  ): Promise<RegulatorStudyDetail> => {
+    const [{ study }, { fields }] = await Promise.all([
+      request<{ study: StudyDetail }>(`/studies/${studyId}`),
+      request<{ fields: FieldDescription[] }>("/fields"),
+    ]);
+
+    const fieldMap = new Map(fields.map((field) => [field.field_id, field]));
+
+    return {
+      ...study,
+      required_fields: study.required_field_ids
+        .map((id) => fieldMap.get(id))
+        .filter((field): field is FieldDescription => Boolean(field))
+        .map((field) => ({
+          field_id: field.field_id,
+          name: field.field_name,
+          description: field.field_desc ?? undefined,
+        })),
+      optional_fields: study.optional_field_ids
+        .map((id) => fieldMap.get(id))
+        .filter((field): field is FieldDescription => Boolean(field))
+        .map((field) => ({
+          field_id: field.field_id,
+          name: field.field_name,
+          description: field.field_desc ?? undefined,
+        })),
+    };
+  },
+  
 };
