@@ -7,6 +7,9 @@ import type {
   StudyDataResponse,
   User,
   ParticipantAnswersResponse,
+  RegulatorStudyDetail,
+  RegulatorStudy,
+  StudyIssue,
 } from "./types";
 import { getAccessToken } from "./auth";
 
@@ -147,4 +150,57 @@ export const api = {
       body: JSON.stringify({ answers }),
     }),
 
+  getPendingStudies: () =>
+  request<{ studies: RegulatorStudy[] }>("/admin/studies/pending"),
+
+  approveStudy: (studyId: number) =>
+  request<{
+    message: string;
+    study_id: number;
+    new_status: string;
+    approved_at: string;
+    open_until: string;
+    ongoing_until: string;
+  }>(`/admin/studies/${studyId}/approve`, {
+    method: "POST",
+  }),
+
+  rejectStudy: (studyId: number, reason?: string) =>
+  request<{
+    message: string;
+    study_id: number;
+    reason: string;
+    new_status: string;
+  }>(`/admin/studies/${studyId}/reject`, {
+    method: "POST",
+    body: JSON.stringify(reason ? { reason } : {}),
+  }),
+
+  getRegulatorStudyDetail: async (
+  studyId: number,
+  ): Promise<RegulatorStudyDetail> => {
+    const response = await request<{ study: RegulatorStudyDetail }>(
+      `/admin/studies/${studyId}`,
+    );
+
+    return response.study;
+  },
+
+  raiseStudyIssues: (
+  studyId: number,
+  payload: { comment?: string; flagged_field_ids: number[] },
+) =>
+  request<{
+    message: string;
+    issue: StudyIssue;
+  }>(`/admin/studies/${studyId}/issues`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  
+getStudyIssues: (studyId: number) =>
+  request<{
+    issues: StudyIssue[];
+  }>(`/admin/studies/${studyId}/issues`),
+  
 };

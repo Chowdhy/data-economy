@@ -19,7 +19,10 @@ export default function AccountPage() {
 
   if (!currentUser) {
     return (
-      <AppShell title="My Account" subtitle="Manage your saved sessions and account details.">
+      <AppShell
+        title="My Account"
+        subtitle="Manage your saved sessions and account details."
+      >
         <Card>
           <p className="text-sm text-slate-600">Redirecting to login...</p>
         </Card>
@@ -48,7 +51,9 @@ export default function AccountPage() {
   const primaryLink =
     currentUser.role_id === "participant"
       ? { to: "/participant/profile", label: "Edit my answers" }
-      : { to: "/researcher/studies", label: "Open my studies" };
+      : currentUser.role_id === "researcher"
+        ? { to: "/researcher/studies", label: "Open my studies" }
+        : { to: "/regulator/studies", label: "Review pending studies" };
 
   return (
     <AppShell
@@ -73,7 +78,9 @@ export default function AccountPage() {
               </div>
               <div>
                 <p className="text-sm text-slate-500">Email</p>
-                <p className="mt-1 text-sm text-slate-900">{currentUser.email}</p>
+                <p className="mt-1 text-sm text-slate-900">
+                  {currentUser.email}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-slate-500">Role</p>
@@ -83,13 +90,17 @@ export default function AccountPage() {
               </div>
               <div>
                 <p className="text-sm text-slate-500">User ID</p>
-                <p className="mt-1 text-sm text-slate-900">{currentUser.user_id}</p>
+                <p className="mt-1 text-sm text-slate-900">
+                  {currentUser.user_id}
+                </p>
               </div>
             </div>
           </Card>
 
           <Card>
-            <h2 className="text-lg font-semibold text-slate-900">Quick actions</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Quick actions
+            </h2>
             <p className="mt-1 text-sm text-slate-600">
               Jump back into the flow that matches your account.
             </p>
@@ -115,9 +126,12 @@ export default function AccountPage() {
         </div>
 
         <Card>
-          <h2 className="text-lg font-semibold text-slate-900">Switch accounts</h2>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Switch accounts
+          </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Saved sessions stay available here so you can move between accounts quickly.
+            Saved sessions stay available here so you can move between accounts
+            quickly.
           </p>
 
           <div className="mt-5 space-y-3">
@@ -133,7 +147,9 @@ export default function AccountPage() {
                     <p className="text-sm font-medium text-slate-900">
                       {session.user.name}
                     </p>
-                    <p className="text-sm text-slate-600">{session.user.email}</p>
+                    <p className="text-sm text-slate-600">
+                      {session.user.email}
+                    </p>
                     <p className="text-xs text-slate-500">
                       {titleCase(session.user.role_id)}
                       {isCurrent ? " | Current account" : ""}

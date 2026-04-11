@@ -1,4 +1,4 @@
-export type Role = "participant" | "researcher";
+export type Role = "participant" | "researcher" | "regulator";
 
 export type StudyStatus =
   | "open"
@@ -73,6 +73,32 @@ export interface ResearcherStudy {
   participant_count: number;
 }
 
+export interface RegulatorStudy {
+  study_id: number;
+  study_name: string;
+  description?: string;
+  data_collection_months?: number;
+  research_duration_months?: number;
+  status: StudyStatus;
+  required_field_ids: number[];
+  optional_field_ids: number[];
+  creator_id?: number;
+  participant_count?: number;
+  issue_count: number;
+  reviewed_before: boolean;
+}
+
+export interface StudyField {
+  field_id: number;
+  name: string;
+  description?: string;
+}
+
+export interface RegulatorStudyDetail extends RegulatorStudy {
+  required_fields: StudyField[];
+  optional_fields: StudyField[];
+}
+
 export interface StudyDetail {
   study_id: number;
   study_name: string;
@@ -102,6 +128,17 @@ export interface StudyDataResponse {
     status: StudyStatus | string;
   };
   participants: Record<string, StudyDataField[]>;
+}
+
+export interface StudyIssue {
+  issue_id: number;
+  study_id: number;
+  regulator_id: number;
+  comment?: string | null;
+  status: string;
+  flagged_field_ids: number[];
+  flagged_fields?: StudyField[];
+  created_at: string;
 }
 
 export interface ApiErrorResponse {
