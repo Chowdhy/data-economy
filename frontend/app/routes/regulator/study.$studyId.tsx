@@ -92,10 +92,22 @@ export default function RegulatorStudyReviewPage() {
     }
   }
 
-  function handleRaiseIssues() {
-    setActionMessage(
-      "Raise issues UI is ready, but backend submission is not connected yet.",
-    );
+  async function handleRaiseIssues() {
+    if (!studyId) return;
+
+    try {
+      setActionMessage(null);
+
+      await api.raiseStudyIssues(Number(studyId), {
+        comment: comment.trim() || undefined,
+        flagged_field_ids: selectedFieldIds,
+      });
+
+      setActionMessage("Issues raised successfully.");
+    } catch (err) {
+      console.error("Failed to raise issues", err);
+      setActionMessage("Could not raise issues for this study.");
+    }
   }
 
   return (
