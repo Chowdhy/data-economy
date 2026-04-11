@@ -7,6 +7,7 @@ import FlaggableFieldList from "~/components/regulator/FlaggableFieldList";
 import ReviewActionsCard from "~/components/regulator/ReviewActionsCard";
 import StudyReviewSummary from "~/components/regulator/StudyReviewSummary";
 import type { RegulatorStudyDetail } from "~/lib/types";
+import { api } from "~/lib/api";
 
 export default function RegulatorStudyReviewPage() {
   const navigate = useNavigate();
@@ -32,13 +33,8 @@ export default function RegulatorStudyReviewPage() {
       setError(null);
 
       try {
-        // TODO:
-        // Replace this with your real API call when the backend is ready.
-        // Example:
-        // const response = await api.getRegulatorStudy(Number(studyId));
-        // setStudy(response);
-
-        setStudy(null);
+        const response = await api.getRegulatorStudyDetail(Number(studyId));
+        setStudy(response);
       } catch (err) {
         console.error("Failed to load study", err);
         setError("Could not load the study for review.");
@@ -68,11 +64,11 @@ export default function RegulatorStudyReviewPage() {
 
     try {
       setActionMessage(null);
+      await api.approveStudy(Number(studyId));
+      setActionMessage("Study approved successfully.");
 
-      // TODO:
-      // await api.approveStudy(Number(studyId));
-
-      setActionMessage("Approve action is ready to be connected to the API.");
+      //Go back after approve
+      navigate("/regulator/studies");
     } catch (err) {
       console.error("Failed to approve study", err);
       setActionMessage("Could not approve the study.");
@@ -84,9 +80,10 @@ export default function RegulatorStudyReviewPage() {
 
     try {
       setActionMessage(null);
+      await api.rejectStudy(Number(studyId), rejectReason);
+      setActionMessage("Study rejected successfully.");
 
-      // TODO:
-      // await api.rejectStudy(Number(studyId), rejectReason);
+      navigate("/regulator/studies");
 
       setActionMessage("Reject action is ready to be connected to the API.");
     } catch (err) {
