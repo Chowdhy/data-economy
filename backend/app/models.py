@@ -217,3 +217,48 @@ class ParticipantAnswer(db.Model):
     __table_args__ = (
         db.UniqueConstraint("participant_id", "field_id", name="uq_participant_field"),
     )
+
+class StudyIssue(db.Model):
+    __tablename__ = "study_issues"
+
+    issue_id = db.Column(db.Integer, primary_key=True)
+    study_id = db.Column(
+        db.Integer,
+        db.ForeignKey("studies.study_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    regulator_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.user_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    comment = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), nullable=False, default="open")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    study = db.relationship(
+        "Study",
+        backref=db.backref("issues", cascade="all, delete-orphan"),
+    )
+    regulator = db.relationship("User")
+
+
+class StudyIssueField(db.Model):
+    __tablename__ = "study_issue_fields"
+
+    issue_id = db.Column(
+        db.Integer,
+        db.ForeignKey("study_issues.issue_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    field_id = db.Column(
+        db.Integer,
+        db.ForeignKey("field_descriptions.field_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    issue = db.relationship(
+        "StudyIssue",
+        backref=db.backref("flagged_fields", cascade="all, delete-orphan"),
+    )
+    field = db.relationship("FieldDescription")
