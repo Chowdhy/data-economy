@@ -141,7 +141,7 @@ Helper functions for serialising data into JSON dictionaries
 (we could move to separate file)
 '''
 
-def serialize_study_summary(study):
+def serialise_study_summary(study):
     study_fields = split_study_field_ids(study.study_id)
     participant_count = StudyParticipant.query.filter_by(
         study_id=study.study_id
