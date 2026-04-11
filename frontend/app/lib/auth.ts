@@ -107,7 +107,15 @@ export function switchAccount(userId: number) {
 }
 
 export function getDefaultRouteForRole(role: Role) {
-  return role === "participant"
-    ? "/participant/dashboard"
-    : "/researcher/dashboard";
+  if (role === "participant") {
+    return "/participant/dashboard";
+  }
+  if (role === "researcher") {
+    return "/researcher/dashboard";
+  }
+  if (role === "regulator") {
+    return "/regulator/dashboard";
+  }
+  // fallback (optional)
+  return "/";
 }
