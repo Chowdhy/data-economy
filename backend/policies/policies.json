@@ -28,14 +28,6 @@
             { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true },
             { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "open" },
             { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true }
-          ],
-          "duty": [
-            {
-              "action": "hasValidFields",
-              "constraint": [
-                { "leftOperand": "env.hasRequiredFields", "operator": "eq", "rightOperand": true }
-              ]
-            }
           ]
         },
         {

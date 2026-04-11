@@ -1563,15 +1563,21 @@ def modify_study(study_id):
     required_field_ids = data.get("required_field_ids", [])
     optional_field_ids = data.get("optional_field_ids", [])
     description = data.get("description")
+    if not required_field_ids and not optional_field_ids and not description:
+        return error("nothing to update")
+    all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
+    if all_field_ids:
+        fields = FieldDescription.query.filter(
+            FieldDescription.field_id.in_(all_field_ids)
+        ).all()
 
+        if len(fields) != len(all_field_ids):
+            return error("one or more field_ids do not exist")
     # Build policy context
     context = build_auth_context(
         current_user=current_user,
         action="modifyStudy",
-        resource=study,
-        extra={
-            "hasRequiredFields": bool(required_field_ids),
-        }
+        resource=study
     )
 
     auth_error = authorize("modifyStudy", context)
@@ -1580,21 +1586,23 @@ def modify_study(study_id):
 
 
     # Update fields
-    StudyRequiredField.query.filter_by(study_id=study_id).delete()
+    if required_field_ids or optional_field_ids:
+        StudyRequiredField.query.filter_by(study_id=study_id).delete()
 
-    for field_id in required_field_ids:
-        db.session.add(StudyRequiredField(
-            study_id=study_id,
-            field_id=field_id,
-            is_required=True
-        ))
+        for field_id in required_field_ids:
+            db.session.add(StudyRequiredField(
+                study_id=study_id,
+                field_id=field_id,
+                is_required=True
+            ))
 
-    for field_id in optional_field_ids:
-        db.session.add(StudyRequiredField(
-            study_id=study_id,
-            field_id=field_id,
-            is_required=False
-        ))
+        for field_id in optional_field_ids:
+            db.session.add(StudyRequiredField(
+                study_id=study_id,
+                field_id=field_id,
+                is_required=False
+            ))
+
 
     if description:
         study.description = description
