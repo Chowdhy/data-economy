@@ -84,6 +84,8 @@ export interface RegulatorStudy {
   optional_field_ids: number[];
   creator_id?: number;
   participant_count?: number;
+  issue_count: number;
+  reviewed_before: boolean;
 }
 
 export interface StudyField {

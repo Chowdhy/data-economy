@@ -70,9 +70,21 @@ export default function RegulatorStudiesPage() {
               <Card key={study.study_id}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-semibold text-slate-900">
-                      {study.study_name}
-                    </h2>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="text-lg font-semibold text-slate-900">
+                        {study.study_name}
+                      </h2>
+
+                      {study.reviewed_before ? (
+                        <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+                          Reviewed before
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+                          New
+                        </span>
+                      )}
+                    </div>
 
                     <p className="mt-2 text-sm text-slate-600">
                       {study.description || "No study description provided."}
@@ -97,21 +109,23 @@ export default function RegulatorStudiesPage() {
                         <span className="font-medium text-slate-900">
                           Required fields:
                         </span>{" "}
-                        {study.required_field_ids?.length ?? 0}
+                        {study.required_field_ids.length}
                       </div>
 
                       <div>
                         <span className="font-medium text-slate-900">
                           Optional fields:
                         </span>{" "}
-                        {study.optional_field_ids?.length ?? 0}
+                        {study.optional_field_ids.length}
                       </div>
 
                       <div>
                         <span className="font-medium text-slate-900">
-                          Duration:
+                          Review history:
                         </span>{" "}
-                        {study.research_duration_months ?? "—"} months
+                        {study.issue_count > 0
+                          ? `${study.issue_count} issue${study.issue_count === 1 ? "" : "s"} raised`
+                          : "No previous issues"}
                       </div>
                     </div>
                   </div>
@@ -122,7 +136,7 @@ export default function RegulatorStudiesPage() {
                         navigate(`/regulator/studies/${study.study_id}`)
                       }
                     >
-                      Open review
+                      Open details
                     </Button>
                   </div>
                 </div>

@@ -141,11 +141,13 @@ Helper functions for serialising data into JSON dictionaries
 (we could move to separate file)
 '''
 
-def serialise_study_summary(study):
+def serialize_study_summary(study):
     study_fields = split_study_field_ids(study.study_id)
     participant_count = StudyParticipant.query.filter_by(
         study_id=study.study_id
     ).count()
+
+    issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
     return {
         "study_id": study.study_id,
@@ -158,6 +160,8 @@ def serialise_study_summary(study):
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
         "participant_count": participant_count,
+        "issue_count": issue_count,
+        "reviewed_before": issue_count > 0,
     }
 
 def serialise_field(field):
