@@ -51,8 +51,8 @@ export default function RegulatorDashboard() {
   return (
     <AppShell
       role="regulator"
-      title="Regulator Dashboard"
-      subtitle="Review submitted studies and track where each study is in the regulator workflow."
+      title="Change to Hi [Name]"
+      subtitle="Review submitted studies and approve, reject or request modifications"
     >
       <div className="space-y-6">
         {isLoading ? (
@@ -67,35 +67,41 @@ export default function RegulatorDashboard() {
             <p className="mt-2 text-sm text-slate-600">{error}</p>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-3">
             <Card>
-              <p className="text-sm text-slate-500">New studies</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">
-                {summary.newStudies}
-              </p>
-              <p className="mt-2 text-sm text-slate-600">
-                Pending studies that have not yet been reviewed.
-              </p>
+              <div className="min-h-[220px] p-2">
+                <p className="text-sm text-slate-500">New studies</p>
+                <p className="mt-4 text-4xl font-semibold text-slate-900">
+                  {summary.newStudies}
+                </p>
+                <p className="mt-4 text-sm text-slate-600">
+                  Pending studies that have not yet been reviewed
+                </p>
+              </div>
             </Card>
 
             <Card>
-              <p className="text-sm text-slate-500">Awaiting modification</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">
-                {summary.awaitingModification}
-              </p>
-              <p className="mt-2 text-sm text-slate-600">
-                Studies that were reviewed and already have regulator issues.
-              </p>
+              <div className="min-h-[220px] p-2">
+                <p className="text-sm text-slate-500">Awaiting modification</p>
+                <p className="mt-4 text-4xl font-semibold text-slate-900">
+                  {summary.awaitingModification}
+                </p>
+                <p className="mt-4 text-sm text-slate-600">
+                  Studies that were reviewed and already have raised issues
+                </p>
+              </div>
             </Card>
 
             <Card>
-              <p className="text-sm text-slate-500">Need reviewing again</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">
-                {summary.needsReviewAgain}
-              </p>
-              <p className="mt-2 text-sm text-slate-600">
-                Revised studies ready for another regulator review.
-              </p>
+              <div className="min-h-[220px] p-2">
+                <p className="text-sm text-slate-500">Need reviewing again</p>
+                <p className="mt-4 text-4xl font-semibold text-slate-900">
+                  {summary.needsReviewAgain}
+                </p>
+                <p className="mt-4 text-sm text-slate-600">
+                  Revised studies ready for another review
+                </p>
+              </div>
             </Card>
           </div>
         )}

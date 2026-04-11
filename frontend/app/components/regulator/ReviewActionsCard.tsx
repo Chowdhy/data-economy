@@ -37,22 +37,13 @@ export default function ReviewActionsCard({
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Flagged fields
             </p>
             <p className="mt-1 text-lg font-semibold text-slate-900">
               {selectedFieldCount} / {totalFieldCount}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Review state
-            </p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              Pending regulator decision
             </p>
           </div>
         </div>

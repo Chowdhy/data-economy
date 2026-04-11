@@ -70,27 +70,27 @@ export default function RegulatorStudiesPage() {
               <Card key={study.study_id}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="text-lg font-semibold text-slate-900">
-                        {study.study_name}
-                      </h2>
-
+                    <div className="flex items-center gap-3">
                       {study.reviewed_before ? (
-                        <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
-                          Reviewed before
+                        <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-sm font-semibold text-amber-700">
+                          Reviewed
                         </span>
                       ) : (
-                        <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-700">
                           New
                         </span>
                       )}
+
+                      <h2 className="text-lg font-semibold text-slate-900">
+                        {study.study_name}
+                      </h2>
                     </div>
 
                     <p className="mt-2 text-sm text-slate-600">
                       {study.description || "No study description provided."}
                     </p>
 
-                    <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
                       <div>
                         <span className="font-medium text-slate-900">
                           Study ID:
@@ -100,23 +100,9 @@ export default function RegulatorStudiesPage() {
 
                       <div>
                         <span className="font-medium text-slate-900">
-                          Creator:
+                          Researcher ID:
                         </span>{" "}
                         {study.creator_id ?? "Unknown"}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-slate-900">
-                          Required fields:
-                        </span>{" "}
-                        {study.required_field_ids.length}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-slate-900">
-                          Optional fields:
-                        </span>{" "}
-                        {study.optional_field_ids.length}
                       </div>
 
                       <div>

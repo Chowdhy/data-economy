@@ -171,6 +171,14 @@ export default function RegulatorStudyReviewPage() {
           <>
             <StudyReviewSummary study={study} />
 
+            {isLoadingIssues ? (
+              <Card>
+                <p className="text-sm text-slate-600">Loading issues...</p>
+              </Card>
+            ) : (
+              <IssueHistoryList issues={issues} />
+            )}
+
             <div className="grid gap-6 xl:grid-cols-2">
               <FlaggableFieldList
                 title="Required fields"
@@ -206,14 +214,6 @@ export default function RegulatorStudyReviewPage() {
                 <p className="text-sm text-slate-600">{actionMessage}</p>
               </Card>
             ) : null}
-
-            {isLoadingIssues ? (
-              <Card>
-                <p className="text-sm text-slate-600">Loading issues...</p>
-              </Card>
-            ) : (
-              <IssueHistoryList issues={issues} />
-            )}
           </>
         )}
       </div>
