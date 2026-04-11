@@ -9,6 +9,7 @@ import type {
   ParticipantAnswersResponse,
   RegulatorStudyDetail,
   RegulatorStudy,
+  StudyIssue,
 } from "./types";
 import { getAccessToken } from "./auth";
 
@@ -188,34 +189,18 @@ export const api = {
   raiseStudyIssues: (
   studyId: number,
   payload: { comment?: string; flagged_field_ids: number[] },
-  ) =>
-    request<{
-      message: string;
-      issue: {
-        issue_id: number;
-        study_id: number;
-        regulator_id: number;
-        comment?: string | null;
-        status: string;
-        flagged_field_ids: number[];
-        created_at: string;
-      };
-    }>(`/admin/studies/${studyId}/issues`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  getStudyIssues: (studyId: number) =>
+) =>
   request<{
-    issues: {
-      issue_id: number;
-      study_id: number;
-      regulator_id: number;
-      comment?: string | null;
-      status: string;
-      flagged_field_ids: number[];
-      created_at: string;
-    }[];
+    message: string;
+    issue: StudyIssue;
+  }>(`/admin/studies/${studyId}/issues`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  
+getStudyIssues: (studyId: number) =>
+  request<{
+    issues: StudyIssue[];
   }>(`/admin/studies/${studyId}/issues`),
   
 };

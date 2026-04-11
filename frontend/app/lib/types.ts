@@ -135,6 +135,7 @@ export interface StudyIssue {
   comment?: string | null;
   status: string;
   flagged_field_ids: number[];
+  flagged_fields?: StudyField[];
   created_at: string;
 }
 

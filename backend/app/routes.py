@@ -202,13 +202,26 @@ def serialise_regulator_study_detail(study):
     }
 
 def serialise_study_issue(issue):
+    flagged_fields = []
+    flagged_field_ids = []
+
+    for row in issue.flagged_fields:
+        flagged_field_ids.append(row.field_id)
+        if row.field:
+            flagged_fields.append({
+                "field_id": row.field.field_id,
+                "name": row.field.field_name,
+                "description": row.field.field_desc,
+            })
+
     return {
         "issue_id": issue.issue_id,
         "study_id": issue.study_id,
         "regulator_id": issue.regulator_id,
         "comment": issue.comment,
         "status": issue.status,
-        "flagged_field_ids": [row.field_id for row in issue.flagged_fields],
+        "flagged_field_ids": flagged_field_ids,
+        "flagged_fields": flagged_fields,
         "created_at": issue.created_at.isoformat(),
     }
 

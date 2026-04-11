@@ -48,14 +48,9 @@ export default function FlaggableFieldList({
                   />
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {field.name}
-                      </p>
-                      <span className="text-xs text-slate-500">
-                        ID: {field.field_id}
-                      </span>
-                    </div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {field.name}
+                    </p>
 
                     <p className="mt-1 text-sm text-slate-600">
                       {field.description || "No field description provided."}

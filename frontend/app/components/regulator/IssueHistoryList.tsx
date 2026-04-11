@@ -68,13 +68,25 @@ export default function IssueHistoryList({ issues }: IssueHistoryListProps) {
 
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                      Flagged field IDs
+                      Flagged fields
                     </p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      {issue.flagged_field_ids.length > 0
-                        ? issue.flagged_field_ids.join(", ")
-                        : "No fields flagged."}
-                    </p>
+
+                    {issue.flagged_fields && issue.flagged_fields.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {issue.flagged_fields.map((field) => (
+                          <span
+                            key={field.field_id}
+                            className="inline-flex rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-800"
+                          >
+                            {field.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-700">
+                        No fields flagged.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
