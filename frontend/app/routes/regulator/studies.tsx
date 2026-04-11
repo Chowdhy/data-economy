@@ -4,22 +4,12 @@ import AppShell from "~/components/layout/AppShell";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
-
-type PendingStudy = {
-  study_id: number;
-  study_name: string;
-  description?: string;
-  status?: string;
-  creator_id?: number;
-  required_field_ids?: number[];
-  optional_field_ids?: number[];
-  data_collection_months?: number;
-  research_duration_months?: number;
-};
+import { api } from "~/lib/api";
+import type { RegulatorStudy } from "~/lib/types";
 
 export default function RegulatorStudiesPage() {
   const navigate = useNavigate();
-  const [studies, setStudies] = useState<PendingStudy[]>([]);
+  const [studies, setStudies] = useState<RegulatorStudy[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +19,8 @@ export default function RegulatorStudiesPage() {
       setError(null);
 
       try {
-        // TODO:
-        // Replace this once the backend endpoint exists, for example:
-        // const response = await api.getPendingStudies();
-        // setStudies(response);
-
-        setStudies([]);
+        const response = await api.getPendingStudies();
+        setStudies(response.studies);
       } catch (err) {
         console.error("Failed to load pending studies", err);
         setError("Could not load pending studies.");
@@ -55,7 +41,7 @@ export default function RegulatorStudiesPage() {
       <div className="space-y-6">
         <SectionHeading
           title="Studies awaiting review"
-          description="This page is ready for a pending-studies API. Until that is connected, no studies will appear here."
+          description="These studies are currently pending regulator review."
         />
 
         {isLoading ? (
@@ -75,8 +61,7 @@ export default function RegulatorStudiesPage() {
               No pending studies to show
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Once you add the backend endpoint for regulator study review,
-              pending submissions can be listed here.
+              There are currently no study submissions waiting for review.
             </p>
           </Card>
         ) : (
