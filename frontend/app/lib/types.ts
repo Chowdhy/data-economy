@@ -86,6 +86,17 @@ export interface RegulatorStudy {
   participant_count?: number;
 }
 
+export interface StudyField {
+  field_id: number;
+  name: string;
+  description?: string;
+}
+
+export interface RegulatorStudyDetail extends RegulatorStudy {
+  required_fields: StudyField[];
+  optional_fields: StudyField[];
+}
+
 export interface StudyDetail {
   study_id: number;
   study_name: string;
