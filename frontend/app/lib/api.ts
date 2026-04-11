@@ -8,6 +8,7 @@ import type {
   User,
   ParticipantAnswersResponse,
   RegulatorStudyDetail,
+  RegulatorStudy,
 } from "./types";
 import { getAccessToken } from "./auth";
 
@@ -148,6 +149,9 @@ export const api = {
       body: JSON.stringify({ answers }),
     }),
 
+  getPendingStudies: () =>
+  request<{ studies: RegulatorStudy[] }>("/admin/studies/pending"),
+
   approveStudy: (studyId: number) =>
   request<{
     message: string;
@@ -174,32 +178,31 @@ export const api = {
   getRegulatorStudyDetail: async (
   studyId: number,
   ): Promise<RegulatorStudyDetail> => {
-    const [{ study }, { fields }] = await Promise.all([
-      request<{ study: StudyDetail }>(`/studies/${studyId}`),
-      request<{ fields: FieldDescription[] }>("/fields"),
-    ]);
+    const response = await request<{ study: RegulatorStudyDetail }>(
+      `/admin/studies/${studyId}`,
+    );
 
-    const fieldMap = new Map(fields.map((field) => [field.field_id, field]));
-
-    return {
-      ...study,
-      required_fields: study.required_field_ids
-        .map((id) => fieldMap.get(id))
-        .filter((field): field is FieldDescription => Boolean(field))
-        .map((field) => ({
-          field_id: field.field_id,
-          name: field.field_name,
-          description: field.field_desc ?? undefined,
-        })),
-      optional_fields: study.optional_field_ids
-        .map((id) => fieldMap.get(id))
-        .filter((field): field is FieldDescription => Boolean(field))
-        .map((field) => ({
-          field_id: field.field_id,
-          name: field.field_name,
-          description: field.field_desc ?? undefined,
-        })),
-    };
+    return response.study;
   },
+
+  raiseStudyIssues: (
+  studyId: number,
+  payload: { comment?: string; flagged_field_ids: number[] },
+  ) =>
+    request<{
+      message: string;
+      issue: {
+        issue_id: number;
+        study_id: number;
+        regulator_id: number;
+        comment?: string | null;
+        status: string;
+        flagged_field_ids: number[];
+        created_at: string;
+      };
+    }>(`/admin/studies/${studyId}/issues`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   
 };
