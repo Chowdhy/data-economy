@@ -1458,3 +1458,69 @@ def get_study_status(study_id):
         "open_until": study.open_until.isoformat() if study.open_until else None,
         "ongoing_until": study.ongoing_until.isoformat() if study.ongoing_until else None
     }), 200
+
+
+@api.route("/studies/<int:study_id>/modify", methods=["PUT"])
+@jwt_required()
+def modify_study(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    refresh_study_status(study)
+
+    data = request.get_json() or {}
+
+    required_field_ids = data.get("required_field_ids", [])
+    optional_field_ids = data.get("optional_field_ids", [])
+    description = data.get("description")
+
+    # Build policy context
+    context = build_auth_context(
+        current_user=current_user,
+        action="modifyStudy",
+        resource=study,
+        extra={
+            "hasRequiredFields": bool(required_field_ids),
+        }
+    )
+
+    auth_error = authorize("modifyStudy", context)
+    if auth_error:
+        return auth_error
+
+
+    # Update fields
+    StudyRequiredField.query.filter_by(study_id=study_id).delete()
+
+    for field_id in required_field_ids:
+        db.session.add(StudyRequiredField(
+            study_id=study_id,
+            field_id=field_id,
+            is_required=True
+        ))
+
+    for field_id in optional_field_ids:
+        db.session.add(StudyRequiredField(
+            study_id=study_id,
+            field_id=field_id,
+            is_required=False
+        ))
+
+    if description:
+        study.description = description
+
+    study.status = "pending"
+    study.approved_at = None
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "study modified and sent for re-approval",
+        "study_id": study_id,
+        "status": study.status
+    }), 200
