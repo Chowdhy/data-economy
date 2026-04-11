@@ -1212,23 +1212,7 @@ def list_researcher_studies(researcher_id):
     results = []
     for study in studies:
         refresh_study_status(study)
-        study_fields = split_study_field_ids(study.study_id)
-
-        participant_count = StudyParticipant.query.filter_by(
-            study_id=study.study_id
-        ).count()
-
-        results.append({
-            "study_id": study.study_id,
-            "study_name": study.study_name,
-            "description": study.description,
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "status": study.status,
-            "required_field_ids": study_fields["required_field_ids"],
-            "optional_field_ids": study_fields["optional_field_ids"],
-            "participant_count": participant_count
-        })
+        results.append(serialise_study_summary(study))
 
     return jsonify({
         "researcher_id": researcher_id,
