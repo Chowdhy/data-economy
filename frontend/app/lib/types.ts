@@ -1,4 +1,4 @@
-export type Role = "participant" | "researcher";
+export type Role = "participant" | "researcher" | "regulator";
 
 export type StudyStatus =
   | "open"
@@ -71,6 +71,19 @@ export interface ResearcherStudy {
   required_field_ids: number[];
   optional_field_ids: number[];
   participant_count: number;
+}
+
+export interface RegulatorStudy {
+  study_id: number;
+  study_name: string;
+  description?: string;
+  data_collection_months?: number;
+  research_duration_months?: number;
+  status: StudyStatus;
+  required_field_ids: number[];
+  optional_field_ids: number[];
+  creator_id?: number;
+  participant_count?: number;
 }
 
 export interface StudyDetail {
