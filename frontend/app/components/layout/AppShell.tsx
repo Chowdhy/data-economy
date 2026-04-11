@@ -7,7 +7,7 @@ import { getCurrentUser, getDefaultRouteForRole } from "~/lib/auth";
 interface AppShellProps {
   title: string;
   subtitle?: string;
-  role?: "participant" | "researcher";
+  role?: "participant" | "researcher" | "regulator";
   children: ReactNode;
 }
 

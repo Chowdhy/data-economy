@@ -13,6 +13,8 @@ from .models import (
     StudyParticipant,
     StudyParticipantConsentedField,
     ParticipantAnswer,
+    StudyIssue,
+    StudyIssueField
 )
 
 api = Blueprint("api", __name__)
@@ -46,6 +48,9 @@ def split_study_field_ids(study_id):
         "optional_field_ids": [row.field_id for row in study_fields if not row.is_required],
         "all_field_ids": [row.field_id for row in study_fields],
     }
+
+
+
 # Get current user based on JWT identity:
 def get_current_user():
     user_id = get_jwt_identity()
@@ -129,6 +134,102 @@ def refresh_study_status(study):
 @api.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
+
+
+'''
+Helper functions for serialising data into JSON dictionaries
+(we could move to separate file)
+'''
+
+def serialise_study_summary(study):
+    study_fields = split_study_field_ids(study.study_id)
+    participant_count = StudyParticipant.query.filter_by(
+        study_id=study.study_id
+    ).count()
+
+    issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
+
+    return {
+        "study_id": study.study_id,
+        "study_name": study.study_name,
+        "description": study.description,
+        "data_collection_months": study.data_collection_months,
+        "research_duration_months": study.research_duration_months,
+        "status": study.status,
+        "creator_id": study.creator_id,
+        "required_field_ids": study_fields["required_field_ids"],
+        "optional_field_ids": study_fields["optional_field_ids"],
+        "participant_count": participant_count,
+        "issue_count": issue_count,
+        "reviewed_before": issue_count > 0,
+    }
+
+def serialise_field(field):
+    return {
+        "field_id": field.field_id,
+        "name": field.field_name,
+        "description": field.field_desc,
+    }
+
+def serialise_regulator_study_detail(study):
+    study_fields = split_study_field_ids(study.study_id)
+    participant_count = StudyParticipant.query.filter_by(
+        study_id=study.study_id
+    ).count()
+
+    required_fields = []
+    optional_fields = []
+
+    for field_id in study_fields["required_field_ids"]:
+        field = FieldDescription.query.get(field_id)
+        if field:
+            required_fields.append(serialise_field(field))
+
+    for field_id in study_fields["optional_field_ids"]:
+        field = FieldDescription.query.get(field_id)
+        if field:
+            optional_fields.append(serialise_field(field))
+
+    return {
+        "study_id": study.study_id,
+        "study_name": study.study_name,
+        "description": study.description,
+        "data_collection_months": study.data_collection_months,
+        "research_duration_months": study.research_duration_months,
+        "status": study.status,
+        "creator_id": study.creator_id,
+        "participant_count": participant_count,
+        "required_field_ids": study_fields["required_field_ids"],
+        "optional_field_ids": study_fields["optional_field_ids"],
+        "required_fields": required_fields,
+        "optional_fields": optional_fields,
+    }
+
+def serialise_study_issue(issue):
+    flagged_fields = []
+    flagged_field_ids = []
+
+    for row in issue.flagged_fields:
+        flagged_field_ids.append(row.field_id)
+        if row.field:
+            flagged_fields.append({
+                "field_id": row.field.field_id,
+                "name": row.field.field_name,
+                "description": row.field.field_desc,
+            })
+
+    return {
+        "issue_id": issue.issue_id,
+        "study_id": issue.study_id,
+        "regulator_id": issue.regulator_id,
+        "comment": issue.comment,
+        "status": issue.status,
+        "flagged_field_ids": flagged_field_ids,
+        "flagged_fields": flagged_fields,
+        "created_at": issue.created_at.isoformat(),
+    }
+
+
 
 # Creating a new user: 
 # Current functionality: 
@@ -1523,4 +1624,38 @@ def modify_study(study_id):
         "message": "study modified and sent for re-approval",
         "study_id": study_id,
         "status": study.status
+    }), 200
+        "message": "study issues raised",
+        "issue": serialise_study_issue(issue),
+    }), 201
+
+#List issues - can be used to show researchers
+@api.route("/admin/studies/<int:study_id>/issues", methods=["GET"])
+@jwt_required()
+def list_study_issues(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    if current_user.role_id == "regulator":
+        pass
+    elif current_user.role_id == "researcher":
+        if study.creator_id != current_user.user_id:
+            return error("not allowed to view issues for this study", 403)
+    else:
+        return error("not allowed to view study issues", 403)
+
+    issues = (
+        StudyIssue.query
+        .filter_by(study_id=study_id)
+        .order_by(StudyIssue.created_at.desc())
+        .all()
+    )
+
+    return jsonify({
+        "issues": [serialise_study_issue(issue) for issue in issues]
     }), 200
