@@ -1,26 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import FlaggableFieldList from "~/components/regulator/FlaggableFieldList";
+import IssueHistoryList from "~/components/regulator/IssueHistoryList";
+import ReviewActionsCard from "~/components/regulator/ReviewActionsCard";
+import StudyReviewSummary from "~/components/regulator/StudyReviewSummary";
 import AppShell from "~/components/layout/AppShell";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
-import FlaggableFieldList from "~/components/regulator/FlaggableFieldList";
-import ReviewActionsCard from "~/components/regulator/ReviewActionsCard";
-import StudyReviewSummary from "~/components/regulator/StudyReviewSummary";
-import type { RegulatorStudyDetail } from "~/lib/types";
 import { api } from "~/lib/api";
+import type { RegulatorStudyDetail, StudyIssue } from "~/lib/types";
 
 export default function RegulatorStudyReviewPage() {
   const navigate = useNavigate();
   const { studyId } = useParams();
 
   const [study, setStudy] = useState<RegulatorStudyDetail | null>(null);
+  const [issues, setIssues] = useState<StudyIssue[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingIssues, setIsLoadingIssues] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedFieldIds, setSelectedFieldIds] = useState<number[]>([]);
   const [comment, setComment] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  async function loadIssues(currentStudyId: number) {
+    try {
+      setIsLoadingIssues(true);
+      const response = await api.getStudyIssues(currentStudyId);
+      setIssues(response.issues);
+    } catch (err) {
+      console.error("Failed to load study issues", err);
+    } finally {
+      setIsLoadingIssues(false);
+    }
+  }
 
   useEffect(() => {
     async function loadStudy() {
@@ -33,8 +48,14 @@ export default function RegulatorStudyReviewPage() {
       setError(null);
 
       try {
-        const response = await api.getRegulatorStudyDetail(Number(studyId));
-        setStudy(response);
+        const numericStudyId = Number(studyId);
+        const [studyResponse, issuesResponse] = await Promise.all([
+          api.getRegulatorStudyDetail(numericStudyId),
+          api.getStudyIssues(numericStudyId),
+        ]);
+
+        setStudy(studyResponse);
+        setIssues(issuesResponse.issues);
       } catch (err) {
         console.error("Failed to load study", err);
         setError("Could not load the study for review.");
@@ -66,8 +87,6 @@ export default function RegulatorStudyReviewPage() {
       setActionMessage(null);
       await api.approveStudy(Number(studyId));
       setActionMessage("Study approved successfully.");
-
-      //Go back after approve
       navigate("/regulator/studies");
     } catch (err) {
       console.error("Failed to approve study", err);
@@ -82,10 +101,7 @@ export default function RegulatorStudyReviewPage() {
       setActionMessage(null);
       await api.rejectStudy(Number(studyId), rejectReason);
       setActionMessage("Study rejected successfully.");
-
       navigate("/regulator/studies");
-
-      setActionMessage("Reject action is ready to be connected to the API.");
     } catch (err) {
       console.error("Failed to reject study", err);
       setActionMessage("Could not reject the study.");
@@ -103,7 +119,12 @@ export default function RegulatorStudyReviewPage() {
         flagged_field_ids: selectedFieldIds,
       });
 
+      await loadIssues(Number(studyId));
+
+      setComment("");
+      setSelectedFieldIds([]);
       setActionMessage("Issues raised successfully.");
+      navigate("/regulator/studies");
     } catch (err) {
       console.error("Failed to raise issues", err);
       setActionMessage("Could not raise issues for this study.");
@@ -143,8 +164,7 @@ export default function RegulatorStudyReviewPage() {
               No study data available
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Connect this page to a study detail endpoint to review a submitted
-              study here.
+              The study could not be loaded.
             </p>
           </Card>
         ) : (
@@ -186,6 +206,14 @@ export default function RegulatorStudyReviewPage() {
                 <p className="text-sm text-slate-600">{actionMessage}</p>
               </Card>
             ) : null}
+
+            {isLoadingIssues ? (
+              <Card>
+                <p className="text-sm text-slate-600">Loading issues...</p>
+              </Card>
+            ) : (
+              <IssueHistoryList issues={issues} />
+            )}
           </>
         )}
       </div>

@@ -128,6 +128,16 @@ export interface StudyDataResponse {
   participants: Record<string, StudyDataField[]>;
 }
 
+export interface StudyIssue {
+  issue_id: number;
+  study_id: number;
+  regulator_id: number;
+  comment?: string | null;
+  status: string;
+  flagged_field_ids: number[];
+  created_at: string;
+}
+
 export interface ApiErrorResponse {
   error: string;
 }
