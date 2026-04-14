@@ -30,6 +30,7 @@ export default function ModifyStudyPage() {
   const [description, setDescription] = useState("");
   const [requiredFieldIds, setRequiredFieldIds] = useState<number[]>([]);
   const [optionalFieldIds, setOptionalFieldIds] = useState<number[]>([]);
+  const [responseComment, setResponseComment] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [loadingFields, setLoadingFields] = useState(true);
@@ -160,6 +161,8 @@ export default function ModifyStudyPage() {
     : "awaiting_approval";
   const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
   const latestIssue = issues.length > 0 ? issues[0] : null;
+  const flaggedFields = latestIssue?.flagged_fields ?? [];
+  const flaggedFieldIds = latestIssue?.flagged_field_ids ?? [];
 
   return (
     <AppShell
@@ -182,7 +185,7 @@ export default function ModifyStudyPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          <Card>
+          <Card className="max-w-4xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
@@ -195,11 +198,6 @@ export default function ModifyStudyPage() {
 
               <div className="flex flex-wrap gap-2">
                 <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
-                {issueCount > 0 ? (
-                  <Badge tone="danger">
-                    {issueCount} issue{issueCount === 1 ? "" : "s"}
-                  </Badge>
-                ) : null}
               </div>
             </div>
 
@@ -215,22 +213,63 @@ export default function ModifyStudyPage() {
                   </p>
                 ) : (
                   <p className="mt-2 text-sm text-slate-500">
-                    No general comment was provided for the latest issue.
+                    No general comment was provided for the latest review item.
                   </p>
                 )}
 
-                {latestIssue.flagged_fields &&
-                latestIssue.flagged_fields.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {latestIssue.flagged_fields.map((field) => (
-                      <Badge key={field.field_id} tone="warning">
-                        {field.name}
-                      </Badge>
-                    ))}
+                {flaggedFieldIds.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-slate-900">
+                      Fields that need attention
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      These are the fields the regulator specifically flagged as
+                      problematic.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {flaggedFields.length > 0
+                        ? flaggedFields.map((field) => (
+                            <Badge key={field.field_id} tone="warning">
+                              {field.name}
+                            </Badge>
+                          ))
+                        : flaggedFieldIds.map((fieldId) => (
+                            <Badge key={fieldId} tone="warning">
+                              Field {fieldId}
+                            </Badge>
+                          ))}
+                    </div>
                   </div>
                 ) : null}
+
+                <div className="mt-4">
+                  <label
+                    htmlFor="researcher-response-comment"
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                  >
+                    Your response notes
+                  </label>
+                  <textarea
+                    id="researcher-response-comment"
+                    placeholder="Write a note about how you are addressing the regulator's feedback."
+                    value={responseComment}
+                    onChange={(e) => setResponseComment(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                  />
+                  <p className="mt-1 text-sm text-slate-500">
+                    This is currently a local draft only. It is not sent to the
+                    backend yet.
+                  </p>
+                </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">
+                  No regulator feedback has been raised for this study.
+                </p>
+              </div>
+            )}
           </Card>
 
           <Card className="max-w-4xl">
@@ -329,31 +368,44 @@ export default function ModifyStudyPage() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {availableFields.map((field) => (
-                        <label
-                          key={`required-${field.field_id}`}
-                          className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={requiredFieldIds.includes(field.field_id)}
-                            onChange={() =>
-                              toggleField(field.field_id, "required")
-                            }
-                            className="mt-1"
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {field.field_name}
-                            </p>
-                            {field.field_desc ? (
-                              <p className="text-sm text-slate-500">
-                                {field.field_desc}
-                              </p>
-                            ) : null}
-                          </div>
-                        </label>
-                      ))}
+                      {availableFields.map((field) => {
+                        const isFlagged = flaggedFieldIds.includes(field.field_id);
+
+                        return (
+                          <label
+                            key={`required-${field.field_id}`}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${
+                              isFlagged
+                                ? "border-amber-300 bg-amber-50"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={requiredFieldIds.includes(field.field_id)}
+                              onChange={() =>
+                                toggleField(field.field_id, "required")
+                              }
+                              className="mt-1"
+                            />
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium text-slate-900">
+                                  {field.field_name}
+                                </p>
+                                {isFlagged ? (
+                                  <Badge tone="warning">Flagged by regulator</Badge>
+                                ) : null}
+                              </div>
+                              {field.field_desc ? (
+                                <p className="text-sm text-slate-500">
+                                  {field.field_desc}
+                                </p>
+                              ) : null}
+                            </div>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -375,31 +427,44 @@ export default function ModifyStudyPage() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {availableFields.map((field) => (
-                        <label
-                          key={`optional-${field.field_id}`}
-                          className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={optionalFieldIds.includes(field.field_id)}
-                            onChange={() =>
-                              toggleField(field.field_id, "optional")
-                            }
-                            className="mt-1"
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {field.field_name}
-                            </p>
-                            {field.field_desc ? (
-                              <p className="text-sm text-slate-500">
-                                {field.field_desc}
-                              </p>
-                            ) : null}
-                          </div>
-                        </label>
-                      ))}
+                      {availableFields.map((field) => {
+                        const isFlagged = flaggedFieldIds.includes(field.field_id);
+
+                        return (
+                          <label
+                            key={`optional-${field.field_id}`}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${
+                              isFlagged
+                                ? "border-amber-300 bg-amber-50"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={optionalFieldIds.includes(field.field_id)}
+                              onChange={() =>
+                                toggleField(field.field_id, "optional")
+                              }
+                              className="mt-1"
+                            />
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-medium text-slate-900">
+                                  {field.field_name}
+                                </p>
+                                {isFlagged ? (
+                                  <Badge tone="warning">Flagged by regulator</Badge>
+                                ) : null}
+                              </div>
+                              {field.field_desc ? (
+                                <p className="text-sm text-slate-500">
+                                  {field.field_desc}
+                                </p>
+                              ) : null}
+                            </div>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
