@@ -72,14 +72,14 @@ def build_auth_context(
         "subject": {
             "userId": current_user.user_id if current_user else None,
             "role": current_user.role_id if current_user else None,
-            "isApproved": getattr(current_user, "is_approved", None),
+            #"isApproved": getattr(current_user, "is_approved", None),
             "isActive": getattr(current_user, "is_active", None),
         },
         "resource": {
             "studyId": getattr(resource, "study_id", None),
             "creatorId": getattr(resource, "creator_id", None),
             "status": getattr(resource, "status", None),
-            "hasPendingRoleRequest": bool(getattr(target_user, "requested_role", None)) if target_user else None,
+            #"hasPendingRoleRequest": bool(getattr(target_user, "requested_role", None)) if target_user else None,
         },
         "env": {
             "isOwner": bool(current_user and resource and getattr(resource, "creator_id", None) == current_user.user_id),
@@ -249,15 +249,15 @@ def create_user():
     name = data.get("name")
     email = data.get("email")
     password = data.get("password")
-    requested_role = data.get("role_id", "participant")
-
+    role_id = data.get("role_id", "participant")
 
     if not all([name, email, password]):
         return error("name, email, and password are required")
 
-    if requested_role not in {"participant", "researcher"}:
-        return error("can only request role of 'participant' or 'researcher' at signup")
+    if role_id not in {"participant", "researcher"}:
+        return error("role must be 'participant' or 'researcher'")
     
+
     existing = User.query.filter_by(email=email).first()
     if existing:
         return error("email already exists", 409)
@@ -265,14 +265,7 @@ def create_user():
     # Hash plain text password: 
     hashed_password = generate_password_hash(password)
 
-    if requested_role == "participant":
-        role_id = "participant"
-        is_approved = True
-        stored_requested_role = None
-    else:
-        role_id = "researcher"
-        is_approved = True
-        stored_requested_role = None
+  
 
 
     user = User(
@@ -280,8 +273,8 @@ def create_user():
         email=email,
         password_hash=hashed_password,
         role_id=role_id,
-        requested_role=stored_requested_role,
-        is_approved=is_approved
+        #requested_role=stored_requested_role,
+        #is_approved=is_approved
     )
     db.session.add(user)
     db.session.commit()
@@ -291,9 +284,7 @@ def create_user():
         "user": {
             "user_id": user.user_id,
             "email": user.email,
-            "role_id": user.role_id,
-            "requested_role": user.requested_role,
-            "is_approved": user.is_approved
+            "role_id": user.role_id
         }
     }), 201
 
@@ -1381,9 +1372,11 @@ def login():
     # Check hashed password: 
     if not check_password_hash(user.password_hash, password):
         return error("invalid email or password", 401)
+    
+
     # Block unapproved researcher requests: 
-    if user.requested_role == "researcher" and not user.is_approved:
-        return error("researcher account pending approval by regulator", 403)
+    #if user.requested_role == "researcher" and not user.is_approved:
+    #    return error("researcher account pending approval by regulator", 403)
     # Block inactive users:
     if not user.is_active:
         return error("account is inactive", 403)
@@ -1416,7 +1409,7 @@ def login():
 # Future functionality:
 # - Make this more policy-engine based. 
 # - Currently trying to do that :), current changes: added jwt_required, removed regulator_id, regulator now comes from JWT, authorization now goes through authorize function with an "approveUserRole" action and context that includes the current_user and target_user. 
-@api.route("/admin/users/<int:user_id>/approve", methods=["POST"])
+''' @api.route("/admin/users/<int:user_id>/approve", methods=["POST"])
 @jwt_required()
 def approve_user(user_id):
     current_user = get_current_user()
@@ -1443,7 +1436,7 @@ def approve_user(user_id):
         "message": "user approved",
         "user_id": target_user.user_id,
         "new_role": target_user.role_id
-    }), 200
+    }), 200 '''
 
 # Approval and rejection endpoints by regulator for pending studies: 
 # Current functionality:
