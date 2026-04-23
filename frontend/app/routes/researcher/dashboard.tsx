@@ -46,7 +46,7 @@ export default function ResearcherDashboard() {
   const ongoingCount = studies.filter((s) => s.status === "ongoing").length;
   const totalParticipants = studies.reduce(
     (sum, study) => sum + study.participant_count,
-    0
+    0,
   );
 
   return (
@@ -89,12 +89,6 @@ export default function ResearcherDashboard() {
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => navigate("/researcher/create-study")}>
             Create study
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => navigate("/researcher/fields")}
-          >
-            Manage fields
           </Button>
         </div>
 

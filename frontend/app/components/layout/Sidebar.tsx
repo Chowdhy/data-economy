@@ -19,7 +19,6 @@ export default function Sidebar({ role }: SidebarProps) {
       : role === "researcher"
         ? [
             { to: "/researcher/dashboard", label: "Dashboard" },
-            { to: "/researcher/fields", label: "Fields" },
             { to: "/researcher/studies", label: "Studies" },
             { to: "/researcher/create-study", label: "Create Study" },
           ]
