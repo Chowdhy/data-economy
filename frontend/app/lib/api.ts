@@ -69,10 +69,10 @@ export const api = {
     }),
 
   createField: (payload: { field_name: string; field_desc?: string }) =>
-    request("/fields", {
+    request<{ message: string; field: FieldDescription }>("/fields", {
       method: "POST",
       body: JSON.stringify(payload),
-    }),
+  }),
 
   getFields: () => request<{ fields: FieldDescription[] }>("/fields"),
 

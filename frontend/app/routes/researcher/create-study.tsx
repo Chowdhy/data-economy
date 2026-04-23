@@ -101,33 +101,28 @@ export default function CreateStudyPage() {
         field_desc: newFieldDesc.trim() || undefined,
       });
 
+      const createdFieldId = createdField.field.field_id;
+
       await loadFields();
 
-      const createdFieldId =
-        createdField?.field?.field_id ??
-        createdField?.field_id ??
-        createdField?.id;
-
-      if (typeof createdFieldId === "number") {
-        if (newFieldGroup === "required") {
-          setRequiredFieldIds((current) =>
-            current.includes(createdFieldId)
-              ? current
-              : [...current, createdFieldId],
-          );
-          setOptionalFieldIds((current) =>
-            current.filter((id) => id !== createdFieldId),
-          );
-        } else {
-          setOptionalFieldIds((current) =>
-            current.includes(createdFieldId)
-              ? current
-              : [...current, createdFieldId],
-          );
-          setRequiredFieldIds((current) =>
-            current.filter((id) => id !== createdFieldId),
-          );
-        }
+      if (newFieldGroup === "required") {
+        setRequiredFieldIds((current) =>
+          current.includes(createdFieldId)
+            ? current
+            : [...current, createdFieldId],
+        );
+        setOptionalFieldIds((current) =>
+          current.filter((id) => id !== createdFieldId),
+        );
+      } else {
+        setOptionalFieldIds((current) =>
+          current.includes(createdFieldId)
+            ? current
+            : [...current, createdFieldId],
+        );
+        setRequiredFieldIds((current) =>
+          current.filter((id) => id !== createdFieldId),
+        );
       }
 
       setFieldMessage("Field created successfully.");
