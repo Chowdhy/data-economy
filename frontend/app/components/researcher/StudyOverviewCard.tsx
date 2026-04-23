@@ -54,7 +54,9 @@ export default function StudyOverviewCard({
       </div>
 
       <div className="mt-4">
-        <Button onClick={onView}>View study</Button>
+        <Button variant="purple" onClick={onView}>
+          View study
+        </Button>
       </div>
     </Card>
   );

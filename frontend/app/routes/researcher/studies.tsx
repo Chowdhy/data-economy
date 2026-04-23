@@ -14,7 +14,9 @@ export default function ResearcherStudiesPage() {
   const navigate = useNavigate();
 
   const [studies, setStudies] = useState<ResearcherStudy[]>([]);
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -115,12 +117,13 @@ export default function ResearcherStudiesPage() {
                     </div>
 
                     <Button
+                      variant="purple"
                       className="mt-3"
                       onClick={() =>
                         navigate(`/researcher/studies/${study.study_id}`)
                       }
                     >
-                      Open study
+                      View study
                     </Button>
                   </div>
                 </div>
