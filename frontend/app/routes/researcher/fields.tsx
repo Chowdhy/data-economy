@@ -1,3 +1,8 @@
+/**
+ * THIS IS NO LONGER USED, IT HAS BEEN MERGED INTO THE STUDY CREATION PAGE
+ * Can change this to manage created fields potentially?
+ */
+
 import { useEffect, useState } from "react";
 import AppShell from "~/components/layout/AppShell";
 import Button from "~/components/ui/Button";
@@ -82,9 +87,12 @@ export default function ResearcherFieldsPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
           <Card>
-            <h2 className="text-lg font-semibold text-slate-900">Create field</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Create field
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Add a new field definition that participants can fill in and studies can request.
+              Add a new field definition that participants can fill in and
+              studies can request.
             </p>
 
             <form onSubmit={handleCreateField} className="mt-5 space-y-4">
@@ -117,13 +125,17 @@ export default function ResearcherFieldsPage() {
                 {saving ? "Saving..." : "Add field"}
               </Button>
 
-              {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
+              {message ? (
+                <p className="text-sm text-emerald-700">{message}</p>
+              ) : null}
               {error ? <p className="text-sm text-rose-600">{error}</p> : null}
             </form>
           </Card>
 
           <Card>
-            <h2 className="text-lg font-semibold text-slate-900">Available fields</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Available fields
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
               Existing fields that can be requested in studies.
             </p>
@@ -132,7 +144,9 @@ export default function ResearcherFieldsPage() {
               {loading ? (
                 <p className="text-sm text-slate-500">Loading fields...</p>
               ) : fields.length === 0 ? (
-                <p className="text-sm text-slate-500">No fields available yet.</p>
+                <p className="text-sm text-slate-500">
+                  No fields available yet.
+                </p>
               ) : (
                 fields.map((field) => (
                   <div
