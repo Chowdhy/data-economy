@@ -1,6 +1,7 @@
 import Badge from "~/components/ui/Badge";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
+import type { StudyStatus } from "~/lib/types";
 
 interface StudyOverviewCardProps {
   study: {
@@ -9,12 +10,32 @@ interface StudyOverviewCardProps {
     description?: string;
     data_collection_months?: number;
     research_duration_months?: number;
-    status: string;
+    status: StudyStatus;
     participant_count: number;
     required_field_ids: number[];
     optional_field_ids: number[];
   };
   onView?: () => void;
+}
+
+function getStatusTone(status: StudyStatus) {
+  switch (status) {
+    case "pending":
+      return "warning"; // amber
+    case "rejected":
+      return "danger"; // red
+    case "open":
+      return "success"; // green
+    case "ongoing":
+      return "purple"; // custom
+    case "approved":
+      return "info"; // blue
+    case "complete":
+    case "closed":
+      return "neutral"; // grey
+    default:
+      return "neutral";
+  }
 }
 
 export default function StudyOverviewCard({
@@ -48,8 +69,8 @@ export default function StudyOverviewCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge tone="neutral">{study.status}</Badge>
-          <Badge tone="success">{study.participant_count} participants</Badge>
+          <Badge tone={getStatusTone(study.status)}>{study.status}</Badge>
+          <Badge tone="neutral">{study.participant_count} participants</Badge>
         </div>
       </div>
 
