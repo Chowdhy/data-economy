@@ -144,3 +144,8 @@ export interface StudyIssue {
 export interface ApiErrorResponse {
   error: string;
 }
+
+export interface CreateFieldResponse {
+  message: string;
+  field: FieldDescription;
+}
