@@ -242,10 +242,6 @@ class StudyIssue(db.Model):
     )
     regulator = db.relationship("User")
 
-    researcher_response = db.Column(db.Text, nullable=True)
-    resolved = db.Column(db.Boolean, default=False)
-
-
 class StudyIssueField(db.Model):
     __tablename__ = "study_issue_fields"
 
@@ -263,5 +259,63 @@ class StudyIssueField(db.Model):
     issue = db.relationship(
         "StudyIssue",
         backref=db.backref("flagged_fields", cascade="all, delete-orphan"),
+    )
+    field = db.relationship("FieldDescription")
+
+class StudyModification(db.Model):
+    __tablename__ = "study_modifications"
+
+    modification_id = db.Column(db.Integer, primary_key=True)
+
+    issue = db.relationship(
+        "StudyIssue",
+        backref=db.backref("resultant_modification", cascade="all, delete-orphan"),
+    )
+
+    comment = db.Column(db.Text, nullable=False)
+
+class StudyModificationOptionalField(db.Model):
+    __tablename__ = "study_modification_optional_fields"
+
+    modification_id = db.Column(
+        db.Integer,
+        db.ForeignKey("study_modifications.modification_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    field_id = db.Column(
+        db.Integer,
+        db.ForeignKey("field_descriptions.field_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    modfication_type = db.Column(db.Text, nullable=False)
+
+    modification = db.relationship(
+        "StudyModification",
+        backref=db.backref("modified_optional_fields", cascade="all, delete-orphan"),
+    )
+    field = db.relationship("FieldDescription")
+
+class StudyModificationRequiredField(db.Model):
+    __tablename__ = "study_modification_required_fields"
+
+    modification_id = db.Column(
+        db.Integer,
+        db.ForeignKey("study_modifications.modification_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    field_id = db.Column(
+        db.Integer,
+        db.ForeignKey("field_descriptions.field_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    modfication_type = db.Column(db.Text, nullable=False)
+
+    modification = db.relationship(
+        "StudyModification",
+        backref=db.backref("modified_required_fields", cascade="all, delete-orphan"),
     )
     field = db.relationship("FieldDescription")
