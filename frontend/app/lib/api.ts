@@ -143,9 +143,11 @@ export const api = {
   modifyStudy: (
     studyId: number,
     payload: {
+      issue_id: number;
       description: string;
       required_field_ids: number[];
       optional_field_ids: number[];
+      comment: string;
     },
   ) =>
     request<{

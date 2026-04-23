@@ -14,7 +14,10 @@ from .models import (
     StudyParticipantConsentedField,
     ParticipantAnswer,
     StudyIssue,
-    StudyIssueField
+    StudyIssueField,
+    StudyModification,
+    StudyModificationOptionalField,
+    StudyModificationRequiredField
 )
 
 api = Blueprint("api", __name__)
@@ -1560,6 +1563,12 @@ def modify_study(study_id):
 
     data = request.get_json() or {}
 
+    issue_id = data.get("issue_id")
+
+    issue = StudyIssue.query.get(issue_id)
+    if not issue:
+        return error("issue not found", 404)
+
     required_field_ids = data.get("required_field_ids", [])
     optional_field_ids = data.get("optional_field_ids", [])
     description = data.get("description")
@@ -1584,9 +1593,17 @@ def modify_study(study_id):
     if auth_error:
         return auth_error
 
+    modification = StudyModification(
+        issue_id=issue_id,
+        comment=data.get("comment")
+    )
+    db.session.add(modification)
+    db.session.flush()
+
+    split_fields = split_study_field_ids(study_id)
 
     # Update fields
-    if required_field_ids or optional_field_ids:
+    if required_field_ids:
         StudyRequiredField.query.filter_by(study_id=study_id).delete()
 
         for field_id in required_field_ids:
@@ -1596,6 +1613,25 @@ def modify_study(study_id):
                 is_required=True
             ))
 
+        removed_fields = list(set(split_fields.get("required_field_ids")) - set(required_field_ids))
+        added_fields = list(set(required_field_ids) - set(split_fields.get("required_field_ids")))
+
+        for field_id in removed_fields:
+            db.session.add(StudyModificationRequiredField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "remove"
+            ))
+        
+        for field_id in added_fields:
+            db.session.add(StudyModificationRequiredField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "add"
+            ))
+
+
+    if optional_field_ids:
         for field_id in optional_field_ids:
             db.session.add(StudyRequiredField(
                 study_id=study_id,
@@ -1603,6 +1639,22 @@ def modify_study(study_id):
                 is_required=False
             ))
 
+        removed_fields = list(set(split_fields.get("optional_field_ids")) - set(optional_field_ids))
+        added_fields = list(set(optional_field_ids) - set(split_fields.get("optional_field_ids")))
+
+        for field_id in removed_fields:
+            db.session.add(StudyModificationOptionalField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "remove"
+            ))
+        
+        for field_id in added_fields:
+            db.session.add(StudyModificationOptionalField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "add"
+            ))
 
     if description:
         study.description = description

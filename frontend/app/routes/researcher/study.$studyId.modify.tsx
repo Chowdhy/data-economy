@@ -124,6 +124,11 @@ export default function ModifyStudyPage() {
       return;
     }
 
+    if (!issueId) {
+      setError("No issue is available to modify against.");
+      return;
+    }
+
     if (!description.trim()) {
       setError("Please enter a study description.");
       return;
@@ -137,10 +142,12 @@ export default function ModifyStudyPage() {
     try {
       setSubmitting(true);
 
-      await api.modifyStudy(study.study_id, {
+      await api.modifyStudy(studyId, {
         description: description.trim(),
         required_field_ids: requiredFieldIds,
         optional_field_ids: optionalFieldIds,
+        comment: responseComment.trim(),
+        issue_id: issueId
       });
 
       setMessage("Study updated and sent for re-approval.");
@@ -161,6 +168,7 @@ export default function ModifyStudyPage() {
     : "awaiting_approval";
   const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
   const latestIssue = issues.length > 0 ? issues[0] : null;
+  const issueId = latestIssue?.issue_id ?? 0;
   const flaggedFields = latestIssue?.flagged_fields ?? [];
   const flaggedFieldIds = latestIssue?.flagged_field_ids ?? [];
 

@@ -267,6 +267,12 @@ class StudyModification(db.Model):
 
     modification_id = db.Column(db.Integer, primary_key=True)
 
+    issue_id = db.Column(
+        db.Integer,
+        db.ForeignKey("study_issues.issue_id", ondelete="CASCADE"),
+        primary_key=False,
+    )
+
     issue = db.relationship(
         "StudyIssue",
         backref=db.backref("resultant_modification", cascade="all, delete-orphan"),
@@ -289,7 +295,7 @@ class StudyModificationOptionalField(db.Model):
         primary_key=True,
     )
 
-    modfication_type = db.Column(db.Text, nullable=False)
+    modification_type = db.Column(db.Text, nullable=False)
 
     modification = db.relationship(
         "StudyModification",
@@ -312,7 +318,7 @@ class StudyModificationRequiredField(db.Model):
         primary_key=True,
     )
 
-    modfication_type = db.Column(db.Text, nullable=False)
+    modification_type = db.Column(db.Text, nullable=False)
 
     modification = db.relationship(
         "StudyModification",
