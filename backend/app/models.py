@@ -242,6 +242,9 @@ class StudyIssue(db.Model):
     )
     regulator = db.relationship("User")
 
+    researcher_response = db.Column(db.Text, nullable=True)
+    resolved = db.Column(db.Boolean, default=False)
+
 
 class StudyIssueField(db.Model):
     __tablename__ = "study_issue_fields"
