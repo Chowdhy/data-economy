@@ -18,7 +18,9 @@ export default function ResearcherStudiesPage() {
   const navigate = useNavigate();
 
   const [studies, setStudies] = useState<ResearcherStudy[]>([]);
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -140,15 +142,16 @@ export default function ResearcherStudiesPage() {
                       ) : null}
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button
-                        onClick={() =>
-                          navigate(`/researcher/studies/${study.study_id}`)
-                        }
-                      >
-                        Open study
-                      </Button>
-
+                    <Button
+                      variant="purple"
+                      className="mt-3"
+                      onClick={() =>
+                        navigate(`/researcher/studies/${study.study_id}`)
+                      }
+                    >
+                      View study
+                    </Button>
+                    
                       {displayStatus === "changes_requested" ? (
                         <Button
                           variant="secondary"

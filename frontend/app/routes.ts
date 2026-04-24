@@ -12,7 +12,7 @@ export default [
   route("/participant/profile", "routes/participant/profile.tsx"),
 
   route("/researcher/dashboard", "routes/researcher/dashboard.tsx"),
-  route("/researcher/fields", "routes/researcher/fields.tsx"),
+  //route("/researcher/fields", "routes/researcher/fields.tsx"),
   route("/researcher/studies", "routes/researcher/studies.tsx"),
   route("/researcher/create-study", "routes/researcher/create-study.tsx"),
   route("/researcher/studies/:studyId", "routes/researcher/study.$studyId.tsx"),

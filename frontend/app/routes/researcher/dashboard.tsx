@@ -122,12 +122,6 @@ export default function ResearcherDashboard() {
           <Button onClick={() => navigate("/researcher/create-study")}>
             Create study
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => navigate("/researcher/fields")}
-          >
-            Manage fields
-          </Button>
         </div>
 
         <section>
