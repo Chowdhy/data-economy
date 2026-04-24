@@ -16,9 +16,12 @@ export default [
   route("/researcher/studies", "routes/researcher/studies.tsx"),
   route("/researcher/create-study", "routes/researcher/create-study.tsx"),
   route("/researcher/studies/:studyId", "routes/researcher/study.$studyId.tsx"),
+  route(
+    "/researcher/studies/:studyId/modify",
+    "routes/researcher/study.$studyId.modify.tsx",
+  ),
 
   route("/regulator/dashboard", "routes/regulator/dashboard.tsx"),
   route("/regulator/studies", "routes/regulator/studies.tsx"),
   route("/regulator/studies/:studyId", "routes/regulator/study.$studyId.tsx"),
-
 ] satisfies RouteConfig;

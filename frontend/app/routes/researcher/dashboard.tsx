@@ -6,8 +6,9 @@ import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
-import type { ResearcherStudy } from "~/lib/types";
 import { getCurrentUser } from "~/lib/auth";
+import { getResearcherDisplayStatus } from "~/lib/studyStatus";
+import type { ResearcherStudy } from "~/lib/types";
 
 export default function ResearcherDashboard() {
   const navigate = useNavigate();
@@ -42,11 +43,20 @@ export default function ResearcherDashboard() {
     loadStudies();
   }, [researcherId]);
 
-  const openCount = studies.filter((s) => s.status === "open").length;
-  const ongoingCount = studies.filter((s) => s.status === "ongoing").length;
+  const openCount = studies.filter((study) => study.status === "open").length;
+  const ongoingCount = studies.filter(
+    (study) => study.status === "ongoing",
+  ).length;
+  const changesRequestedCount = studies.filter((study) => {
+    return (
+      getResearcherDisplayStatus(study.status, study.issue_count) ===
+      "changes_requested"
+    );
+  }).length;
+
   const totalParticipants = studies.reduce(
     (sum, study) => sum + study.participant_count,
-    0
+    0,
   );
 
   return (
@@ -56,11 +66,33 @@ export default function ResearcherDashboard() {
       subtitle="Manage studies, review participation, and access only consented data."
     >
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Card>
             <p className="text-sm text-slate-500">Studies created</p>
             <p className="mt-2 text-2xl font-semibold text-slate-900">
               {studies.length}
+            </p>
+          </Card>
+
+          <Card>
+            <p className="text-sm text-slate-500">Pending review</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">
+              {
+                studies.filter(
+                  (study) =>
+                    getResearcherDisplayStatus(
+                      study.status,
+                      study.issue_count,
+                    ) === "awaiting_approval",
+                ).length
+              }
+            </p>
+          </Card>
+
+          <Card>
+            <p className="text-sm text-slate-500">Changes requested</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900">
+              {changesRequestedCount}
             </p>
           </Card>
 
@@ -77,14 +109,14 @@ export default function ResearcherDashboard() {
               {ongoingCount}
             </p>
           </Card>
-
-          <Card>
-            <p className="text-sm text-slate-500">Total participants</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {totalParticipants}
-            </p>
-          </Card>
         </div>
+
+        <Card>
+          <p className="text-sm text-slate-500">Total participants</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900">
+            {totalParticipants}
+          </p>
+        </Card>
 
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => navigate("/researcher/create-study")}>
@@ -101,7 +133,7 @@ export default function ResearcherDashboard() {
         <section>
           <SectionHeading
             title="Your studies"
-            description="Open a study to inspect participant counts and consented data."
+            description="Open a study to inspect participant counts, review regulator feedback, and access consented data."
           />
 
           {loading ? (
@@ -120,6 +152,9 @@ export default function ResearcherDashboard() {
                   study={study}
                   onView={() =>
                     navigate(`/researcher/studies/${study.study_id}`)
+                  }
+                  onModify={() =>
+                    navigate(`/researcher/studies/${study.study_id}/modify`)
                   }
                 />
               ))}

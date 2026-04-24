@@ -8,6 +8,10 @@ import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
+import {
+  getResearcherDisplayStatus,
+  getResearcherDisplayStatusMeta,
+} from "~/lib/studyStatus";
 import type { FieldDescription, ResearcherStudy } from "~/lib/types";
 
 export default function ResearcherStudiesPage() {
@@ -58,7 +62,7 @@ export default function ResearcherStudiesPage() {
     <AppShell
       role="researcher"
       title="Studies"
-      subtitle="Review each study's status, field requirements, optional fields, and participant count."
+      subtitle="Review each study's approval status, requested changes, field requirements, and participant count."
     >
       <SectionHeading
         title="Study list"
@@ -77,11 +81,16 @@ export default function ResearcherStudiesPage() {
         <div className="space-y-4">
           {studies.map((study) => {
             const requiredFields = getRequiredFields(study.required_field_ids);
+            const displayStatus = getResearcherDisplayStatus(
+              study.status,
+              study.issue_count,
+            );
+            const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
 
             return (
               <Card key={study.study_id}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
+                  <div className="flex-1">
                     <h2 className="text-lg font-semibold text-slate-900">
                       {study.study_name}
                     </h2>
@@ -92,36 +101,67 @@ export default function ResearcherStudiesPage() {
                       </p>
                     ) : null}
 
+                    <p className="mt-2 text-sm text-slate-600">
+                      {statusMeta.description}
+                    </p>
+
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge tone="neutral">{study.status}</Badge>
+                      <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+
                       {study.data_collection_months ? (
                         <Badge tone="neutral">
                           Collection: {study.data_collection_months} months
                         </Badge>
                       ) : null}
+
                       {study.research_duration_months ? (
                         <Badge tone="neutral">
                           Research: {study.research_duration_months} months
                         </Badge>
                       ) : null}
+
                       {study.optional_field_ids.length > 0 ? (
                         <Badge tone="neutral">
-                          {study.optional_field_ids.length} optional fields
+                          {study.optional_field_ids.length} optional field
+                          {study.optional_field_ids.length === 1 ? "" : "s"}
                         </Badge>
                       ) : null}
+
                       <Badge tone="success">
-                        {study.participant_count} participants
+                        {study.participant_count} participant
+                        {study.participant_count === 1 ? "" : "s"}
                       </Badge>
+
+                      {study.issue_count > 0 ? (
+                        <Badge tone="danger">
+                          {study.issue_count} review{" "}
+                          {study.issue_count === 1 ? "item" : "items"}
+                        </Badge>
+                      ) : null}
                     </div>
 
-                    <Button
-                      className="mt-3"
-                      onClick={() =>
-                        navigate(`/researcher/studies/${study.study_id}`)
-                      }
-                    >
-                      Open study
-                    </Button>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button
+                        onClick={() =>
+                          navigate(`/researcher/studies/${study.study_id}`)
+                        }
+                      >
+                        Open study
+                      </Button>
+
+                      {displayStatus === "changes_requested" ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() =>
+                            navigate(
+                              `/researcher/studies/${study.study_id}/modify`,
+                            )
+                          }
+                        >
+                          Modify study
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
