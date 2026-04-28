@@ -152,6 +152,15 @@ def serialise_study_summary(study):
 
     issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
+    latest_issue = (
+        StudyIssue.query
+        .filter_by(study_id=study.study_id)
+        .order_by(StudyIssue.created_at.desc())
+        .first()
+    )
+
+    latest_issue_status = latest_issue.status if latest_issue else None
+
     has_open_issue = StudyIssue.query.filter_by(
         study_id=study.study_id,
         status="open"
@@ -177,6 +186,7 @@ def serialise_study_summary(study):
         "reviewed_before": issue_count > 0,
         "has_open_issue": has_open_issue,
         "has_responded_issue": has_responded_issue,
+        "latest_issue_status": latest_issue_status,
     }
 
 def serialise_field(field):
