@@ -51,8 +51,16 @@ export default function IssueHistoryList({ issues }: IssueHistoryListProps) {
                     </p>
                   </div>
 
-                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-medium capitalize text-amber-800">
-                    {issue.status}
+                  <span
+                    className={
+                      issue.status === "responded"
+                        ? "inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800"
+                        : "inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-medium capitalize text-rose-800"
+                    }
+                  >
+                    {issue.status === "responded"
+                      ? "Needs review again"
+                      : issue.status}
                   </span>
                 </div>
 
@@ -88,6 +96,80 @@ export default function IssueHistoryList({ issues }: IssueHistoryListProps) {
                       </p>
                     )}
                   </div>
+
+                  {issue.modification ? (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">
+                          Researcher response
+                        </p>
+
+                        {issue.modification.comment ? (
+                          <p className="mt-2 text-sm text-slate-700">
+                            {issue.modification.comment}
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-sm text-slate-700">
+                            No response comment provided.
+                          </p>
+                        )}
+                      </div>
+
+                      {issue.modification.required_field_changes.length > 0 ? (
+                        <div className="mt-3">
+                          <p className="text-sm font-medium text-slate-900">
+                            Required field changes
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {issue.modification.required_field_changes.map(
+                              (field) => (
+                                <span
+                                  key={`required-${field.field_id}-${field.modification_type}`}
+                                  className={
+                                    field.modification_type === "add"
+                                      ? "inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700"
+                                      : "inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700"
+                                  }
+                                >
+                                  {field.modification_type === "add"
+                                    ? `+ ${field.name}`
+                                    : `- ${field.name}`}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {issue.modification.optional_field_changes.length > 0 ? (
+                        <div className="mt-3">
+                          <p className="text-sm font-medium text-slate-900">
+                            Optional field changes
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {issue.modification.optional_field_changes.map(
+                              (field) => (
+                                <span
+                                  key={`optional-${field.field_id}-${field.modification_type}`}
+                                  className={
+                                    field.modification_type === "add"
+                                      ? "inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700"
+                                      : "inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700"
+                                  }
+                                >
+                                  {field.modification_type === "add"
+                                    ? `+ ${field.name}`
+                                    : `- ${field.name}`}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
