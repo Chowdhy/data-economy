@@ -91,6 +91,8 @@ export interface RegulatorStudy {
   participant_count?: number;
   issue_count: number;
   reviewed_before: boolean;
+  has_open_issue?: boolean;
+  has_responded_issue?: boolean;
 }
 
 export interface StudyField {

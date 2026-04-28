@@ -50,18 +50,6 @@ export default function IssueHistoryList({ issues }: IssueHistoryListProps) {
                       Raised {formatDate(issue.created_at)}
                     </p>
                   </div>
-
-                  <span
-                    className={
-                      issue.status === "responded"
-                        ? "inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800"
-                        : "inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-medium capitalize text-rose-800"
-                    }
-                  >
-                    {issue.status === "responded"
-                      ? "Needs review again"
-                      : issue.status}
-                  </span>
                 </div>
 
                 <div className="mt-4 space-y-3">
