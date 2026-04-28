@@ -71,7 +71,11 @@ export default function RegulatorStudiesPage() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
-                      {study.reviewed_before ? (
+                      {study.latest_issue_status === "responded" ? (
+                        <span className="inline-flex items-center rounded-full bg-rose-500/10 px-3 py-1 text-sm font-semibold text-rose-700">
+                          Review Modifications
+                        </span>
+                      ) : study.latest_issue_status === "open" ? (
                         <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-sm font-semibold text-amber-700">
                           Reviewed
                         </span>

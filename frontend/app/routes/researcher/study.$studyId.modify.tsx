@@ -12,7 +12,11 @@ import {
   getResearcherDisplayStatus,
   getResearcherDisplayStatusMeta,
 } from "~/lib/studyStatus";
-import type { FieldDescription, ResearcherStudy, StudyIssue } from "~/lib/types";
+import type {
+  FieldDescription,
+  ResearcherStudy,
+  StudyIssue,
+} from "~/lib/types";
 
 export default function ModifyStudyPage() {
   const navigate = useNavigate();
@@ -25,7 +29,9 @@ export default function ModifyStudyPage() {
 
   const [study, setStudy] = useState<ResearcherStudy | null>(null);
   const [issues, setIssues] = useState<StudyIssue[]>([]);
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
 
   const [description, setDescription] = useState("");
   const [requiredFieldIds, setRequiredFieldIds] = useState<number[]>([]);
@@ -67,7 +73,8 @@ export default function ModifyStudyPage() {
         ]);
 
       const matchedStudy =
-        studiesResponse.studies.find((item) => item.study_id === studyId) ?? null;
+        studiesResponse.studies.find((item) => item.study_id === studyId) ??
+        null;
 
       if (!matchedStudy) {
         setStudy(null);
@@ -147,7 +154,7 @@ export default function ModifyStudyPage() {
         required_field_ids: requiredFieldIds,
         optional_field_ids: optionalFieldIds,
         comment: responseComment.trim(),
-        issue_id: issueId
+        issue_id: issueId,
       });
 
       setMessage("Study updated and sent for re-approval.");
@@ -265,10 +272,6 @@ export default function ModifyStudyPage() {
                     rows={3}
                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
                   />
-                  <p className="mt-1 text-sm text-slate-500">
-                    This is currently a local draft only. It is not sent to the
-                    backend yet.
-                  </p>
                 </div>
               </div>
             ) : (
@@ -377,7 +380,9 @@ export default function ModifyStudyPage() {
                   ) : (
                     <div className="space-y-2">
                       {availableFields.map((field) => {
-                        const isFlagged = flaggedFieldIds.includes(field.field_id);
+                        const isFlagged =
+                          flaggedFieldIds.includes(field.field_id) &&
+                          requiredFieldIds.includes(field.field_id);
 
                         return (
                           <label
@@ -390,7 +395,9 @@ export default function ModifyStudyPage() {
                           >
                             <input
                               type="checkbox"
-                              checked={requiredFieldIds.includes(field.field_id)}
+                              checked={requiredFieldIds.includes(
+                                field.field_id,
+                              )}
                               onChange={() =>
                                 toggleField(field.field_id, "required")
                               }
@@ -402,7 +409,9 @@ export default function ModifyStudyPage() {
                                   {field.field_name}
                                 </p>
                                 {isFlagged ? (
-                                  <Badge tone="warning">Flagged by regulator</Badge>
+                                  <Badge tone="warning">
+                                    Flagged by regulator
+                                  </Badge>
                                 ) : null}
                               </div>
                               {field.field_desc ? (
@@ -436,7 +445,9 @@ export default function ModifyStudyPage() {
                   ) : (
                     <div className="space-y-2">
                       {availableFields.map((field) => {
-                        const isFlagged = flaggedFieldIds.includes(field.field_id);
+                        const isFlagged =
+                          flaggedFieldIds.includes(field.field_id) &&
+                          optionalFieldIds.includes(field.field_id);
 
                         return (
                           <label
@@ -449,7 +460,9 @@ export default function ModifyStudyPage() {
                           >
                             <input
                               type="checkbox"
-                              checked={optionalFieldIds.includes(field.field_id)}
+                              checked={optionalFieldIds.includes(
+                                field.field_id,
+                              )}
                               onChange={() =>
                                 toggleField(field.field_id, "optional")
                               }
@@ -461,7 +474,9 @@ export default function ModifyStudyPage() {
                                   {field.field_name}
                                 </p>
                                 {isFlagged ? (
-                                  <Badge tone="warning">Flagged by regulator</Badge>
+                                  <Badge tone="warning">
+                                    Flagged by regulator
+                                  </Badge>
                                 ) : null}
                               </div>
                               {field.field_desc ? (
@@ -492,7 +507,9 @@ export default function ModifyStudyPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => navigate(`/researcher/studies/${study.study_id}`)}
+                  onClick={() =>
+                    navigate(`/researcher/studies/${study.study_id}`)
+                  }
                 >
                   Cancel
                 </Button>

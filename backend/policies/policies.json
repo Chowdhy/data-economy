@@ -51,6 +51,18 @@
         },
 
         {
+          "uid": "perm:modify-study",
+          "action": "modifyStudy",
+          "assignee": { "role": "researcher" },
+          "target": { "type": "study" },
+          "constraint": [
+            { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
+            { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true },
+            { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "pending" }
+          ]
+        },
+
+        {
           "uid": "perm:approve-study",
           "action": "approveStudy",
           "assignee": { "role": "regulator" },

@@ -92,6 +92,20 @@ export default function ResearcherStudyDetailPage() {
   const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
   const openIssues = issues.filter((issue) => issue.status === "open");
   const latestIssue = issues.length > 0 ? issues[0] : null;
+  const hasOpenIssue = issues.some((issue) => issue.status === "open");
+  const hasRespondedIssue = issues.some(
+    (issue) => issue.status === "responded",
+  );
+
+  console.log("STUDY DETAIL DEBUG:", {
+    hasOpenIssue,
+    hasRespondedIssue,
+    issues: issues.map((issue) => ({
+      issue_id: issue.issue_id,
+      status: issue.status,
+    })),
+    displayStatus,
+  });
 
   return (
     <AppShell
@@ -193,7 +207,6 @@ export default function ResearcherStudyDetailPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
                 {issueCount > 0 ? (
                   <Badge tone="danger">
                     {issueCount} issue{issueCount === 1 ? "" : "s"}
@@ -229,14 +242,6 @@ export default function ResearcherStudyDetailPage() {
                       {latestIssue.flagged_field_ids.length === 1 ? "" : "s"}
                     </Badge>
                   ) : null}
-
-                  <Badge
-                    tone={
-                      latestIssue.status === "open" ? "danger" : "neutral"
-                    }
-                  >
-                    {latestIssue.status}
-                  </Badge>
                 </div>
 
                 {latestIssue.flagged_fields &&
@@ -291,7 +296,8 @@ export default function ResearcherStudyDetailPage() {
                         </p>
                       )}
 
-                      {issue.flagged_fields && issue.flagged_fields.length > 0 ? (
+                      {issue.flagged_fields &&
+                      issue.flagged_fields.length > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {issue.flagged_fields.map((field) => (
                             <Badge key={field.field_id} tone="warning">
@@ -306,15 +312,36 @@ export default function ResearcherStudyDetailPage() {
               </div>
             ) : null}
 
-            {displayStatus === "changes_requested" ? (
-              <div className="mt-4 flex flex-wrap gap-3">
+            {displayStatus === "changes_requested" && hasOpenIssue ? (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    Action required
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    Respond to the latest regulator feedback by updating this
+                    study.
+                  </p>
+                </div>
+
                 <Button
+                  variant="primary"
                   onClick={() =>
                     navigate(`/researcher/studies/${studyId}/modify`)
                   }
                 >
                   Modify study
                 </Button>
+              </div>
+            ) : displayStatus === "changes_requested" && hasRespondedIssue ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-slate-900">
+                  Awaiting regulator review
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  You have submitted changes. The study cannot be modified again
+                  until the regulator raises a new issue or approves the study.
+                </p>
               </div>
             ) : null}
           </Card>

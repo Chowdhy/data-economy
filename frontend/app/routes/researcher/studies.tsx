@@ -151,20 +151,20 @@ export default function ResearcherStudiesPage() {
                     >
                       View study
                     </Button>
-                    
-                      {displayStatus === "changes_requested" ? (
-                        <Button
-                          variant="secondary"
-                          onClick={() =>
-                            navigate(
-                              `/researcher/studies/${study.study_id}/modify`,
-                            )
-                          }
-                        >
-                          Modify study
-                        </Button>
-                      ) : null}
-                    </div>
+
+                    {displayStatus === "changes_requested" &&
+                    study.has_open_issue ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() =>
+                          navigate(
+                            `/researcher/studies/${study.study_id}/modify`,
+                          )
+                        }
+                      >
+                        Modify study
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
