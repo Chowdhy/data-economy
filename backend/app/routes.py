@@ -233,6 +233,39 @@ def serialise_study_issue(issue):
                 "description": row.field.field_desc,
             })
 
+    modification = StudyModification.query.filter_by(
+        issue_id=issue.issue_id
+    ).first()
+
+    modification_data = None
+
+    if modification:
+        required_field_changes = []
+        optional_field_changes = []
+
+        for row in modification.modified_required_fields:
+            required_field_changes.append({
+                "field_id": row.field.field_id,
+                "name": row.field.field_name,
+                "description": row.field.field_desc,
+                "modification_type": row.modification_type,
+            })
+
+        for row in modification.modified_optional_fields:
+            optional_field_changes.append({
+                "field_id": row.field.field_id,
+                "name": row.field.field_name,
+                "description": row.field.field_desc,
+                "modification_type": row.modification_type,
+            })
+
+        modification_data = {
+            "modification_id": modification.modification_id,
+            "comment": modification.comment,
+            "required_field_changes": required_field_changes,
+            "optional_field_changes": optional_field_changes,
+        }
+
     return {
         "issue_id": issue.issue_id,
         "study_id": issue.study_id,
@@ -242,8 +275,8 @@ def serialise_study_issue(issue):
         "flagged_field_ids": flagged_field_ids,
         "flagged_fields": flagged_fields,
         "created_at": issue.created_at.isoformat(),
+        "modification": modification_data,
     }
-
 
 
 # Creating a new user: 
