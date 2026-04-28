@@ -380,9 +380,9 @@ export default function ModifyStudyPage() {
                   ) : (
                     <div className="space-y-2">
                       {availableFields.map((field) => {
-                        const isFlagged = flaggedFieldIds.includes(
-                          field.field_id,
-                        );
+                        const isFlagged =
+                          flaggedFieldIds.includes(field.field_id) &&
+                          requiredFieldIds.includes(field.field_id);
 
                         return (
                           <label
@@ -445,9 +445,9 @@ export default function ModifyStudyPage() {
                   ) : (
                     <div className="space-y-2">
                       {availableFields.map((field) => {
-                        const isFlagged = flaggedFieldIds.includes(
-                          field.field_id,
-                        );
+                        const isFlagged =
+                          flaggedFieldIds.includes(field.field_id) &&
+                          optionalFieldIds.includes(field.field_id);
 
                         return (
                           <label
