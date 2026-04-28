@@ -135,6 +135,20 @@ export interface StudyDataResponse {
   participants: Record<string, StudyDataField[]>;
 }
 
+export interface StudyModificationFieldChange {
+  field_id: number;
+  name: string;
+  description?: string | null;
+  modification_type: "add" | "remove";
+}
+
+export interface StudyModification {
+  modification_id: number;
+  comment?: string | null;
+  required_field_changes: StudyModificationFieldChange[];
+  optional_field_changes: StudyModificationFieldChange[];
+}
+
 export interface StudyIssue {
   issue_id: number;
   study_id: number;
@@ -144,6 +158,7 @@ export interface StudyIssue {
   flagged_field_ids: number[];
   flagged_fields?: StudyField[];
   created_at: string;
+  modification?: StudyModification | null;
 }
 
 export interface ApiErrorResponse {
