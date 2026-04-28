@@ -33,8 +33,6 @@ def seed_data():
         email="regulator@gmai.com",
         password_hash=generate_password_hash("admin123"),
         role_id="regulator",
-        requested_role=None,
-        is_approved=True,
     )
 
     # APPROVED researchers: 
@@ -43,8 +41,6 @@ def seed_data():
         email="alice@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="researcher",
-        requested_role=None,
-        is_approved=True,
         is_active=False # testing active/incactive accounts
     )
 
@@ -53,8 +49,6 @@ def seed_data():
         email="bob@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="researcher",
-        requested_role=None,
-        is_approved=True,
     )
 
     # PENDING researcher (for testing): 
@@ -63,8 +57,6 @@ def seed_data():
         email="mary@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",  # STILL participant
-        requested_role="researcher",
-        is_approved=False,
     )
 
     # Participants:
@@ -73,8 +65,6 @@ def seed_data():
         email="john@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",
-        requested_role=None,
-        is_approved=True,
     )
 
     participant_2 = User(
@@ -82,8 +72,6 @@ def seed_data():
         email="jane@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",
-        requested_role=None,
-        is_approved=True,
     )
 
     participant_3 = User(
@@ -91,8 +79,6 @@ def seed_data():
         email="sam@gmail.com",
         password_hash=generate_password_hash("test123"),
         role_id="participant",
-        requested_role=None,
-        is_approved=True,
     )
 
     db.session.add_all([
