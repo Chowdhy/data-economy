@@ -71,6 +71,9 @@ export interface ResearcherStudy {
   required_field_ids: number[];
   optional_field_ids: number[];
   participant_count: number;
+  issue_count: number;
+  reviewed_before: boolean;
+  creator_id?: number;
 }
 
 export interface RegulatorStudy {
@@ -143,4 +146,9 @@ export interface StudyIssue {
 
 export interface ApiErrorResponse {
   error: string;
+}
+
+export interface CreateFieldResponse {
+  message: string;
+  field: FieldDescription;
 }

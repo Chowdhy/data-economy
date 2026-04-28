@@ -1,22 +1,38 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import AppShell from "~/components/layout/AppShell";
 import ParticipantDataTable from "~/components/researcher/ParticipantDataTable";
 import Badge from "~/components/ui/Badge";
+import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
-import type { StudyDataResponse, StudyDetail } from "~/lib/types";
-import { titleCase } from "~/lib/utils";
+import {
+  getResearcherDisplayStatus,
+  getResearcherDisplayStatusMeta,
+} from "~/lib/studyStatus";
+import type { StudyDataResponse, StudyDetail, StudyIssue } from "~/lib/types";
+
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
+}
 
 export default function ResearcherStudyDetailPage() {
+  const navigate = useNavigate();
   const params = useParams();
   const studyId = Number(params.studyId);
 
   const [study, setStudy] = useState<StudyDetail | null>(null);
-  const [data, setData] = useState<StudyDataResponse | null>(null);
+  const [issues, setIssues] = useState<StudyIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [data, setData] = useState<StudyDataResponse | null>(null);
   const [dataMessage, setDataMessage] = useState("");
 
   async function loadStudy() {
@@ -31,8 +47,22 @@ export default function ResearcherStudyDetailPage() {
       setError("");
       setDataMessage("");
 
-      const studyResponse = await api.getStudy(studyId);
-      setStudy(studyResponse.study);
+      const issuesResponse = await api.getStudyIssues(studyId).catch(() => ({
+        issues: [],
+      }));
+      setIssues(issuesResponse.issues);
+
+      try {
+        const studyResponse = await api.getStudy(studyId);
+        setStudy(studyResponse.study);
+      } catch (err) {
+        setStudy(null);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Study details are not currently available.",
+        );
+      }
 
       try {
         const dataResponse = await api.getStudyData(studyId);
@@ -42,11 +72,9 @@ export default function ResearcherStudyDetailPage() {
         setDataMessage(
           err instanceof Error
             ? err.message
-            : "Study data is not currently available.",
+            : "Participant data is not currently available.",
         );
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load study");
     } finally {
       setLoading(false);
     }
@@ -56,90 +84,239 @@ export default function ResearcherStudyDetailPage() {
     loadStudy();
   }, [studyId]);
 
+  const issueCount = issues.length;
+  const displayStatus = getResearcherDisplayStatus(
+    study?.status ?? "pending",
+    issueCount,
+  );
+  const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
+  const openIssues = issues.filter((issue) => issue.status === "open");
+  const latestIssue = issues.length > 0 ? issues[0] : null;
+
   return (
     <AppShell
       role="researcher"
       title={study ? study.study_name : "Study Details"}
-      subtitle="Study data is only available while the study is ongoing."
+      subtitle="Review approval status, regulator feedback, and participant data where available."
     >
       <SectionHeading
-        title="Study data"
-        description="Participant responses appear when the study is active and the backend allows access to the consented dataset."
+        title="Study overview"
+        description="Participant data is only available when the backend allows access to the consented dataset."
       />
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading study data...</p>
-      ) : error ? (
-        <p className="text-sm text-rose-600">{error}</p>
-      ) : !study ? (
-        <Card>
-          <p className="text-sm text-slate-500">No study data found.</p>
-        </Card>
       ) : (
         <div className="space-y-4">
-          <Card>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-sm text-slate-500">Study ID</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {study.study_id}
-                </p>
-              </div>
+          {study ? (
+            <Card>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <p className="text-sm text-slate-500">Study ID</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">
+                    {study.study_id}
+                  </p>
+                </div>
 
-              <div>
-                <p className="text-sm text-slate-500">Status</p>
-                <div className="mt-1">
-                  <Badge tone="neutral">{titleCase(study.status)}</Badge>
+                <div>
+                  <p className="text-sm text-slate-500">Status</p>
+                  <div className="mt-1">
+                    <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-slate-500">Participants</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">
+                    {study.participant_count}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-slate-500">Collection</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">
+                    {study.data_collection_months
+                      ? `${study.data_collection_months} months`
+                      : "-"}
+                  </p>
                 </div>
               </div>
 
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm text-slate-500">Research duration</p>
+                  <p className="mt-1 text-base font-semibold text-slate-900">
+                    {study.research_duration_months
+                      ? `${study.research_duration_months} months`
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+
+              {study.description ? (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-500">Description</p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {study.description}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge tone="success">
+                  {study.required_field_ids.length} required fields
+                </Badge>
+                {study.optional_field_ids.length > 0 ? (
+                  <Badge tone="neutral">
+                    {study.optional_field_ids.length} optional fields
+                  </Badge>
+                ) : null}
+              </div>
+            </Card>
+          ) : (
+            <Card>
+              <p className="text-sm text-slate-600">
+                {error || "Study details are not currently available."}
+              </p>
+            </Card>
+          )}
+
+          <Card>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm text-slate-500">Participants</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {study.participant_count}
+                <h2 className="text-base font-semibold text-slate-900">
+                  Review status
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {statusMeta.description}
                 </p>
               </div>
 
-              <div>
-                <p className="text-sm text-slate-500">Collection</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {study.data_collection_months
-                    ? `${study.data_collection_months} months`
-                    : "-"}
-                </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+                {issueCount > 0 ? (
+                  <Badge tone="danger">
+                    {issueCount} issue{issueCount === 1 ? "" : "s"}
+                  </Badge>
+                ) : null}
               </div>
             </div>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-slate-500">Research duration</p>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {study.research_duration_months
-                    ? `${study.research_duration_months} months`
-                    : "-"}
+            {latestIssue ? (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-medium text-slate-900">
+                  Latest regulator feedback
+                </p>
+
+                {latestIssue.comment ? (
+                  <p className="mt-2 text-sm text-slate-700">
+                    {latestIssue.comment}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">
+                    This issue does not include a general comment.
+                  </p>
+                )}
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge tone="neutral">
+                    Raised {formatDate(latestIssue.created_at)}
+                  </Badge>
+
+                  {latestIssue.flagged_field_ids.length > 0 ? (
+                    <Badge tone="warning">
+                      {latestIssue.flagged_field_ids.length} flagged field
+                      {latestIssue.flagged_field_ids.length === 1 ? "" : "s"}
+                    </Badge>
+                  ) : null}
+
+                  <Badge
+                    tone={
+                      latestIssue.status === "open" ? "danger" : "neutral"
+                    }
+                  >
+                    {latestIssue.status}
+                  </Badge>
+                </div>
+
+                {latestIssue.flagged_fields &&
+                latestIssue.flagged_fields.length > 0 ? (
+                  <div className="mt-3">
+                    <p className="text-sm font-medium text-slate-900">
+                      Flagged fields
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {latestIssue.flagged_fields.map((field) => (
+                        <Badge key={field.field_id} tone="warning">
+                          {field.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">
+                  No regulator issues have been raised for this study.
                 </p>
               </div>
-            </div>
+            )}
 
-            {study.description ? (
+            {openIssues.length > 1 ? (
               <div className="mt-4">
-                <p className="text-sm text-slate-500">Description</p>
-                <p className="mt-1 text-sm text-slate-700">
-                  {study.description}
+                <p className="text-sm font-medium text-slate-900">
+                  Open issues
                 </p>
+                <div className="mt-3 space-y-3">
+                  {openIssues.map((issue) => (
+                    <div
+                      key={issue.issue_id}
+                      className="rounded-xl border border-slate-200 p-4"
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone="danger">Open issue</Badge>
+                        <Badge tone="neutral">
+                          Raised {formatDate(issue.created_at)}
+                        </Badge>
+                      </div>
+
+                      {issue.comment ? (
+                        <p className="mt-3 text-sm text-slate-700">
+                          {issue.comment}
+                        </p>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-500">
+                          No general comment was provided.
+                        </p>
+                      )}
+
+                      {issue.flagged_fields && issue.flagged_fields.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {issue.flagged_fields.map((field) => (
+                            <Badge key={field.field_id} tone="warning">
+                              {field.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge tone="success">
-                {study.required_field_ids.length} required fields
-              </Badge>
-              {study.optional_field_ids.length > 0 ? (
-                <Badge tone="neutral">
-                  {study.optional_field_ids.length} optional fields
-                </Badge>
-              ) : null}
-            </div>
+            {displayStatus === "changes_requested" ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button
+                  onClick={() =>
+                    navigate(`/researcher/studies/${studyId}/modify`)
+                  }
+                >
+                  Modify study
+                </Button>
+              </div>
+            ) : null}
           </Card>
 
           {data ? (

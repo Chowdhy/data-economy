@@ -14,7 +14,10 @@ from .models import (
     StudyParticipantConsentedField,
     ParticipantAnswer,
     StudyIssue,
-    StudyIssueField
+    StudyIssueField,
+    StudyModification,
+    StudyModificationOptionalField,
+    StudyModificationRequiredField
 )
 
 api = Blueprint("api", __name__)
@@ -1203,23 +1206,7 @@ def list_researcher_studies(researcher_id):
     results = []
     for study in studies:
         refresh_study_status(study)
-        study_fields = split_study_field_ids(study.study_id)
-
-        participant_count = StudyParticipant.query.filter_by(
-            study_id=study.study_id
-        ).count()
-
-        results.append({
-            "study_id": study.study_id,
-            "study_name": study.study_name,
-            "description": study.description,
-            "data_collection_months": study.data_collection_months,
-            "research_duration_months": study.research_duration_months,
-            "status": study.status,
-            "required_field_ids": study_fields["required_field_ids"],
-            "optional_field_ids": study_fields["optional_field_ids"],
-            "participant_count": participant_count
-        })
+        results.append(serialise_study_summary(study))
 
     return jsonify({
         "researcher_id": researcher_id,
@@ -1569,41 +1556,98 @@ def modify_study(study_id):
 
     data = request.get_json() or {}
 
+    issue_id = data.get("issue_id")
+
+    issue = StudyIssue.query.get(issue_id)
+    if not issue:
+        return error("issue not found", 404)
+
     required_field_ids = data.get("required_field_ids", [])
     optional_field_ids = data.get("optional_field_ids", [])
     description = data.get("description")
+    if not required_field_ids and not optional_field_ids and not description:
+        return error("nothing to update")
+    all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
+    if all_field_ids:
+        fields = FieldDescription.query.filter(
+            FieldDescription.field_id.in_(all_field_ids)
+        ).all()
 
+        if len(fields) != len(all_field_ids):
+            return error("one or more field_ids do not exist")
     # Build policy context
     context = build_auth_context(
         current_user=current_user,
         action="modifyStudy",
-        resource=study,
-        extra={
-            "hasRequiredFields": bool(required_field_ids),
-        }
+        resource=study
     )
 
     auth_error = authorize("modifyStudy", context)
     if auth_error:
         return auth_error
 
+    modification = StudyModification(
+        issue_id=issue_id,
+        comment=data.get("comment")
+    )
+    db.session.add(modification)
+    db.session.flush()
+
+    split_fields = split_study_field_ids(study_id)
 
     # Update fields
-    StudyRequiredField.query.filter_by(study_id=study_id).delete()
+    if required_field_ids:
+        StudyRequiredField.query.filter_by(study_id=study_id).delete()
 
-    for field_id in required_field_ids:
-        db.session.add(StudyRequiredField(
-            study_id=study_id,
-            field_id=field_id,
-            is_required=True
-        ))
+        for field_id in required_field_ids:
+            db.session.add(StudyRequiredField(
+                study_id=study_id,
+                field_id=field_id,
+                is_required=True
+            ))
 
-    for field_id in optional_field_ids:
-        db.session.add(StudyRequiredField(
-            study_id=study_id,
-            field_id=field_id,
-            is_required=False
-        ))
+        removed_fields = list(set(split_fields.get("required_field_ids")) - set(required_field_ids))
+        added_fields = list(set(required_field_ids) - set(split_fields.get("required_field_ids")))
+
+        for field_id in removed_fields:
+            db.session.add(StudyModificationRequiredField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "remove"
+            ))
+        
+        for field_id in added_fields:
+            db.session.add(StudyModificationRequiredField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "add"
+            ))
+
+
+    if optional_field_ids:
+        for field_id in optional_field_ids:
+            db.session.add(StudyRequiredField(
+                study_id=study_id,
+                field_id=field_id,
+                is_required=False
+            ))
+
+        removed_fields = list(set(split_fields.get("optional_field_ids")) - set(optional_field_ids))
+        added_fields = list(set(optional_field_ids) - set(split_fields.get("optional_field_ids")))
+
+        for field_id in removed_fields:
+            db.session.add(StudyModificationOptionalField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "remove"
+            ))
+        
+        for field_id in added_fields:
+            db.session.add(StudyModificationOptionalField(
+                modification_id = modification.modification_id,
+                field_id = field_id,
+                modification_type = "add"
+            ))
 
     if description:
         study.description = description
