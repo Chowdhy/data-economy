@@ -10,8 +10,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role_id = db.Column(db.String(50), nullable=False, default="participant")  # participant, researcher, or regulator
     # Adding a requested_role flag for researchers - regulators need to approve them in order for them to be active researchers on the platform: 
-    requested_role = db.Column(db.String(50), nullable=True)
-    is_approved = db.Column(db.Boolean, default=False)
+    #requested_role = db.Column(db.String(50), nullable=True)
+    #is_approved = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
 
     # Logging element (when the user was created):
