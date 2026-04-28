@@ -93,6 +93,7 @@ export interface RegulatorStudy {
   reviewed_before: boolean;
   has_open_issue?: boolean;
   has_responded_issue?: boolean;
+  latest_issue_status?: "open" | "responded" | "resolved" | null;
 }
 
 export interface StudyField {
