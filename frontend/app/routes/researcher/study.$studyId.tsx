@@ -92,6 +92,20 @@ export default function ResearcherStudyDetailPage() {
   const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
   const openIssues = issues.filter((issue) => issue.status === "open");
   const latestIssue = issues.length > 0 ? issues[0] : null;
+  const hasOpenIssue = issues.some((issue) => issue.status === "open");
+  const hasRespondedIssue = issues.some(
+    (issue) => issue.status === "responded",
+  );
+
+  console.log("STUDY DETAIL DEBUG:", {
+    hasOpenIssue,
+    hasRespondedIssue,
+    issues: issues.map((issue) => ({
+      issue_id: issue.issue_id,
+      status: issue.status,
+    })),
+    displayStatus,
+  });
 
   return (
     <AppShell
@@ -231,9 +245,7 @@ export default function ResearcherStudyDetailPage() {
                   ) : null}
 
                   <Badge
-                    tone={
-                      latestIssue.status === "open" ? "danger" : "neutral"
-                    }
+                    tone={latestIssue.status === "open" ? "danger" : "neutral"}
                   >
                     {latestIssue.status}
                   </Badge>
@@ -291,7 +303,8 @@ export default function ResearcherStudyDetailPage() {
                         </p>
                       )}
 
-                      {issue.flagged_fields && issue.flagged_fields.length > 0 ? (
+                      {issue.flagged_fields &&
+                      issue.flagged_fields.length > 0 ? (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {issue.flagged_fields.map((field) => (
                             <Badge key={field.field_id} tone="warning">
@@ -306,15 +319,35 @@ export default function ResearcherStudyDetailPage() {
               </div>
             ) : null}
 
-            {displayStatus === "changes_requested" ? (
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button
-                  onClick={() =>
-                    navigate(`/researcher/studies/${studyId}/modify`)
-                  }
-                >
-                  Modify study
-                </Button>
+            {displayStatus === "changes_requested" &&
+            hasOpenIssue &&
+            !hasRespondedIssue ? (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  navigate(`/researcher/studies/${studyId}/modify`)
+                }
+              >
+                Modify study
+              </Button>
+            ) : displayStatus === "changes_requested" && hasRespondedIssue ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                    ⏳
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Awaiting regulator review
+                    </p>
+                    <p className="mt-1 text-sm text-amber-700">
+                      You have submitted changes for this issue. The study
+                      cannot be modified again until the regulator reviews your
+                      response.
+                    </p>
+                  </div>
+                </div>
               </div>
             ) : null}
           </Card>

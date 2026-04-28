@@ -152,6 +152,16 @@ def serialise_study_summary(study):
 
     issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
+    has_open_issue = StudyIssue.query.filter_by(
+        study_id=study.study_id,
+        status="open"
+    ).first() is not None
+
+    has_responded_issue = StudyIssue.query.filter_by(
+        study_id=study.study_id,
+        status="responded"
+    ).first() is not None
+
     return {
         "study_id": study.study_id,
         "study_name": study.study_name,
@@ -165,6 +175,8 @@ def serialise_study_summary(study):
         "participant_count": participant_count,
         "issue_count": issue_count,
         "reviewed_before": issue_count > 0,
+        "has_open_issue": has_open_issue,
+        "has_responded_issue": has_responded_issue,
     }
 
 def serialise_field(field):

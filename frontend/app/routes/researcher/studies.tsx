@@ -152,7 +152,8 @@ export default function ResearcherStudiesPage() {
                       View study
                     </Button>
 
-                    {displayStatus === "changes_requested" ? (
+                    {displayStatus === "changes_requested" &&
+                    study.has_open_issue ? (
                       <Button
                         variant="secondary"
                         onClick={() =>
