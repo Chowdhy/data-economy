@@ -58,7 +58,7 @@
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
             { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true },
-            { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "changes_requested" }
+            { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "pending" }
           ]
         },
 
