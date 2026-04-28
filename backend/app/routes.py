@@ -1558,23 +1558,44 @@ def modify_study(study_id):
 
     issue_id = data.get("issue_id")
 
+    if not issue_id:
+        return error("issue_id is needed", 400)
+
     issue = StudyIssue.query.get(issue_id)
     if not issue:
         return error("issue not found", 404)
+    
+    if issue.study_id != study.study_id:
+        return error("issue does not belong to this study", 400)
+    
+    if issue.status != "open":
+        return error("this issue is no longer open", 400)
+    
+    existing_modification = StudyModification.query.filter_by(issue_id=issue_id).first()
+    if existing_modification:
+        return error(
+            "a modification already exists for this issue, a new issue must be raised",
+            409
+        )
 
     required_field_ids = data.get("required_field_ids", [])
     optional_field_ids = data.get("optional_field_ids", [])
     description = data.get("description")
+    comment = data.get("comment") or ""
+
     if not required_field_ids and not optional_field_ids and not description:
-        return error("nothing to update")
+        return error("nothing to update",400)
+    
     all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
+
     if all_field_ids:
         fields = FieldDescription.query.filter(
             FieldDescription.field_id.in_(all_field_ids)
         ).all()
 
         if len(fields) != len(all_field_ids):
-            return error("one or more field_ids do not exist")
+            return error("one or more field_ids do not exist", 400)
+        
     # Build policy context
     context = build_auth_context(
         current_user=current_user,
@@ -1585,82 +1606,87 @@ def modify_study(study_id):
     auth_error = authorize("modifyStudy", context)
     if auth_error:
         return auth_error
+    
+    split_fields = split_study_field_ids(study_id)
+
+    previous_required_ids = set(split_fields.get("required_field_ids", []))
+    previous_optional_ids = set(split_fields.get("optional_field_ids", []))
+
+    new_required_ids = set(required_field_ids)
+    new_optional_ids = set(optional_field_ids)
 
     modification = StudyModification(
         issue_id=issue_id,
-        comment=data.get("comment")
+        comment=comment
     )
     db.session.add(modification)
     db.session.flush()
 
-    split_fields = split_study_field_ids(study_id)
+    removed_required_fields = previous_required_ids - new_required_ids
+    added_required_fields = new_required_ids - previous_required_ids
 
-    # Update fields
-    if required_field_ids:
-        StudyRequiredField.query.filter_by(study_id=study_id).delete()
+    for field_id in removed_required_fields:
+        db.session.add(StudyModificationRequiredField(
+            modification_id=modification.modification_id,
+            field_id=field_id,
+            modification_type="remove"
+        ))
 
-        for field_id in required_field_ids:
-            db.session.add(StudyRequiredField(
-                study_id=study_id,
-                field_id=field_id,
-                is_required=True
-            ))
+    for field_id in added_required_fields:
+        db.session.add(StudyModificationRequiredField(
+            modification_id=modification.modification_id,
+            field_id=field_id,
+            modification_type="add"
+        ))
 
-        removed_fields = list(set(split_fields.get("required_field_ids")) - set(required_field_ids))
-        added_fields = list(set(required_field_ids) - set(split_fields.get("required_field_ids")))
+    removed_optional_fields = previous_optional_ids - new_optional_ids
+    added_optional_fields = new_optional_ids - previous_optional_ids
 
-        for field_id in removed_fields:
-            db.session.add(StudyModificationRequiredField(
-                modification_id = modification.modification_id,
-                field_id = field_id,
-                modification_type = "remove"
-            ))
-        
-        for field_id in added_fields:
-            db.session.add(StudyModificationRequiredField(
-                modification_id = modification.modification_id,
-                field_id = field_id,
-                modification_type = "add"
-            ))
+    for field_id in removed_optional_fields:
+        db.session.add(StudyModificationOptionalField(
+            modification_id=modification.modification_id,
+            field_id=field_id,
+            modification_type="remove"
+        ))
 
+    for field_id in added_optional_fields:
+        db.session.add(StudyModificationOptionalField(
+            modification_id=modification.modification_id,
+            field_id=field_id,
+            modification_type="add"
+        ))
 
-    if optional_field_ids:
-        for field_id in optional_field_ids:
-            db.session.add(StudyRequiredField(
-                study_id=study_id,
-                field_id=field_id,
-                is_required=False
-            ))
+    StudyRequiredField.query.filter_by(study_id=study_id).delete()
 
-        removed_fields = list(set(split_fields.get("optional_field_ids")) - set(optional_field_ids))
-        added_fields = list(set(optional_field_ids) - set(split_fields.get("optional_field_ids")))
+    for field_id in required_field_ids:
+        db.session.add(StudyRequiredField(
+            study_id=study_id,
+            field_id=field_id,
+            is_required=True
+        ))
 
-        for field_id in removed_fields:
-            db.session.add(StudyModificationOptionalField(
-                modification_id = modification.modification_id,
-                field_id = field_id,
-                modification_type = "remove"
-            ))
-        
-        for field_id in added_fields:
-            db.session.add(StudyModificationOptionalField(
-                modification_id = modification.modification_id,
-                field_id = field_id,
-                modification_type = "add"
-            ))
+    for field_id in optional_field_ids:
+        db.session.add(StudyRequiredField(
+            study_id=study_id,
+            field_id=field_id,
+            is_required=False
+        ))
 
     if description:
         study.description = description
 
     study.status = "pending"
     study.approved_at = None
+    issue.status = "responded"
 
     db.session.commit()
 
     return jsonify({
         "message": "study modified and sent for re-approval",
         "study_id": study_id,
-        "status": study.status
+        "status": study.status,
+        "issue_status": issue.status,
+        "modification_id": modification.modification_id
     }), 200
 
 #Used to return the pending studies with all the info
