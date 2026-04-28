@@ -207,7 +207,6 @@ export default function ResearcherStudyDetailPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
                 {issueCount > 0 ? (
                   <Badge tone="danger">
                     {issueCount} issue{issueCount === 1 ? "" : "s"}
@@ -243,12 +242,6 @@ export default function ResearcherStudyDetailPage() {
                       {latestIssue.flagged_field_ids.length === 1 ? "" : "s"}
                     </Badge>
                   ) : null}
-
-                  <Badge
-                    tone={latestIssue.status === "open" ? "danger" : "neutral"}
-                  >
-                    {latestIssue.status}
-                  </Badge>
                 </div>
 
                 {latestIssue.flagged_fields &&
@@ -319,35 +312,36 @@ export default function ResearcherStudyDetailPage() {
               </div>
             ) : null}
 
-            {displayStatus === "changes_requested" &&
-            hasOpenIssue &&
-            !hasRespondedIssue ? (
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  navigate(`/researcher/studies/${studyId}/modify`)
-                }
-              >
-                Modify study
-              </Button>
+            {displayStatus === "changes_requested" && hasOpenIssue ? (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    Action required
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    Respond to the latest regulator feedback by updating this
+                    study.
+                  </p>
+                </div>
+
+                <Button
+                  variant="primary"
+                  onClick={() =>
+                    navigate(`/researcher/studies/${studyId}/modify`)
+                  }
+                >
+                  Modify study
+                </Button>
+              </div>
             ) : displayStatus === "changes_requested" && hasRespondedIssue ? (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                    ⏳
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900">
-                      Awaiting regulator review
-                    </p>
-                    <p className="mt-1 text-sm text-amber-700">
-                      You have submitted changes for this issue. The study
-                      cannot be modified again until the regulator reviews your
-                      response.
-                    </p>
-                  </div>
-                </div>
+                <p className="text-sm font-semibold text-slate-900">
+                  Awaiting regulator review
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  You have submitted changes. The study cannot be modified again
+                  until the regulator raises a new issue or approves the study.
+                </p>
               </div>
             ) : null}
           </Card>
