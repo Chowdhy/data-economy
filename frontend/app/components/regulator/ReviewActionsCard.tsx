@@ -88,16 +88,32 @@ export default function ReviewActionsCard({
           />
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={onApprove}>Approve study</Button>
-
-          <Button variant="secondary" onClick={onReject}>
-            Reject study
-          </Button>
-
-          <Button variant="secondary" onClick={onRaiseIssues}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button
+            variant="secondary"
+            className="!border-amber-200 !bg-amber-50 !text-amber-700 hover:!bg-amber-100"
+            onClick={onRaiseIssues}
+          >
             Raise issues
           </Button>
+
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="secondary"
+              className="!border-emerald-200 !bg-emerald-50 !text-emerald-700 hover:!bg-emerald-100"
+              onClick={onApprove}
+            >
+              Approve study
+            </Button>
+
+            <Button
+              variant="secondary"
+              className="!border-rose-200 !bg-rose-50 !text-rose-700 hover:!bg-rose-100"
+              onClick={onReject}
+            >
+              Reject study
+            </Button>
+          </div>
         </div>
       </div>
     </Card>
