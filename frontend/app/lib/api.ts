@@ -1,10 +1,13 @@
 import type {
+  ActivityLog,
   AvailableStudy,
   FieldDescription,
   ParticipantStudy,
   ResearcherStudy,
   StudyDetail,
   StudyDataResponse,
+  StudyResearcher,
+  StudyResearcherAccessLevel,
   User,
   ParticipantAnswersResponse,
   RegulatorStudyDetail,
@@ -254,4 +257,40 @@ export const api = {
     request<{
       issues: StudyIssue[];
     }>(`/admin/studies/${studyId}/issues`),
+
+  getUserLogs: (userId: number) =>
+    request<{ logs: ActivityLog[] }>(`/users/${userId}/logs`),
+
+  getStudyLogs: (studyId: number) =>
+    request<{ logs: ActivityLog[] }>(`/admin/studies/${studyId}/logs`),
+
+  getStudyResearchers: (studyId: number) =>
+    request<{ study_id: number; researchers: StudyResearcher[] }>(
+      `/studies/${studyId}/researchers`,
+    ),
+
+  addStudyResearcher: (
+    studyId: number,
+    payload: { researcher_email: string; access_level: StudyResearcherAccessLevel },
+  ) =>
+    request<{ message: string; researcher: StudyResearcher }>(
+      `/studies/${studyId}/researchers`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+
+  updateStudyResearcher: (
+    studyId: number,
+    researcherId: number,
+    access_level: StudyResearcherAccessLevel,
+  ) =>
+    request<{ message: string; researcher: StudyResearcher }>(
+      `/studies/${studyId}/researchers/${researcherId}`,
+      { method: "PUT", body: JSON.stringify({ access_level }) },
+    ),
+
+  removeStudyResearcher: (studyId: number, researcherId: number) =>
+    request<{ message: string }>(
+      `/studies/${studyId}/researchers/${researcherId}`,
+      { method: "DELETE" },
+    ),
 };

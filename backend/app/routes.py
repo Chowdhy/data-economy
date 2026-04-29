@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,7 +18,9 @@ from .models import (
     StudyIssueField,
     StudyModification,
     StudyModificationOptionalField,
-    StudyModificationRequiredField
+    StudyModificationRequiredField,
+    ActivityLog,
+    StudyResearcher,
 )
 
 api = Blueprint("api", __name__)
@@ -28,17 +31,14 @@ policy_engine = get_policy_engine()
 def check_policy(action, context):
     if not policy_engine.is_allowed(action, context):
         return error(f"action '{action}' is not allowed under current policies", 403)
-# Main autorhization entry point for all protected endpoints: 
+# Main authorization entry point for all protected endpoints:
 def authorize(action, context):
     decision = policy_engine.evaluate(action, context)
     if not decision.allowed:
-        return error({
-            "message": f"action '{action}' is not allowed",
-            "failures": decision.failures,
-            "matched_permissions": decision.matched_permissions,
-            "matched_prohibitions": decision.matched_prohibitions,
-            "duties": decision.duties,
-        }, 403)
+        # Log details server-side only; never expose policy internals to the client
+        print(f"[AUTH DENIED] action='{action}' failures={decision.failures} "
+              f"prohibitions={decision.matched_prohibitions}")
+        return error("Access denied.", 403)
     return None
 # Standardized error response function:
 def error(message, status=400):
@@ -133,7 +133,60 @@ def refresh_study_status(study):
 
     return study
 
-# Health check: 
+# Log a user/study action to the activity_logs table (call before db.session.commit):
+def log_action(action, user_id=None, study_id=None, details=None):
+    entry = ActivityLog(
+        user_id=user_id,
+        study_id=study_id,
+        action=action,
+        details=json.dumps(details) if details else None,
+        created_at=datetime.utcnow(),
+    )
+    db.session.add(entry)
+
+# Return the StudyResearcher row if the user is an explicit collaborator (not the creator):
+def get_study_researcher(study_id, researcher_id):
+    return StudyResearcher.query.filter_by(
+        study_id=study_id,
+        researcher_id=researcher_id,
+    ).first()
+
+# Returns True if the user can view study data (creator, regulator, or editor collaborator):
+def can_access_study_data(study, user):
+    if user.role_id == "regulator":
+        return True
+    if study.creator_id == user.user_id:
+        return True
+    collab = get_study_researcher(study.study_id, user.user_id)
+    return collab is not None and collab.access_level in ("editor",)
+
+def serialise_study_researcher(sr, study_creator_id):
+    return {
+        "researcher_id": sr.researcher_id,
+        "name": sr.researcher.name if sr.researcher else None,
+        "email": sr.researcher.email if sr.researcher else None,
+        "access_level": sr.access_level,
+        "added_at": sr.added_at.isoformat(),
+        "is_creator": sr.researcher_id == study_creator_id,
+    }
+
+def serialise_log_entry(log):
+    details = None
+    if log.details:
+        try:
+            details = json.loads(log.details)
+        except (json.JSONDecodeError, TypeError):
+            details = log.details
+    return {
+        "log_id": log.log_id,
+        "user_id": log.user_id,
+        "study_id": log.study_id,
+        "action": log.action,
+        "details": details,
+        "created_at": log.created_at.isoformat(),
+    }
+
+# Health check:
 @api.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
@@ -616,6 +669,8 @@ def create_study():
             is_required=False
         ))
 
+    log_action("study_created", user_id=current_user.user_id, study_id=study.study_id,
+               details={"study_name": study.study_name})
     db.session.commit()
 
     return jsonify({
@@ -682,6 +737,7 @@ def join_study(study_id):
         consent_all_fields=False,
     )
     db.session.add(link)
+    log_action("participant_joined", user_id=current_user.user_id, study_id=study_id)
     db.session.commit()
     # Remove auto consent logic:
     ''' required_fields = StudyRequiredField.query.filter_by(
@@ -790,6 +846,7 @@ def withdraw_from_study(study_id):
         return authori_error
 
     db.session.delete(membership)
+    log_action("participant_withdrew", user_id=current_user.user_id, study_id=study_id)
     db.session.commit()
 
     return jsonify({
@@ -922,6 +979,8 @@ def modify_consent(study_id):
             participant_id=current_user.user_id,
         ).delete(synchronize_session=False)
         db.session.delete(membership)
+        log_action("participant_withdrew", user_id=current_user.user_id, study_id=study_id,
+                   details={"reason": "missing_required_consent"})
         db.session.commit()
         return jsonify({
             "message": "withdrawn from study due to missing required consent",
@@ -956,6 +1015,8 @@ def modify_consent(study_id):
         ))
 
     membership.consent_all_fields = (len(consented_field_ids) == len(all_field_ids))
+    log_action("consent_modified", user_id=current_user.user_id, study_id=study_id,
+               details={"consented_field_count": len(consented_field_ids)})
     db.session.commit()
 
     return jsonify({
@@ -1048,6 +1109,8 @@ def upsert_participant_answers(participant_id):
             ))
             updated.append({"field_name": field_name, "action": "created"})
 
+    log_action("answers_submitted", user_id=participant_id,
+               details={"field_count": len(updated)})
     db.session.commit()
 
     return jsonify({
@@ -1256,12 +1319,21 @@ def list_researcher_studies(researcher_id):
     if auth_error:
         return auth_error
 
-    studies = Study.query.filter_by(creator_id=researcher_id).all()
+    created_studies = Study.query.filter_by(creator_id=researcher_id).all()
+    created_ids = {s.study_id for s in created_studies}
+
+    collab_rows = StudyResearcher.query.filter_by(researcher_id=researcher_id).all()
+    collab_study_ids = [r.study_id for r in collab_rows if r.study_id not in created_ids]
+    collab_studies = Study.query.filter(Study.study_id.in_(collab_study_ids)).all() if collab_study_ids else []
 
     results = []
-    for study in studies:
+    for study in created_studies + collab_studies:
         refresh_study_status(study)
-        results.append(serialise_study_summary(study))
+        summary = serialise_study_summary(study)
+        summary["is_creator"] = study.study_id in created_ids
+        collab = next((r for r in collab_rows if r.study_id == study.study_id), None)
+        summary["access_level"] = "owner" if study.study_id in created_ids else (collab.access_level if collab else "viewer")
+        results.append(summary)
 
     return jsonify({
         "researcher_id": researcher_id,
@@ -1336,10 +1408,7 @@ def get_study_data(study_id, researcher_id=None):
         action="accessStudyData",
         resource=study,
         extra={
-            "isOwnerOrRegulator": (
-                study.creator_id == current_user.user_id or
-                current_user.role_id == "regulator"
-            )
+            "isOwnerOrRegulator": can_access_study_data(study, current_user)
         }
     )
 
@@ -1522,6 +1591,7 @@ def approve_study(study_id):
     study.open_until = add_months_as_days(approved_at, study.data_collection_months)
     study.ongoing_until = add_months_as_days(study.open_until, study.research_duration_months)
 
+    log_action("study_approved", user_id=current_user.user_id, study_id=study_id)
     db.session.commit()
 
     return jsonify({
@@ -1563,6 +1633,8 @@ def reject_study(study_id):
         return authori_error
     study.status = "rejected"
 
+    log_action("study_rejected", user_id=current_user.user_id, study_id=study_id,
+               details={"reason": reason})
     db.session.commit()
 
     return jsonify({
@@ -1734,6 +1806,8 @@ def modify_study(study_id):
     study.approved_at = None
     issue.status = "responded"
 
+    log_action("study_modified", user_id=current_user.user_id, study_id=study_id,
+               details={"issue_id": issue_id, "modification_id": modification.modification_id})
     db.session.commit()
 
     return jsonify({
@@ -1850,6 +1924,8 @@ def raise_study_issues(study_id):
             )
         )
 
+    log_action("issue_raised", user_id=current_user.user_id, study_id=study_id,
+               details={"flagged_field_count": len(flagged_field_ids)})
     db.session.commit()
 
     return jsonify({
@@ -1872,7 +1948,8 @@ def list_study_issues(study_id):
     if current_user.role_id == "regulator":
         pass
     elif current_user.role_id == "researcher":
-        if study.creator_id != current_user.user_id:
+        collab = get_study_researcher(study_id, current_user.user_id)
+        if study.creator_id != current_user.user_id and not collab:
             return error("not allowed to view issues for this study", 403)
     else:
         return error("not allowed to view study issues", 403)
@@ -1887,3 +1964,205 @@ def list_study_issues(study_id):
     return jsonify({
         "issues": [serialise_study_issue(issue) for issue in issues]
     }), 200
+
+
+# ─── Activity Logs ────────────────────────────────────────────────────────────
+
+@api.route("/users/<int:user_id>/logs", methods=["GET"])
+@jwt_required()
+def get_user_logs(user_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.user_id != user_id and current_user.role_id != "regulator":
+        return error("not allowed to view this user's logs", 403)
+
+    logs = (
+        ActivityLog.query
+        .filter_by(user_id=user_id)
+        .order_by(ActivityLog.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    return jsonify({"logs": [serialise_log_entry(l) for l in logs]}), 200
+
+
+@api.route("/admin/studies/<int:study_id>/logs", methods=["GET"])
+@jwt_required()
+def get_study_logs(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.role_id != "regulator":
+        return error("only regulators can view full study logs", 403)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    logs = (
+        ActivityLog.query
+        .filter_by(study_id=study_id)
+        .order_by(ActivityLog.created_at.desc())
+        .all()
+    )
+
+    return jsonify({"logs": [serialise_log_entry(l) for l in logs]}), 200
+
+
+# ─── Study Researchers (team management) ──────────────────────────────────────
+
+@api.route("/studies/<int:study_id>/researchers", methods=["GET"])
+@jwt_required()
+def list_study_researchers(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    is_related = (
+        current_user.role_id == "regulator"
+        or study.creator_id == current_user.user_id
+        or get_study_researcher(study_id, current_user.user_id) is not None
+    )
+    if not is_related:
+        return error("not allowed to view this study's research team", 403)
+
+    creator = User.query.get(study.creator_id)
+    team = []
+    if creator:
+        team.append({
+            "researcher_id": creator.user_id,
+            "name": creator.name,
+            "email": creator.email,
+            "access_level": "owner",
+            "added_at": study.creator.created_at.isoformat() if study.creator else None,
+            "is_creator": True,
+        })
+
+    for sr in study.researchers:
+        team.append(serialise_study_researcher(sr, study.creator_id))
+
+    return jsonify({"study_id": study_id, "researchers": team}), 200
+
+
+@api.route("/studies/<int:study_id>/researchers", methods=["POST"])
+@jwt_required()
+def add_study_researcher(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    if study.creator_id != current_user.user_id:
+        return error("only the study owner can manage the research team", 403)
+
+    data = request.get_json() or {}
+    researcher_email = data.get("researcher_email")
+    access_level = data.get("access_level", "viewer")
+
+    if not researcher_email:
+        return error("researcher_email is required")
+
+    if access_level not in ("editor", "viewer"):
+        return error("access_level must be 'editor' or 'viewer'")
+
+    target = User.query.filter_by(email=researcher_email).first()
+    if not target:
+        return error("no user found with that email", 404)
+
+    if target.role_id != "researcher":
+        return error("only researcher accounts can be added to a study team", 400)
+
+    if target.user_id == study.creator_id:
+        return error("the study owner is already part of the team", 409)
+
+    existing = get_study_researcher(study_id, target.user_id)
+    if existing:
+        return error("this researcher is already on the team", 409)
+
+    sr = StudyResearcher(
+        study_id=study_id,
+        researcher_id=target.user_id,
+        access_level=access_level,
+        added_at=datetime.utcnow(),
+    )
+    db.session.add(sr)
+    log_action("researcher_added", user_id=current_user.user_id, study_id=study_id,
+               details={"added_researcher_id": target.user_id, "access_level": access_level})
+    db.session.commit()
+
+    return jsonify({
+        "message": "researcher added to study",
+        "researcher": serialise_study_researcher(sr, study.creator_id),
+    }), 201
+
+
+@api.route("/studies/<int:study_id>/researchers/<int:researcher_id>", methods=["PUT"])
+@jwt_required()
+def update_study_researcher(study_id, researcher_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    if study.creator_id != current_user.user_id:
+        return error("only the study owner can manage the research team", 403)
+
+    sr = get_study_researcher(study_id, researcher_id)
+    if not sr:
+        return error("researcher not found in this study's team", 404)
+
+    data = request.get_json() or {}
+    access_level = data.get("access_level")
+
+    if access_level not in ("editor", "viewer"):
+        return error("access_level must be 'editor' or 'viewer'")
+
+    sr.access_level = access_level
+    log_action("researcher_access_updated", user_id=current_user.user_id, study_id=study_id,
+               details={"researcher_id": researcher_id, "new_access_level": access_level})
+    db.session.commit()
+
+    return jsonify({
+        "message": "access level updated",
+        "researcher": serialise_study_researcher(sr, study.creator_id),
+    }), 200
+
+
+@api.route("/studies/<int:study_id>/researchers/<int:researcher_id>", methods=["DELETE"])
+@jwt_required()
+def remove_study_researcher(study_id, researcher_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    if study.creator_id != current_user.user_id:
+        return error("only the study owner can manage the research team", 403)
+
+    sr = get_study_researcher(study_id, researcher_id)
+    if not sr:
+        return error("researcher not found in this study's team", 404)
+
+    db.session.delete(sr)
+    log_action("researcher_removed", user_id=current_user.user_id, study_id=study_id,
+               details={"removed_researcher_id": researcher_id})
+    db.session.commit()
+
+    return jsonify({"message": "researcher removed from study"}), 200

@@ -8,7 +8,7 @@ import AppShell from "~/components/layout/AppShell";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import { api } from "~/lib/api";
-import type { RegulatorStudyDetail, StudyIssue } from "~/lib/types";
+import type { ActivityLog, RegulatorStudyDetail, StudyIssue } from "~/lib/types";
 
 export default function RegulatorStudyReviewPage() {
   const navigate = useNavigate();
@@ -24,6 +24,9 @@ export default function RegulatorStudyReviewPage() {
   const [comment, setComment] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const [studyLogs, setStudyLogs] = useState<ActivityLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   async function loadIssues(currentStudyId: number) {
     try {
@@ -64,7 +67,21 @@ export default function RegulatorStudyReviewPage() {
       }
     }
 
+    async function loadLogs() {
+      if (!studyId) return;
+      try {
+        setLogsLoading(true);
+        const res = await api.getStudyLogs(Number(studyId));
+        setStudyLogs(res.logs);
+      } catch {
+        // Logs are supplementary — silently ignore if unavailable
+      } finally {
+        setLogsLoading(false);
+      }
+    }
+
     loadStudy();
+    loadLogs();
   }, [studyId]);
 
   const allFields = useMemo(() => {
@@ -214,9 +231,59 @@ export default function RegulatorStudyReviewPage() {
                 <p className="text-sm text-slate-600">{actionMessage}</p>
               </Card>
             ) : null}
+
+            <StudyLogsCard logs={studyLogs} loading={logsLoading} />
           </>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function formatAction(action: string): string {
+  return action
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function StudyLogsCard({ logs, loading }: { logs: ActivityLog[]; loading: boolean }) {
+  return (
+    <Card>
+      <h2 className="text-base font-semibold text-slate-900">Study activity log</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Full record of actions taken on this study.
+      </p>
+
+      {loading ? (
+        <p className="mt-4 text-sm text-slate-500">Loading logs...</p>
+      ) : logs.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-500">No activity recorded yet.</p>
+      ) : (
+        <div className="mt-4 divide-y divide-slate-100">
+          {logs.map((log) => (
+            <div key={log.log_id} className="py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                  {formatAction(log.action)}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {new Date(log.created_at).toLocaleString()}
+                </span>
+                {log.user_id && (
+                  <span className="text-xs text-slate-500">User #{log.user_id}</span>
+                )}
+              </div>
+              {log.details && Object.keys(log.details).length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {Object.entries(log.details)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(" · ")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }

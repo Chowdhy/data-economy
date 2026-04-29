@@ -76,6 +76,8 @@ export interface ResearcherStudy {
   creator_id?: number;
   has_open_issue?: boolean;
   has_responded_issue?: boolean;
+  is_creator?: boolean;
+  access_level?: "owner" | "editor" | "viewer";
 }
 
 export interface RegulatorStudy {
@@ -171,4 +173,24 @@ export interface ApiErrorResponse {
 export interface CreateFieldResponse {
   message: string;
   field: FieldDescription;
+}
+
+export interface ActivityLog {
+  log_id: number;
+  user_id: number | null;
+  study_id: number | null;
+  action: string;
+  details: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export type StudyResearcherAccessLevel = "owner" | "editor" | "viewer";
+
+export interface StudyResearcher {
+  researcher_id: number;
+  name: string | null;
+  email: string | null;
+  access_level: StudyResearcherAccessLevel;
+  added_at: string | null;
+  is_creator: boolean;
 }

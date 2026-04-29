@@ -77,6 +77,12 @@ class Study(db.Model):
         cascade="all, delete-orphan"
     )
 
+    researchers = db.relationship(
+        "StudyResearcher",
+        cascade="all, delete-orphan",
+        foreign_keys="StudyResearcher.study_id",
+    )
+
 
 class FieldDescription(db.Model):
     __tablename__ = "field_descriptions"
@@ -302,6 +308,36 @@ class StudyModificationOptionalField(db.Model):
         backref=db.backref("modified_optional_fields", cascade="all, delete-orphan"),
     )
     field = db.relationship("FieldDescription")
+
+class ActivityLog(db.Model):
+    __tablename__ = "activity_logs"
+
+    log_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=True)
+    study_id = db.Column(db.Integer, nullable=True)
+    action = db.Column(db.String(100), nullable=False)
+    details = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class StudyResearcher(db.Model):
+    __tablename__ = "study_researchers"
+
+    study_id = db.Column(
+        db.Integer,
+        db.ForeignKey("studies.study_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    researcher_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.user_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    access_level = db.Column(db.String(50), nullable=False, default="viewer")
+    added_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    researcher = db.relationship("User")
+
 
 class StudyModificationRequiredField(db.Model):
     __tablename__ = "study_modification_required_fields"
