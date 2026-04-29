@@ -5,7 +5,6 @@
       "uid": "set:platform-access",
       "@type": "Set",
       "profile": "platform-access-control",
-
       "permission": [
         {
           "uid": "perm:create-field",
@@ -14,10 +13,31 @@
           "target": { "type": "field" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
+            { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true },
             { "leftOperand": "subject.isActive", "operator": "eq", "rightOperand": true }
+            
           ]
         },
-
+        {
+          "uid": "perm:modify-study",
+          "action": "modifyStudy",
+          "assignee": { "role": "researcher" },
+          "target": { "type": "study" },
+          "constraint": [
+            { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
+            { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true },
+            { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "open" },
+            { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true }
+          ],
+          "duty": [
+            {
+              "action": "hasValidFields",
+              "constraint": [
+                { "leftOperand": "env.hasRequiredFields", "operator": "eq", "rightOperand": true }
+              ]
+            }
+          ]
+        },
         {
           "uid": "perm:list-fields",
           "action": "listFields",
@@ -27,7 +47,6 @@
             { "leftOperand": "subject.role", "operator": "in", "rightOperand": ["participant", "researcher", "regulator"] }
           ]
         },
-
         {
           "uid": "perm:create-study",
           "action": "createStudy",
@@ -35,6 +54,7 @@
           "target": { "type": "study" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
+            { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true },
             { "leftOperand": "env.activeStudyCount", "operator": "lt", "rightOperand": 5 }
           ],
           "duty": [
@@ -49,19 +69,16 @@
             }
           ]
         },
-
         {
-          "uid": "perm:modify-study",
-          "action": "modifyStudy",
-          "assignee": { "role": "researcher" },
-          "target": { "type": "study" },
+          "uid": "perm:approve-user-role",
+          "action": "approveUserRole",
+          "assignee": { "role": "regulator" },
+          "target": { "type": "user" },
           "constraint": [
-            { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
-            { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true },
-            { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "pending" }
+            { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "regulator" },
+            { "leftOperand": "resource.hasPendingRoleRequest", "operator": "eq", "rightOperand": true }
           ]
         },
-
         {
           "uid": "perm:approve-study",
           "action": "approveStudy",
@@ -72,7 +89,6 @@
             { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "pending" }
           ]
         },
-
         {
           "uid": "perm:reject-study",
           "action": "rejectStudy",
@@ -91,7 +107,6 @@
             }
           ]
         },
-
         {
           "uid": "perm:view-researcher-studies",
           "action": "viewResearcherStudies",
@@ -102,7 +117,6 @@
             { "leftOperand": "env.isOwnerOrRegulator", "operator": "eq", "rightOperand": true }
           ]
         },
-
         {
           "uid": "perm:access-study-data",
           "action": "accessStudyData",
@@ -115,7 +129,6 @@
           ]
         }
       ],
-
       "prohibition": [
         {
           "uid": "prohibit-nonresearcher-create-study",
@@ -126,7 +139,6 @@
             { "leftOperand": "subject.role", "operator": "neq", "rightOperand": "researcher" }
           ]
         },
-
         {
           "uid": "prohibit-nonregulator-approval",
           "action": "approveStudy",
@@ -136,7 +148,6 @@
             { "leftOperand": "subject.role", "operator": "neq", "rightOperand": "regulator" }
           ]
         },
-
         {
           "uid": "prohibit-study-data-nonowner",
           "action": "accessStudyData",
@@ -148,12 +159,10 @@
         }
       ]
     },
-
     {
       "uid": "offer:study-participation",
       "@type": "Offer",
       "profile": "study-offer",
-
       "permission": [
         {
           "uid": "perm:join-study",
@@ -166,7 +175,6 @@
             { "leftOperand": "env.isEnrolled", "operator": "eq", "rightOperand": false }
           ]
         },
-
         {
           "uid": "perm:withdraw-study",
           "action": "withdrawStudy",
@@ -178,7 +186,6 @@
             { "leftOperand": "env.isEnrolled", "operator": "eq", "rightOperand": true }
           ]
         },
-
         {
           "uid": "perm:view-available-studies",
           "action": "viewAvailableStudies",
@@ -189,28 +196,37 @@
           ]
         }
       ],
-
       "prohibition": [
         {
           "uid": "prohibit-join-closed-study",
           "action": "joinStudy",
+          "assignee": { "role": "*" },
+          "target": { "type": "study" },
+          "constraint": [
+            { "leftOperand": "resource.status", "operator": "neq", "rightOperand": "open" }
+          ]
+        },
+        {
+          "uid": "prohibit-withdraw-closed-study",
+          "action": "withdrawStudy",
+          "assignee": { "role": "*" },
+          "target": { "type": "studyParticipation" },
           "constraint": [
             { "leftOperand": "resource.status", "operator": "neq", "rightOperand": "open" }
           ]
         }
       ]
     },
-
     {
       "uid": "agreement:study-consent",
       "@type": "Agreement",
       "profile": "participant-consent",
-
       "permission": [
         {
           "uid": "perm:modify-consent",
           "action": "modifyConsent",
           "assignee": { "role": "participant" },
+          "target": { "type": "consentAgreement" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "participant" },
             { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "open" },
@@ -225,31 +241,53 @@
             }
           ]
         },
-
         {
           "uid": "perm:submit-answers",
           "action": "submitAnswers",
           "assignee": { "role": "participant" },
+          "target": { "type": "participantAnswers" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "participant" },
             { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true },
             { "leftOperand": "env.answersWithinConsentedFields", "operator": "eq", "rightOperand": true }
           ]
         },
-
         {
           "uid": "perm:view-own-answers",
           "action": "viewOwnAnswers",
+          "assignee": { "role": "participant" },
+          "target": { "type": "participantAnswers" },
           "constraint": [
             { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true }
           ]
         },
-
         {
           "uid": "perm:view-own-studies",
           "action": "viewParticipantStudies",
+          "assignee": { "role": "participant" },
+          "target": { "type": "studyCollection" },
           "constraint": [
             { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true }
+          ]
+        }
+      ],
+      "prohibition": [
+        {
+          "uid": "prohibit-answer-for-other-user",
+          "action": "submitAnswers",
+          "assignee": { "role": "*" },
+          "target": { "type": "participantAnswers" },
+          "constraint": [
+            { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": false }
+          ]
+        },
+        {
+          "uid": "prohibit-consent-modification-closed",
+          "action": "modifyConsent",
+          "assignee": { "role": "*" },
+          "target": { "type": "consentAgreement" },
+          "constraint": [
+            { "leftOperand": "resource.status", "operator": "neq", "rightOperand": "open" }
           ]
         }
       ]
