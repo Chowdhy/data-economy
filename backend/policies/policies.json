@@ -13,9 +13,7 @@
           "target": { "type": "field" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
-            { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true },
             { "leftOperand": "subject.isActive", "operator": "eq", "rightOperand": true }
-            
           ]
         },
         {
@@ -25,9 +23,7 @@
           "target": { "type": "study" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
-            { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true },
-            { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "open" },
-            { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true }
+            { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true }
           ],
           "duty": [
             {
@@ -54,7 +50,7 @@
           "target": { "type": "study" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
-            { "leftOperand": "subject.isApproved", "operator": "eq", "rightOperand": true },
+            { "leftOperand": "subject.isActive", "operator": "eq", "rightOperand": true },
             { "leftOperand": "env.activeStudyCount", "operator": "lt", "rightOperand": 5 }
           ],
           "duty": [

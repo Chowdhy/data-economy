@@ -7,11 +7,18 @@ import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
+import { getCurrentUser } from "~/lib/auth";
 import {
   getResearcherDisplayStatus,
   getResearcherDisplayStatusMeta,
 } from "~/lib/studyStatus";
-import type { StudyDataResponse, StudyDetail, StudyIssue } from "~/lib/types";
+import type {
+  StudyDataResponse,
+  StudyDetail,
+  StudyIssue,
+  StudyResearcher,
+  StudyResearcherAccessLevel,
+} from "~/lib/types";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -27,6 +34,7 @@ export default function ResearcherStudyDetailPage() {
   const navigate = useNavigate();
   const params = useParams();
   const studyId = Number(params.studyId);
+  const currentUser = getCurrentUser();
 
   const [study, setStudy] = useState<StudyDetail | null>(null);
   const [issues, setIssues] = useState<StudyIssue[]>([]);
@@ -34,6 +42,13 @@ export default function ResearcherStudyDetailPage() {
   const [error, setError] = useState("");
   const [data, setData] = useState<StudyDataResponse | null>(null);
   const [dataMessage, setDataMessage] = useState("");
+
+  const [team, setTeam] = useState<StudyResearcher[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addAccessLevel, setAddAccessLevel] = useState<StudyResearcherAccessLevel>("viewer");
+  const [addMessage, setAddMessage] = useState("");
 
   async function loadStudy() {
     if (!studyId || Number.isNaN(studyId)) {
@@ -56,33 +71,76 @@ export default function ResearcherStudyDetailPage() {
         const studyResponse = await api.getStudy(studyId);
         setStudy(studyResponse.study);
       } catch (err) {
+        console.error("Failed to load study", err);
         setStudy(null);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Study details are not currently available.",
-        );
+        setError("Study details are not currently available.");
       }
 
       try {
         const dataResponse = await api.getStudyData(studyId);
         setData(dataResponse);
       } catch (err) {
+        console.error("Failed to load study data", err);
         setData(null);
-        setDataMessage(
-          err instanceof Error
-            ? err.message
-            : "Participant data is not currently available.",
-        );
+        setDataMessage("Participant data is not currently available.");
       }
     } finally {
       setLoading(false);
     }
   }
 
+  async function loadTeam() {
+    if (!studyId || Number.isNaN(studyId)) return;
+    try {
+      setTeamLoading(true);
+      setTeamError("");
+      const res = await api.getStudyResearchers(studyId);
+      setTeam(res.researchers);
+    } catch (err) {
+      setTeamError(err instanceof Error ? err.message : "Could not load research team.");
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadStudy();
+    loadTeam();
   }, [studyId]);
+
+  async function handleAddResearcher() {
+    if (!addEmail.trim()) return;
+    try {
+      setAddMessage("");
+      await api.addStudyResearcher(studyId, {
+        researcher_email: addEmail.trim(),
+        access_level: addAccessLevel,
+      });
+      setAddEmail("");
+      setAddMessage("Researcher added successfully.");
+      loadTeam();
+    } catch (err) {
+      setAddMessage(err instanceof Error ? err.message : "Could not add researcher.");
+    }
+  }
+
+  async function handleUpdateAccess(researcherId: number, level: StudyResearcherAccessLevel) {
+    try {
+      await api.updateStudyResearcher(studyId, researcherId, level);
+      loadTeam();
+    } catch (err) {
+      setAddMessage(err instanceof Error ? err.message : "Could not update access level.");
+    }
+  }
+
+  async function handleRemoveResearcher(researcherId: number) {
+    try {
+      await api.removeStudyResearcher(studyId, researcherId);
+      loadTeam();
+    } catch (err) {
+      setAddMessage(err instanceof Error ? err.message : "Could not remove researcher.");
+    }
+  }
 
   const issueCount = issues.length;
   const displayStatus = getResearcherDisplayStatus(
@@ -355,8 +413,155 @@ export default function ResearcherStudyDetailPage() {
               </p>
             </Card>
           )}
+
+          <ResearchTeamCard
+            team={team}
+            loading={teamLoading}
+            error={teamError}
+            currentUserId={currentUser?.user_id ?? null}
+            addEmail={addEmail}
+            addAccessLevel={addAccessLevel}
+            addMessage={addMessage}
+            onAddEmailChange={setAddEmail}
+            onAddAccessLevelChange={setAddAccessLevel}
+            onAdd={handleAddResearcher}
+            onUpdateAccess={handleUpdateAccess}
+            onRemove={handleRemoveResearcher}
+          />
         </div>
       )}
     </AppShell>
+  );
+}
+
+interface ResearchTeamCardProps {
+  team: StudyResearcher[];
+  loading: boolean;
+  error: string;
+  currentUserId: number | null;
+  addEmail: string;
+  addAccessLevel: StudyResearcherAccessLevel;
+  addMessage: string;
+  onAddEmailChange: (v: string) => void;
+  onAddAccessLevelChange: (v: StudyResearcherAccessLevel) => void;
+  onAdd: () => void;
+  onUpdateAccess: (id: number, level: StudyResearcherAccessLevel) => void;
+  onRemove: (id: number) => void;
+}
+
+function ResearchTeamCard({
+  team,
+  loading,
+  error,
+  currentUserId,
+  addEmail,
+  addAccessLevel,
+  addMessage,
+  onAddEmailChange,
+  onAddAccessLevelChange,
+  onAdd,
+  onUpdateAccess,
+  onRemove,
+}: ResearchTeamCardProps) {
+  const isOwner = team.some((m) => m.is_creator && m.researcher_id === currentUserId);
+
+  const accessBadgeTone = (level: string) =>
+    level === "owner" ? "success" : level === "editor" ? "warning" : "neutral";
+
+  return (
+    <Card>
+      <h2 className="text-base font-semibold text-slate-900">Research team</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Collaborators who have access to this study.
+      </p>
+
+      {loading ? (
+        <p className="mt-4 text-sm text-slate-500">Loading team...</p>
+      ) : error ? (
+        <p className="mt-4 text-sm text-rose-600">{error}</p>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {team.map((member) => (
+            <div
+              key={member.researcher_id}
+              className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <p className="text-sm font-medium text-slate-900">{member.name ?? "—"}</p>
+                <p className="text-xs text-slate-500">{member.email ?? "—"}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Badge tone={accessBadgeTone(member.access_level)}>
+                  {member.access_level}
+                </Badge>
+
+                {isOwner && !member.is_creator && (
+                  <>
+                    <select
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                      value={member.access_level}
+                      onChange={(e) =>
+                        onUpdateAccess(
+                          member.researcher_id,
+                          e.target.value as StudyResearcherAccessLevel,
+                        )
+                      }
+                    >
+                      <option value="editor">editor</option>
+                      <option value="viewer">viewer</option>
+                    </select>
+
+                    <Button
+                      variant="ghost"
+                      onClick={() => onRemove(member.researcher_id)}
+                    >
+                      Remove
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {team.length === 0 && (
+            <p className="text-sm text-slate-500">No collaborators yet.</p>
+          )}
+        </div>
+      )}
+
+      {isOwner && (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="text-sm font-medium text-slate-900">Add a collaborator</p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <input
+              type="email"
+              placeholder="researcher@example.com"
+              value={addEmail}
+              onChange={(e) => onAddEmailChange(e.target.value)}
+              className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <select
+              className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              value={addAccessLevel}
+              onChange={(e) => onAddAccessLevelChange(e.target.value as StudyResearcherAccessLevel)}
+            >
+              <option value="editor">editor</option>
+              <option value="viewer">viewer</option>
+            </select>
+            <Button variant="primary" onClick={onAdd}>
+              Add
+            </Button>
+          </div>
+          {addMessage && (
+            <p className="mt-2 text-sm text-slate-600">{addMessage}</p>
+          )}
+          <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            <span className="font-medium">editor</span> — can view participant data and issues.{" "}
+            <span className="font-medium">viewer</span> — can view study details only.
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

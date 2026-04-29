@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m flask db upgrade)",
+      "Bash(FLASK_APP=app.py python -m flask db upgrade)",
+      "Bash(python -c \"from app import create_app; app = create_app\\(\\); print\\('Backend imports OK'\\)\")",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
