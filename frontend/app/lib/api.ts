@@ -1,7 +1,9 @@
 import type {
   ActivityLog,
   AvailableStudy,
+  CreateFieldResponse,
   FieldDescription,
+  FieldType,
   ParticipantStudy,
   ResearcherStudy,
   StudyDetail,
@@ -104,11 +106,16 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  createField: (payload: { field_name: string; field_desc?: string }) =>
-    request<{ message: string; field: FieldDescription }>("/fields", {
+  createField: (payload: {
+    field_name: string;
+    field_desc?: string;
+    field_type?: FieldType;
+    options?: string[];
+  }) =>
+    request<CreateFieldResponse>("/fields", {
       method: "POST",
       body: JSON.stringify(payload),
-  }),
+    }),
 
   getFields: () => request<{ fields: FieldDescription[] }>("/fields"),
 
@@ -194,7 +201,9 @@ export const api = {
     }),
 
   getParticipantAnswers: (participantId: number) =>
-    request<ParticipantAnswersResponse>(`/participants/${participantId}/answers`),
+    request<ParticipantAnswersResponse>(
+      `/participants/${participantId}/answers`,
+    ),
 
   saveAnswers: (
     participantId: number,
@@ -271,7 +280,10 @@ export const api = {
 
   addStudyResearcher: (
     studyId: number,
-    payload: { researcher_email: string; access_level: StudyResearcherAccessLevel },
+    payload: {
+      researcher_email: string;
+      access_level: StudyResearcherAccessLevel;
+    },
   ) =>
     request<{ message: string; researcher: StudyResearcher }>(
       `/studies/${studyId}/researchers`,
