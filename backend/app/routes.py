@@ -1724,10 +1724,19 @@ def modify_study(study_id):
             return error("one or more field_ids do not exist", 400)
         
     # Build policy context
+    collab = get_study_researcher(study.study_id, current_user.user_id)
+    can_edit = (
+        study.creator_id == current_user.user_id or
+        (collab is not None and collab.access_level == "editor")
+    )
     context = build_auth_context(
         current_user=current_user,
         action="modifyStudy",
-        resource=study
+        resource=study,
+        extra={
+            "hasRequiredFields": bool(required_field_ids),
+            "canEdit": can_edit,
+        }
     )
 
     auth_error = authorize("modifyStudy", context)

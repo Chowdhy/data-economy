@@ -23,7 +23,7 @@
           "target": { "type": "study" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
-            { "leftOperand": "env.isOwner", "operator": "eq", "rightOperand": true }
+            { "leftOperand": "env.canEdit", "operator": "eq", "rightOperand": true }
           ],
           "duty": [
             {
