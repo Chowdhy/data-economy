@@ -122,6 +122,46 @@ export default function ModifyStudyPage() {
     setRequiredFieldIds((current) => current.filter((id) => id !== fieldId));
   }
 
+  function renderFieldDetails(field: FieldDescription, isFlagged: boolean) {
+    const isEnum = field.field_type === "enum";
+    const options = field.options || [];
+
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-slate-900">
+            {field.field_name}
+          </p>
+
+          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-600">
+            {isEnum ? "Multiple choice" : "Free text"}
+          </span>
+
+          {isFlagged ? (
+            <Badge tone="warning">Flagged by regulator</Badge>
+          ) : null}
+        </div>
+
+        {field.field_desc ? (
+          <p className="mt-1 text-sm text-slate-500">{field.field_desc}</p>
+        ) : null}
+
+        {isEnum && options.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {options.map((option) => (
+              <span
+                key={option.option_id}
+                className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600 ring-1 ring-slate-200"
+              >
+                {option.value}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
@@ -403,23 +443,8 @@ export default function ModifyStudyPage() {
                               }
                               className="mt-1"
                             />
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium text-slate-900">
-                                  {field.field_name}
-                                </p>
-                                {isFlagged ? (
-                                  <Badge tone="warning">
-                                    Flagged by regulator
-                                  </Badge>
-                                ) : null}
-                              </div>
-                              {field.field_desc ? (
-                                <p className="text-sm text-slate-500">
-                                  {field.field_desc}
-                                </p>
-                              ) : null}
-                            </div>
+
+                            {renderFieldDetails(field, isFlagged)}
                           </label>
                         );
                       })}
@@ -468,23 +493,8 @@ export default function ModifyStudyPage() {
                               }
                               className="mt-1"
                             />
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium text-slate-900">
-                                  {field.field_name}
-                                </p>
-                                {isFlagged ? (
-                                  <Badge tone="warning">
-                                    Flagged by regulator
-                                  </Badge>
-                                ) : null}
-                              </div>
-                              {field.field_desc ? (
-                                <p className="text-sm text-slate-500">
-                                  {field.field_desc}
-                                </p>
-                              ) : null}
-                            </div>
+
+                            {renderFieldDetails(field, isFlagged)}
                           </label>
                         );
                       })}
