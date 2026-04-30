@@ -207,7 +207,7 @@ export const api = {
 
   saveAnswers: (
     participantId: number,
-    answers: { field_name: string; answer: string }[],
+    answers: { field_id: number; field_name: string; answer: string }[],
   ) =>
     request(`/participants/${participantId}/answers`, {
       method: "POST",

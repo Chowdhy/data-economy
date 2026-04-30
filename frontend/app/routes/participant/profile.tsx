@@ -72,6 +72,7 @@ export default function ParticipantProfilePage() {
     }
 
     const cleanedAnswers = answers.map((row) => ({
+      field_id: row.field_id,
       field_name: row.field_name,
       answer: row.answer,
     }));

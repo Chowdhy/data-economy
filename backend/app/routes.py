@@ -1111,52 +1111,42 @@ def upsert_participant_answers(participant_id):
     data = request.get_json() or {}
     answers = data.get("answers", [])
 
-
     if not isinstance(answers, list) or not answers:
         return error("answers must be a non-empty list")
-
-    consented_fields = StudyParticipantConsentedField.query.filter_by(
-        participant_id=participant_id
-    ).all()
-    consented_field_ids = {c.field_id for c in consented_fields}
-
-
-     # Check all answers are within consent
-    field_names = [a.get("field_name") for a in answers]
-    fields = FieldDescription.query.filter(
-        FieldDescription.field_name.in_(field_names)
-    ).all()
-
-    field_map = {f.field_name: f.field_id for f in fields}
-
-    answers_valid = all(
-        field_map.get(a.get("field_name")) in consented_field_ids
-        for a in answers
-    )
 
     context = build_auth_context(
         current_user=current_user,
         action="submitAnswers",
         target_user=participant,
-        extra={
-            "answersWithinConsentedFields": answers_valid
-        }
     )
 
     auth_error = authorize("submitAnswers", context)
     if auth_error:
         return auth_error
 
-    # Business logic
     updated = []
 
     for item in answers:
+        field_id = item.get("field_id")
         field_name = item.get("field_name")
-        answer_value = item.get("answer")
+        answer_value = item.get("answer", "")
 
-        field = FieldDescription.query.filter_by(field_name=field_name).first()
+        field = None
+
+        if field_id is not None:
+            field = FieldDescription.query.get(field_id)
+
+        if not field and field_name:
+            field = FieldDescription.query.filter_by(field_name=field_name).first()
+
         if not field:
-            return error(f"field_name '{field_name}' does not exist")
+            return error("field does not exist", 400)
+
+        if answer_value is None:
+            answer_value = ""
+
+        if not isinstance(answer_value, str):
+            answer_value = str(answer_value)
 
         if field.field_type == "enum":
             allowed_values = {
@@ -1164,9 +1154,10 @@ def upsert_participant_answers(participant_id):
                 for option in field.options
             }
 
+            # Allow blank answers, but validate non-blank enum answers.
             if answer_value and answer_value not in allowed_values:
                 return error(
-                    f"answer for '{field_name}' must be one of: {sorted(allowed_values)}",
+                    f"answer for '{field.field_name}' must be one of: {sorted(allowed_values)}",
                     400,
                 )
 
@@ -1175,8 +1166,33 @@ def upsert_participant_answers(participant_id):
             field_id=field.field_id,
         ).first()
 
-    log_action("answers_submitted", user_id=participant_id,
-               details={"field_count": len(updated)})
+        if existing:
+            existing.answer = answer_value
+            updated.append({
+                "field_id": field.field_id,
+                "field_name": field.field_name,
+                "answer": answer_value,
+                "action": "updated",
+            })
+        else:
+            db.session.add(ParticipantAnswer(
+                participant_id=participant_id,
+                field_id=field.field_id,
+                answer=answer_value,
+            ))
+            updated.append({
+                "field_id": field.field_id,
+                "field_name": field.field_name,
+                "answer": answer_value,
+                "action": "created",
+            })
+
+    log_action(
+        "answers_submitted",
+        user_id=participant_id,
+        details={"field_count": len(updated)},
+    )
+
     db.session.commit()
 
     return jsonify({
