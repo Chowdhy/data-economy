@@ -244,8 +244,8 @@
           "target": { "type": "participantAnswers" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "participant" },
-            { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true },
-            { "leftOperand": "env.answersWithinConsentedFields", "operator": "eq", "rightOperand": true }
+            { "leftOperand": "subject.isActive", "operator": "eq", "rightOperand": true },
+            { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true }
           ]
         },
         {

@@ -9,6 +9,14 @@ export type StudyStatus =
   | "rejected"
   | "closed";
 
+export type FieldType = "text" | "enum";
+
+export interface FieldOption {
+  option_id: number;
+  value: string;
+  display_order: number;
+}
+
 export interface User {
   user_id: number;
   name: string;
@@ -23,11 +31,21 @@ export interface FieldDescription {
   field_id: number;
   field_name: string;
   field_desc?: string | null;
+  field_type: FieldType;
+  options: FieldOption[];
 }
 
 export interface ParticipantAnswerField {
+  field_id: number;
   field_name: string;
   field_description?: string | null;
+  field_type: FieldType;
+
+  // For participant answers, the backend returns options as string values,
+  // e.g. ["Yes", "No", "Prefer not to say"].
+  options: string[];
+
+  // Still stored and submitted as a string.
   answer: string;
 }
 
@@ -100,8 +118,17 @@ export interface RegulatorStudy {
 
 export interface StudyField {
   field_id: number;
+
+  // Your newer backend serializer returns both name/description and
+  // field_name/field_desc in some places for compatibility.
   name: string;
-  description?: string;
+  description?: string | null;
+
+  field_name?: string;
+  field_desc?: string | null;
+
+  field_type?: FieldType;
+  options?: FieldOption[];
 }
 
 export interface RegulatorStudyDetail extends RegulatorStudy {
