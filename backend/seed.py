@@ -823,12 +823,17 @@ def create_participant_study_memberships(study, participants, selected_fields, r
         if field.field_id not in required_field_ids
     ]
 
-    # Not everyone joins every study.
-    join_count = random.randint(
-        max(5, len(participants) // 4),
-        max(6, int(len(participants) * 0.75)),
-    )
-    joined_participants = random.sample(participants, k=min(join_count, len(participants)))
+    # For the anonymisation demo study, include all participants so that
+    # k-anonymity groups are large enough to demo
+    if study.study_name == ANONYMISATION_DEMO_STUDY_NAME:
+        joined_participants = participants
+    else:
+        # Not everyone joins every other study
+        join_count = random.randint(
+            max(5, len(participants) // 4),
+            max(6, int(len(participants) * 0.75)),
+        )
+        joined_participants = random.sample(participants, k=min(join_count, len(participants)))
 
     for participant in joined_participants:
         consented_field_ids = set(required_field_ids)
