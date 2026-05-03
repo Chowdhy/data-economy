@@ -5,7 +5,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
 from datetime import datetime, timedelta
 from policies.policy_engine import get_policy_engine
-from .anonymisation import anonymise_study_records
+from .anonymisation import (
+    anonymise_study_records,
+    get_active_candidate_fields,
+    K_ANONYMITY_CANDIDATE_FIELDS,
+    L_DIVERSITY_CANDIDATE_FIELDS,
+)
 from .extensions import db
 from .models import (
     User,
@@ -1533,6 +1538,7 @@ def get_study_data(study_id, researcher_id=None):
     ).all()
 
     participant_records = {}
+    consented_field_names = set()
 
     for pid, field_id, field_name, field_desc, answer in rows:
         participant_key = str(pid)
@@ -1541,38 +1547,27 @@ def get_study_data(study_id, researcher_id=None):
             participant_records[participant_key] = {}
 
         participant_records[participant_key][field_name] = answer
+        consented_field_names.add(field_name)
 
-    # Fetch quasi-identifiers needed for anonymisation
-    # These are used internally only to create anonymised groups
-    quasi_identifier_names = ["sex_gender", "age", "postcode"]
+    # Work out which anonymisation fields are active for this study
+    active_quasi_identifier_fields = get_active_candidate_fields(
+        consented_field_names,
+        K_ANONYMITY_CANDIDATE_FIELDS,
+    )
 
-    quasi_identifier_rows = db.session.query(
-        StudyParticipant.participant_id,
-        FieldDescription.field_name,
-        ParticipantAnswer.answer
-    ).select_from(StudyParticipant).join(
-        FieldDescription,
-        FieldDescription.field_name.in_(quasi_identifier_names)
-    ).outerjoin(
-        ParticipantAnswer,
-        (ParticipantAnswer.participant_id == StudyParticipant.participant_id) &
-        (ParticipantAnswer.field_id == FieldDescription.field_id)
-    ).filter(
-        StudyParticipant.study_id == study_id
-    ).all()
-
-    for pid, field_name, answer in quasi_identifier_rows:
-        participant_key = str(pid)
-
-        if participant_key not in participant_records:
-            participant_records[participant_key] = {}
-
-        participant_records[participant_key][field_name] = answer
+    active_sensitive_fields = get_active_candidate_fields(
+        consented_field_names,
+        L_DIVERSITY_CANDIDATE_FIELDS,
+    )
 
     # Apply k-anonymity and l-diversity
-    anonymised_data = anonymise_study_records(participant_records)
+    anonymised_data = anonymise_study_records(
+        participant_records,
+        active_quasi_identifier_fields,
+        active_sensitive_fields,
+    )
 
-    # Return anonymised response
+    # Return anonymised response.
     return jsonify({
         "study": {
             "study_id": study.study_id,
@@ -1586,16 +1581,18 @@ def get_study_data(study_id, researcher_id=None):
             "method": "k-anonymity and l-diversity",
             "k": anonymised_data["k"],
             "l": anonymised_data["l"],
-            "quasi_identifier_fields": anonymised_data["quasi_identifier_fields"],
-            "sensitive_fields": anonymised_data["sensitive_fields"],
+            "candidate_quasi_identifier_fields": anonymised_data["candidate_quasi_identifier_fields"],
+            "candidate_sensitive_fields": anonymised_data["candidate_sensitive_fields"],
+            "active_quasi_identifier_fields": anonymised_data["active_quasi_identifier_fields"],
+            "active_sensitive_fields": anonymised_data["active_sensitive_fields"],
         },
         "summary": anonymised_data["summary"],
         "groups": anonymised_data["groups"],
 
-        # Temporary compatibility field so the old frontend table does not crash
-        # REMOVE THIS AFTER!!! 
+        # REMOVE THIS AFTER FRONT-END IS UPDATED
         "participants": {},
     }), 200
+
 
 # Current functionality: 
 # - Get email and password from request
