@@ -123,7 +123,8 @@ EMPLOYMENT_OPTIONS = [
 ANONYMISATION_DEMO_STUDY_NAME = "Regional Hypertension Risk Study"
 
 ANONYMISATION_DEMO_STUDY_DESCRIPTION = (
-    "A study exploring how age, sex or gender, and regional location relate to hypertension diagnosis patterns. "
+    "A study exploring how age, sex or gender, regional location, physical "
+    "activity, and family history relate to hypertension diagnosis patterns. "
 )
 
 ANONYMISATION_DEMO_REQUIRED_FIELD_NAMES = {
@@ -134,8 +135,8 @@ ANONYMISATION_DEMO_REQUIRED_FIELD_NAMES = {
 }
 
 ANONYMISATION_DEMO_OPTIONAL_FIELD_NAMES = {
-    "existing_medical_conditions",
-
+    "physical_activity_level",
+    "family_history_heart_disease"
 }
 
 
