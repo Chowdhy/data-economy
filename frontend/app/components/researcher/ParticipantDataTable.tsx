@@ -125,40 +125,68 @@ export default function ParticipantDataTable({
           protected fields.
         </p>
 
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 space-y-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Grouped by
             </p>
-            <p className="mt-1 text-sm text-slate-700">
-              {activeQuasiIdentifierFields.length
-                ? activeQuasiIdentifierFields
-                    .map(getQuasiIdentifierLabel)
-                    .join(", ")
-                : "No quasi-identifiers requested"}
-            </p>
+
+            {activeQuasiIdentifierFields.length ? (
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {activeQuasiIdentifierFields.map((fieldName) => (
+                  <li key={fieldName} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    <span>{getQuasiIdentifierLabel(fieldName)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">
+                No quasi-identifiers requested
+              </p>
+            )}
           </div>
 
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Protected fields
             </p>
-            <p className="mt-1 text-sm text-slate-700">
-              {activeSensitiveFields.length
-                ? activeSensitiveFields.map(formatFieldName).join(", ")
-                : "No sensitive fields requested"}
-            </p>
+
+            {activeSensitiveFields.length ? (
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {activeSensitiveFields.map((fieldName) => (
+                  <li key={fieldName} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    <span>{formatFieldName(fieldName)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">
+                No sensitive fields requested
+              </p>
+            )}
           </div>
 
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Other fields
             </p>
-            <p className="mt-1 text-sm text-slate-700">
-              {activeOtherFields.length
-                ? activeOtherFields.map(formatFieldName).join(", ")
-                : "No additional fields"}
-            </p>
+
+            {activeOtherFields.length ? (
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                {activeOtherFields.map((fieldName) => (
+                  <li key={fieldName} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    <span>{formatFieldName(fieldName)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">
+                No additional fields
+              </p>
+            )}
           </div>
         </div>
       </div>
