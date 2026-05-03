@@ -217,6 +217,10 @@ def serialise_study_summary(study):
 
     issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
+    participant_count = StudyParticipant.query.filter_by(
+        study_id=study.study_id
+    ).count()
+
     latest_issue = (
         StudyIssue.query
         .filter_by(study_id=study.study_id)
@@ -251,6 +255,7 @@ def serialise_study_summary(study):
         "has_open_issue": has_open_issue,
         "has_responded_issue": has_responded_issue,
         "latest_issue_status": latest_issue_status,
+        "participant_count": participant_count,
     }
 
 def serialise_field(field):

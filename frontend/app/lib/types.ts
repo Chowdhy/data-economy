@@ -88,6 +88,7 @@ export interface ResearcherStudy {
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];
+  participant_count: number;
   issue_count: number;
   reviewed_before: boolean;
   creator_id?: number;
