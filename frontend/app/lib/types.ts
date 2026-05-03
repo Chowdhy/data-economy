@@ -144,6 +144,7 @@ export interface StudyDetail {
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];
+  participant_count: number;
 }
 
 export interface AnonymisedStudySummary {

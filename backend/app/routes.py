@@ -1446,6 +1446,10 @@ def get_study(study_id):
     refresh_study_status(study)
     study_fields = split_study_field_ids(study.study_id)
 
+    participant_count = StudyParticipant.query.filter_by(
+        study_id=study.study_id
+    ).count()
+
     payload = {
         "study_id": study.study_id,
         "study_name": study.study_name,
@@ -1455,6 +1459,7 @@ def get_study(study_id):
         "status": study.status,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
+        "participant_count": participant_count
     }
 
     # Public access for open studies

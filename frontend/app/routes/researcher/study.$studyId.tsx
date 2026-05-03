@@ -233,7 +233,7 @@ export default function ResearcherStudyDetailPage() {
                 </div>
 
                 <div>
-                  <p className="text-sm text-slate-500">Collection</p>
+                  <p className="text-sm text-slate-500">Collection Duration</p>
                   <p className="mt-1 text-base font-semibold text-slate-900">
                     {study.data_collection_months
                       ? `${study.data_collection_months} months`
@@ -244,7 +244,7 @@ export default function ResearcherStudyDetailPage() {
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-sm text-slate-500">Research duration</p>
+                  <p className="text-sm text-slate-500">Research Duration</p>
                   <p className="mt-1 text-base font-semibold text-slate-900">
                     {study.research_duration_months
                       ? `${study.research_duration_months} months`
@@ -400,7 +400,7 @@ export default function ResearcherStudyDetailPage() {
                 </div>
               ) : null}
 
-              {displayStatus === "changes_requested" && hasOpenIssue ? (
+              {displayStatus === "issues_raised" && hasOpenIssue ? (
                 <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
@@ -421,7 +421,7 @@ export default function ResearcherStudyDetailPage() {
                     Modify study
                   </Button>
                 </div>
-              ) : displayStatus === "changes_requested" && hasRespondedIssue ? (
+              ) : displayStatus === "issues_raised" && hasRespondedIssue ? (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                   <p className="text-sm font-semibold text-slate-900">
                     Awaiting regulator review
