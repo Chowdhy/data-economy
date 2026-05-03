@@ -710,8 +710,9 @@ def choose_study_status(index):
     # - pending for regulator review
     # - open for participant joining/consent
     # - ongoing for researcher data access
-    pattern = ["open", "ongoing", "pending", "open", "ongoing", "pending", "rejected"]
-    return pattern[index % len(pattern)]
+    #pattern = ["open", "ongoing", "pending", "open", "ongoing", "pending", "rejected"]
+    #return pattern[index % len(pattern)]
+    return "ongoing"
 
 
 def configure_study_dates(study, status):
@@ -818,15 +819,26 @@ def create_participant_study_memberships(study, participants, selected_fields, r
 
 
 def seed_participant_answers(participants, field_defs_by_id):
-    # Answers are global per participant per field in your current schema.
-    # Study consent controls which answers researchers can see.
+    required_anonymisation_fields = {
+        "sex_gender",
+        "age",
+        "postcode",
+    }
+
     for participant in participants:
         for field_id, field_def in field_defs_by_id.items():
-            # Around 88% answered, 12% blank/missing to make demo realistic.
-            if random.random() < 0.88:
+            field_name = field_def["field_name"]
+
+            # For anonymisation every participant needs these quasi-identifiers
+            # Other fields can remain partly missing for demo
+            should_create_answer = (
+                field_name in required_anonymisation_fields
+                or random.random() < 0.88
+            )
+
+            if should_create_answer:
                 answer = field_def["generator"]()
                 add_answer(participant.user_id, field_id, answer)
-
 
 def create_demo_issues(regulator, studies):
     pending_studies = [study for study in studies if study.status == "pending"]
