@@ -214,9 +214,6 @@ Helper functions for serialising data into JSON dictionaries
 
 def serialise_study_summary(study):
     study_fields = split_study_field_ids(study.study_id)
-    participant_count = StudyParticipant.query.filter_by(
-        study_id=study.study_id
-    ).count()
 
     issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
@@ -249,7 +246,6 @@ def serialise_study_summary(study):
         "creator_id": study.creator_id,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
-        "participant_count": participant_count,
         "issue_count": issue_count,
         "reviewed_before": issue_count > 0,
         "has_open_issue": has_open_issue,
@@ -1449,9 +1445,6 @@ def get_study(study_id):
 
     refresh_study_status(study)
     study_fields = split_study_field_ids(study.study_id)
-    participant_count = StudyParticipant.query.filter_by(
-        study_id=study.study_id
-    ).count()
 
     payload = {
         "study_id": study.study_id,
@@ -1462,7 +1455,6 @@ def get_study(study_id):
         "status": study.status,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
-        "participant_count": participant_count,
     }
 
     # Public access for open studies
@@ -1595,9 +1587,6 @@ def get_study_data(study_id, researcher_id=None):
         },
         "summary": anonymised_data["summary"],
         "groups": anonymised_data["groups"],
-
-        # REMOVE THIS AFTER FRONT-END IS UPDATED
-        "participants": {},
     }), 200
 
 
