@@ -1507,6 +1507,8 @@ def get_study_data(study_id, researcher_id=None):
     if auth_error:
         return auth_error
 
+    # Fetch all consented study fields
+    # These are the fields the participant agreed to share for this study
     rows = db.session.query(
         StudyParticipant.participant_id,
         FieldDescription.field_id,
@@ -1534,13 +1536,43 @@ def get_study_data(study_id, researcher_id=None):
 
     for pid, field_id, field_name, field_desc, answer in rows:
         participant_key = str(pid)
-        
+
         if participant_key not in participant_records:
             participant_records[participant_key] = {}
 
         participant_records[participant_key][field_name] = answer
+
+    # Fetch quasi-identifiers needed for anonymisation
+    # These are used internally only to create anonymised groups
+    quasi_identifier_names = ["sex_gender", "age", "postcode"]
+
+    quasi_identifier_rows = db.session.query(
+        StudyParticipant.participant_id,
+        FieldDescription.field_name,
+        ParticipantAnswer.answer
+    ).select_from(StudyParticipant).join(
+        FieldDescription,
+        FieldDescription.field_name.in_(quasi_identifier_names)
+    ).outerjoin(
+        ParticipantAnswer,
+        (ParticipantAnswer.participant_id == StudyParticipant.participant_id) &
+        (ParticipantAnswer.field_id == FieldDescription.field_id)
+    ).filter(
+        StudyParticipant.study_id == study_id
+    ).all()
+
+    for pid, field_name, answer in quasi_identifier_rows:
+        participant_key = str(pid)
+
+        if participant_key not in participant_records:
+            participant_records[participant_key] = {}
+
+        participant_records[participant_key][field_name] = answer
+
+    # Apply k-anonymity and l-diversity
     anonymised_data = anonymise_study_records(participant_records)
 
+    # Return anonymised response
     return jsonify({
         "study": {
             "study_id": study.study_id,
@@ -1559,6 +1591,10 @@ def get_study_data(study_id, researcher_id=None):
         },
         "summary": anonymised_data["summary"],
         "groups": anonymised_data["groups"],
+
+        # Temporary compatibility field so the old frontend table does not crash
+        # REMOVE THIS AFTER!!! 
+        "participants": {},
     }), 200
 
 # Current functionality: 
