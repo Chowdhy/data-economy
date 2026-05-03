@@ -17,6 +17,24 @@
           ]
         },
         {
+          "uid": "perm:view-study",
+          "action": "viewStudy",
+          "assignee": { "role": "*" },
+          "target": { "type": "study" },
+          "constraint": [
+            {
+              "leftOperand": "subject.role",
+              "operator": "in",
+              "rightOperand": ["researcher", "regulator"]
+            },
+            {
+              "leftOperand": "env.isOwnerOrRegulator",
+              "operator": "eq",
+              "rightOperand": true
+            }
+          ]
+        },
+        {
           "uid": "perm:modify-study",
           "action": "modifyStudy",
           "assignee": { "role": "researcher" },
