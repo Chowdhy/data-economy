@@ -15,7 +15,6 @@ interface StudyOverviewCardProps {
     data_collection_months?: number;
     research_duration_months?: number;
     status: StudyStatus;
-    participant_count: number;
     required_field_ids: number[];
     optional_field_ids: number[];
     issue_count?: number;

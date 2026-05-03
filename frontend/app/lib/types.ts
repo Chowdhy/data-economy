@@ -88,7 +88,6 @@ export interface ResearcherStudy {
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];
-  participant_count: number;
   issue_count: number;
   reviewed_before: boolean;
   creator_id?: number;
@@ -145,14 +144,6 @@ export interface StudyDetail {
   status: StudyStatus;
   required_field_ids: number[];
   optional_field_ids: number[];
-  participant_count: number;
-}
-
-export interface StudyDataField {
-  field_id: number;
-  field_name: string;
-  field_desc?: string | null;
-  answer: string | null;
 }
 
 export interface AnonymisedStudySummary {
@@ -203,9 +194,6 @@ export interface StudyDataResponse {
   privacy: AnonymisedStudyPrivacy;
   summary: AnonymisedStudySummary;
   groups: AnonymisedGroup[];
-
-  // Temporary - delete after
-  participants?: Record<string, StudyDataField[]>;
 }
 
 export interface StudyModificationFieldChange {
