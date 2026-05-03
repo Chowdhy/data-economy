@@ -126,11 +126,16 @@ ANONYMISATION_DEMO_STUDY_DESCRIPTION = (
     "A study exploring how age, sex or gender, and regional location relate to hypertension diagnosis patterns. "
 )
 
-ANONYMISATION_DEMO_FIELD_NAMES = {
+ANONYMISATION_DEMO_REQUIRED_FIELD_NAMES = {
     "sex_gender",
     "postcode",
     "age",
     "diagnosed_hypertension",
+}
+
+ANONYMISATION_DEMO_OPTIONAL_FIELD_NAMES = {
+    "existing_medical_conditions",
+
 }
 
 
@@ -762,17 +767,23 @@ def create_study_fields(study, all_fields):
     if is_anonymisation_demo_study:
         required_fields = [
             field for field in all_fields
-            if field.field_name in ANONYMISATION_DEMO_FIELD_NAMES
+            if field.field_name in ANONYMISATION_DEMO_REQUIRED_FIELD_NAMES
         ]
 
+        optional_fields = [
+            field for field in all_fields
+            if field.field_name in ANONYMISATION_DEMO_OPTIONAL_FIELD_NAMES
+        ]
+
+        selected_fields = required_fields + optional_fields
         required_field_ids = {field.field_id for field in required_fields}
 
-        for field in required_fields:
+        for field in selected_fields:
             db.session.add(
                 StudyRequiredField(
                     study_id=study.study_id,
                     field_id=field.field_id,
-                    is_required=True,
+                    is_required=field.field_id in required_field_ids,
                 )
             )
 
@@ -1025,6 +1036,7 @@ def seed_data(participant_count, study_count, random_seed):
         fields.append(field)
 
         # Store a copy keyed by actual DB field_id.
+
         copied_def = dict(field_def)
         copied_def["field_id"] = field.field_id
         field_defs_by_id[field.field_id] = copied_def
