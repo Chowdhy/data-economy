@@ -84,32 +84,7 @@ export default function ParticipantDataTable({
         </p>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            k-anonymity
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
-            k = {privacy.k}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Each released group has at least {privacy.k} participants.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            l-diversity
-          </p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
-            l = {privacy.l}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Protected fields need at least {privacy.l} distinct values per
-            group.
-          </p>
-        </div>
-
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Total participants
@@ -121,7 +96,7 @@ export default function ParticipantDataTable({
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Released
+            Released records
           </p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
             {summary.released_participants}
@@ -130,7 +105,7 @@ export default function ParticipantDataTable({
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Suppressed
+            Suppressed records
           </p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
             {summary.suppressed_participants}
@@ -140,14 +115,14 @@ export default function ParticipantDataTable({
 
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-slate-900">
-          Privacy settings applied
+          Privacy considerations
         </h3>
 
         <p className="mt-2 text-sm text-slate-600">
-          k = {privacy.k} means each released group must contain at least{" "}
-          {privacy.k} participants. l = {privacy.l} means each protected
-          sensitive field must contain at least {privacy.l} distinct values
-          within each released group.
+          The data has been anonymised using k-anonymity and l-diversity. This
+          means at least {privacy.k} participants are in each released group,
+          and each group has at least {privacy.l} different values for the
+          protected fields.
         </p>
 
         <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -166,7 +141,7 @@ export default function ParticipantDataTable({
 
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Protected by l-diversity
+              Protected fields
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {activeSensitiveFields.length
@@ -177,7 +152,7 @@ export default function ParticipantDataTable({
 
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Other released fields
+              Other fields
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {activeOtherFields.length
@@ -185,44 +160,6 @@ export default function ParticipantDataTable({
                 : "No additional fields"}
             </p>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Released groups
-          </p>
-          <p className="mt-1 text-xl font-semibold text-slate-900">
-            {summary.released_groups}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Suppressed groups
-          </p>
-          <p className="mt-1 text-xl font-semibold text-slate-900">
-            {summary.suppressed_groups}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Suppressed by k
-          </p>
-          <p className="mt-1 text-xl font-semibold text-slate-900">
-            {summary.suppressed_by_k}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Suppressed by l
-          </p>
-          <p className="mt-1 text-xl font-semibold text-slate-900">
-            {summary.suppressed_by_l}
-          </p>
         </div>
       </div>
 
@@ -243,9 +180,9 @@ export default function ParticipantDataTable({
               thresholds.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="max-h-[1400px] overflow-auto">
               <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600">
                   <tr>
                     <th className="px-4 py-3 font-medium">Group</th>
                     <th className="px-4 py-3 font-medium">Group size</th>
