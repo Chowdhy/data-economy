@@ -5,20 +5,20 @@ from collections import defaultdict
 K_ANONYMITY_THRESHOLD = 5
 L_DIVERSITY_THRESHOLD = 2
 
-QUASI_IDENTIFIER_FIELDS = [
+K_ANONYMITY_CANDIDATE_FIELDS = [
     "sex_gender",
     "age",
     "postcode",
 ]
 
-SENSITIVE_FIELDS = [
+L_DIVERSITY_CANDIDATE_FIELDS = [
     "diagnosed_diabetes",
     "diagnosed_anxiety",
     "diagnosed_hypertension",
     "diagnosed_depression",
     "diagnosed_asthma",
-    "vaccination_status",
     "mobility_limitations",
+    "vaccination_status",
 ]
 
 
@@ -64,30 +64,70 @@ def generalise_postcode(postcode):
 
     if not match:
         return "Unknown"
-
+    
+    # e.g. "SO17 1AB" becomes "SO".
     return match.group(0).upper()
 
 
-def has_required_quasi_identifiers(record):
-    return all(
-        normalise_answer(record.get(field)) != "Unknown"
-        for field in QUASI_IDENTIFIER_FIELDS
-    )
+def generalise_quasi_identifier(field_name, value):
+    if field_name == "age":
+        return generalise_age(value)
+
+    if field_name == "postcode":
+        return generalise_postcode(value)
+
+    return normalise_answer(value)
 
 
-def generalise_quasi_identifiers(record):
-    return {
-        "sex_gender": normalise_answer(record.get("sex_gender")),
-        "age_range": generalise_age(record.get("age")),
-        "postcode_area": generalise_postcode(record.get("postcode")),
-    }
+def get_output_quasi_identifier_name(field_name):
+    if field_name == "age":
+        return "age_range"
+
+    if field_name == "postcode":
+        return "postcode_area"
+
+    return field_name
 
 
-def get_group_key(quasi_identifiers):
-    return (
-        quasi_identifiers["sex_gender"],
-        quasi_identifiers["age_range"],
-        quasi_identifiers["postcode_area"],
+def get_active_candidate_fields(consented_field_names, candidate_fields):
+    return [
+        field_name
+        for field_name in candidate_fields
+        if field_name in consented_field_names
+    ]
+
+
+def has_required_quasi_identifiers(record, active_quasi_identifier_fields):
+    for field_name in active_quasi_identifier_fields:
+        if normalise_answer(record.get(field_name)) == "Unknown":
+            return False
+
+    return True
+
+
+def generalise_quasi_identifiers(record, active_quasi_identifier_fields):
+    generalised = {}
+
+    for field_name in active_quasi_identifier_fields:
+        output_name = get_output_quasi_identifier_name(field_name)
+        generalised[output_name] = generalise_quasi_identifier(
+            field_name,
+            record.get(field_name),
+        )
+
+    return generalised
+
+
+def get_group_key(generalised_quasi_identifiers, active_quasi_identifier_fields):
+    # If the study did not request any quasi-identifiers, all participants belong to one overall group
+    if not active_quasi_identifier_fields:
+        return ("all_participants",)
+
+    return tuple(
+        generalised_quasi_identifiers[
+            get_output_quasi_identifier_name(field_name)
+        ]
+        for field_name in active_quasi_identifier_fields
     )
 
 
@@ -95,34 +135,41 @@ def passes_k_anonymity(group_records, k):
     return len(group_records) >= k
 
 
-def passes_l_diversity(group_records, sensitive_fields, l):
-    for field in sensitive_fields:
-        distinct_values = {
-            normalise_answer(record.get(field))
-            for record in group_records
+def passes_l_diversity(group_sensitive_records, active_sensitive_fields, l):
+    # If the study does not request any configured sensitive fields, there is no l-diversity check to apply
+    if not active_sensitive_fields:
+        return True
+
+    for field_name in active_sensitive_fields:
+        known_values = {
+            normalise_answer(record.get(field_name))
+            for record in group_sensitive_records
+            if normalise_answer(record.get(field_name)) != "Unknown"
         }
 
-        if len(distinct_values) < l:
+        # If this sensitive field is being released by the study, but this group has no known values for it, the group should not be released.
+        #UNSURE ABOUT THIS BUT LETS SEE
+        if not known_values:
+            return False
+
+        if len(known_values) < l:
             return False
 
     return True
 
-def anonymise_study_records(records):
-    """
-    Takes participant records in this format:
 
-    {
-        participant_id: {
-            "sex_gender": "Woman",
-            "age": "28",
-            "postcode": "SO17 1BJ",
-            "diagnosed_diabetes": "No",
-            ...
-        }
+def build_sensitive_answers(record, active_sensitive_fields):
+    return {
+        field_name: normalise_answer(record.get(field_name))
+        for field_name in active_sensitive_fields
     }
 
-    Returns anonymised grouped data with no raw ages or postcodes
-    """
+
+def anonymise_study_records(
+    records,
+    active_quasi_identifier_fields,
+    active_sensitive_fields,
+):
 
     grouped_records = defaultdict(list)
 
@@ -130,24 +177,33 @@ def anonymise_study_records(records):
     eligible_participants = 0
     excluded_missing_quasi_identifiers = 0
 
-    # First generalise quasi-identifiers and build groups
     for participant_id, record in records.items():
-        if not has_required_quasi_identifiers(record):
+        if not has_required_quasi_identifiers(
+            record,
+            active_quasi_identifier_fields,
+        ):
             excluded_missing_quasi_identifiers += 1
             continue
 
         eligible_participants += 1
 
-        quasi_identifiers = generalise_quasi_identifiers(record)
-        group_key = get_group_key(quasi_identifiers)
+        generalised_quasi_identifiers = generalise_quasi_identifiers(
+            record,
+            active_quasi_identifier_fields,
+        )
 
-        sensitive_answers = {
-            field: normalise_answer(record.get(field))
-            for field in SENSITIVE_FIELDS
-        }
+        group_key = get_group_key(
+            generalised_quasi_identifiers,
+            active_quasi_identifier_fields,
+        )
+
+        sensitive_answers = build_sensitive_answers(
+            record,
+            active_sensitive_fields,
+        )
 
         grouped_records[group_key].append({
-            "quasi_identifiers": quasi_identifiers,
+            "quasi_identifiers": generalised_quasi_identifiers,
             "sensitive_answers": sensitive_answers,
         })
 
@@ -157,35 +213,34 @@ def anonymise_study_records(records):
     suppressed_participants_by_k = 0
     suppressed_participants_by_l = 0
 
-    # Then apply k-anonymity and l-diversity
-    for group_key, group_records in grouped_records.items():
-        group_size = len(group_records)
+    for group_key, group_items in grouped_records.items():
+        group_size = len(group_items)
 
         sensitive_records = [
             item["sensitive_answers"]
-            for item in group_records
+            for item in group_items
         ]
 
-        if not passes_k_anonymity(sensitive_records, K_ANONYMITY_THRESHOLD):
+        if not passes_k_anonymity(group_items, K_ANONYMITY_THRESHOLD):
             suppressed_by_k += 1
             suppressed_participants_by_k += group_size
             continue
 
         if not passes_l_diversity(
             sensitive_records,
-            SENSITIVE_FIELDS,
-            L_DIVERSITY_THRESHOLD
+            active_sensitive_fields,
+            L_DIVERSITY_THRESHOLD,
         ):
             suppressed_by_l += 1
             suppressed_participants_by_l += group_size
             continue
 
-        first_record = group_records[0]
+        first_item = group_items[0]
 
         released_groups.append({
             "group_id": f"G{len(released_groups) + 1}",
             "group_size": group_size,
-            "quasi_identifiers": first_record["quasi_identifiers"],
+            "quasi_identifiers": first_item["quasi_identifiers"],
             "records": sensitive_records,
         })
 
@@ -203,8 +258,10 @@ def anonymise_study_records(records):
     return {
         "k": K_ANONYMITY_THRESHOLD,
         "l": L_DIVERSITY_THRESHOLD,
-        "quasi_identifier_fields": QUASI_IDENTIFIER_FIELDS,
-        "sensitive_fields": SENSITIVE_FIELDS,
+        "candidate_quasi_identifier_fields": K_ANONYMITY_CANDIDATE_FIELDS,
+        "candidate_sensitive_fields": L_DIVERSITY_CANDIDATE_FIELDS,
+        "active_quasi_identifier_fields": active_quasi_identifier_fields,
+        "active_sensitive_fields": active_sensitive_fields,
         "summary": {
             "total_participants": total_participants,
             "eligible_participants": eligible_participants,
