@@ -102,10 +102,7 @@ export default function ResearcherDashboard() {
         <Card>
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              Study status key
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Use this guide to understand what each study status means.
+              Study Status Key
             </p>
           </div>
 
