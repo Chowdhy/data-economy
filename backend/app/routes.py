@@ -8,6 +8,7 @@ from policies.policy_engine import get_policy_engine
 from .anonymisation import (
     anonymise_study_records,
     get_active_candidate_fields,
+    get_active_other_fields,
     K_ANONYMITY_CANDIDATE_FIELDS,
     L_DIVERSITY_CANDIDATE_FIELDS,
 )
@@ -1513,7 +1514,6 @@ def get_study_data(study_id, researcher_id=None):
         return auth_error
 
     # Fetch all consented study fields
-    # These are the fields the participant agreed to share for this study
     rows = db.session.query(
         StudyParticipant.participant_id,
         FieldDescription.field_id,
@@ -1560,14 +1560,20 @@ def get_study_data(study_id, researcher_id=None):
         L_DIVERSITY_CANDIDATE_FIELDS,
     )
 
-    # Apply k-anonymity and l-diversity
-    anonymised_data = anonymise_study_records(
-        participant_records,
+    active_other_fields = get_active_other_fields(
+        consented_field_names,
         active_quasi_identifier_fields,
         active_sensitive_fields,
     )
 
-    # Return anonymised response.
+    # Apply k-anonymity and l-diversity, then aggregate released field values
+    anonymised_data = anonymise_study_records(
+        participant_records,
+        active_quasi_identifier_fields,
+        active_sensitive_fields,
+        active_other_fields,
+    )
+
     return jsonify({
         "study": {
             "study_id": study.study_id,
@@ -1585,6 +1591,7 @@ def get_study_data(study_id, researcher_id=None):
             "candidate_sensitive_fields": anonymised_data["candidate_sensitive_fields"],
             "active_quasi_identifier_fields": anonymised_data["active_quasi_identifier_fields"],
             "active_sensitive_fields": anonymised_data["active_sensitive_fields"],
+            "active_other_fields": anonymised_data["active_other_fields"],
         },
         "summary": anonymised_data["summary"],
         "groups": anonymised_data["groups"],
