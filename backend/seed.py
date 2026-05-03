@@ -120,18 +120,16 @@ EMPLOYMENT_OPTIONS = [
 # ----------------------------------------------------------------------
 # Needed for Anonymisation Demo
 # ----------------------------------------------------------------------
-ANONYMISATION_DEMO_STUDY_NAME = "Regional Cardiometabolic Health Study"
+ANONYMISATION_DEMO_STUDY_NAME = "Regional Hypertension Risk Study"
 
 ANONYMISATION_DEMO_STUDY_DESCRIPTION = (
-    "A study exploring how demographic and regional factors relate to "
-    "cardiometabolic health indicators, including diabetes and hypertension. "
+    "A study exploring how age, sex or gender, and regional location relate to hypertension diagnosis patterns. "
 )
 
 ANONYMISATION_DEMO_FIELD_NAMES = {
     "sex_gender",
     "postcode",
     "age",
-    "diagnosed_diabetes",
     "diagnosed_hypertension",
 }
 
@@ -869,6 +867,7 @@ def seed_participant_answers(participants, field_defs_by_id):
         "sex_gender",
         "age",
         "postcode",
+        "diagnosed_hypertension",
     }
 
     for participant in participants:

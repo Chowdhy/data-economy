@@ -68,6 +68,20 @@ def generalise_postcode(postcode):
     # e.g. "SO17 1AB" becomes "SO".
     return match.group(0).upper()
 
+def generalise_gender(gender):
+    gender = normalise_answer(gender)
+
+    if gender == "Man":
+        return "Man"
+
+    if gender == "Woman":
+        return "Woman"
+
+    if gender == "Unknown":
+        return "Unknown"
+
+    return "Other"
+
 
 def generalise_quasi_identifier(field_name, value):
     if field_name == "age":
@@ -75,6 +89,9 @@ def generalise_quasi_identifier(field_name, value):
 
     if field_name == "postcode":
         return generalise_postcode(value)
+
+    if field_name == "sex_gender":
+        return generalise_gender(value)
 
     return normalise_answer(value)
 
