@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import AppShell from "~/components/layout/AppShell";
-import RequiredFieldsList from "~/components/researcher/RequiredFieldsList";
 import Badge from "~/components/ui/Badge";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
@@ -91,85 +90,104 @@ export default function ResearcherStudiesPage() {
 
             return (
               <Card key={study.study_id}>
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex-1">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-semibold text-slate-900">
                       {study.study_name}
                     </h2>
 
                     {study.description ? (
-                      <p className="mt-2 text-sm text-slate-600">
+                      <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
                         {study.description}
                       </p>
                     ) : null}
 
-                    <p className="mt-2 text-sm text-slate-600">
+                    <p className="mt-2 text-sm text-slate-500">
                       {statusMeta.description}
                     </p>
+                  </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+                  <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+                    <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
 
-                      {study.data_collection_months ? (
-                        <Badge tone="neutral">
-                          Collection: {study.data_collection_months} months
-                        </Badge>
-                      ) : null}
-
-                      {study.research_duration_months ? (
-                        <Badge tone="neutral">
-                          Research: {study.research_duration_months} months
-                        </Badge>
-                      ) : null}
-
-                      {study.optional_field_ids.length > 0 ? (
-                        <Badge tone="neutral">
-                          {study.optional_field_ids.length} optional field
-                          {study.optional_field_ids.length === 1 ? "" : "s"}
-                        </Badge>
-                      ) : null}
-
-                      <Badge tone="success">
-                        {study.participant_count} participant
-                        {study.participant_count === 1 ? "" : "s"}
-                      </Badge>
-
-                      {study.issue_count > 0 ? (
-                        <Badge tone="danger">
-                          {study.issue_count} review{" "}
-                          {study.issue_count === 1 ? "item" : "items"}
-                        </Badge>
-                      ) : null}
-                    </div>
-
-                    <Button
-                      variant="purple"
-                      className="mt-3"
-                      onClick={() =>
-                        navigate(`/researcher/studies/${study.study_id}`)
-                      }
-                    >
-                      View study
-                    </Button>
-
-                    {displayStatus === "changes_requested" &&
-                    study.has_open_issue ? (
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          navigate(
-                            `/researcher/studies/${study.study_id}/modify`,
-                          )
-                        }
-                      >
-                        Modify study
-                      </Button>
-                    ) : null}
+                    <Badge tone="neutral">
+                      {study.participant_count} participant
+                      {study.participant_count === 1 ? "" : "s"}
+                    </Badge>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <RequiredFieldsList fields={requiredFields} />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {study.data_collection_months ? (
+                    <Badge tone="neutral">
+                      Collection: {study.data_collection_months} months
+                    </Badge>
+                  ) : null}
+
+                  {study.research_duration_months ? (
+                    <Badge tone="neutral">
+                      Research: {study.research_duration_months} months
+                    </Badge>
+                  ) : null}
+
+                  {study.optional_field_ids.length > 0 ? (
+                    <Badge tone="neutral">
+                      {study.optional_field_ids.length} optional field
+                      {study.optional_field_ids.length === 1 ? "" : "s"}
+                    </Badge>
+                  ) : null}
+
+                  {study.issue_count > 0 ? (
+                    <Badge tone="danger">
+                      {study.issue_count} review{" "}
+                      {study.issue_count === 1 ? "item" : "items"}
+                    </Badge>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button
+                    variant="purple"
+                    onClick={() =>
+                      navigate(`/researcher/studies/${study.study_id}`)
+                    }
+                  >
+                    View study
+                  </Button>
+
+                  {displayStatus === "issues_raised" && study.has_open_issue ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        navigate(`/researcher/studies/${study.study_id}/modify`)
+                      }
+                    >
+                      Modify study
+                    </Button>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Required fields
+                  </p>
+
+                  {requiredFields.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {requiredFields.map((field) => (
+                        <span
+                          key={field.field_id}
+                          className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700"
+                        >
+                          {field.field_name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">
+                      No required fields.
+                    </p>
+                  )}
                 </div>
               </Card>
             );
