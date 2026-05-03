@@ -733,9 +733,9 @@ def choose_study_status(index):
     # - pending for regulator review
     # - open for participant joining/consent
     # - ongoing for researcher data access
-    #pattern = ["open", "ongoing", "pending", "open", "ongoing", "pending", "rejected"]
-    #return pattern[index % len(pattern)]
-    return "ongoing"
+    pattern = ["open", "ongoing", "pending", "open", "ongoing", "pending", "rejected"]
+    return pattern[index % len(pattern)]
+
 
 
 def configure_study_dates(study, status):
@@ -1059,7 +1059,11 @@ def seed_data(participant_count, study_count, random_seed):
             if i - 1 >= len(STUDY_NAMES):
                 name = f"{name} {i + 1}"
 
-        status = choose_study_status(i)
+        status = (
+            "ongoing"
+            if name == ANONYMISATION_DEMO_STUDY_NAME
+            else choose_study_status(i)
+        )
 
         description = (
             ANONYMISATION_DEMO_STUDY_DESCRIPTION
