@@ -788,7 +788,7 @@ def create_study_fields(study, all_fields):
                 )
             )
 
-        return required_fields, required_fields
+        return selected_fields , required_fields
 
     # Existing random study setup for all other studies
     gender_field = all_fields[0]
