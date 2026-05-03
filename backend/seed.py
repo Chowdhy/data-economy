@@ -117,6 +117,25 @@ EMPLOYMENT_OPTIONS = [
     "Prefer not to say",
 ]
 
+# ----------------------------------------------------------------------
+# Needed for Anonymisation Demo
+# ----------------------------------------------------------------------
+ANONYMISATION_DEMO_STUDY_NAME = "Regional Cardiometabolic Health Study"
+
+ANONYMISATION_DEMO_STUDY_DESCRIPTION = (
+    "A study exploring how demographic and regional factors relate to "
+    "cardiometabolic health indicators, including diabetes and hypertension. "
+)
+
+ANONYMISATION_DEMO_FIELD_NAMES = {
+    "sex_gender",
+    "postcode",
+    "age",
+    "diagnosed_diabetes",
+    "diagnosed_hypertension",
+}
+
+
 
 # ---------------------------------------------------------------------
 # Field definitions
@@ -738,7 +757,30 @@ def configure_study_dates(study, status):
 
 
 def create_study_fields(study, all_fields):
-    # Always include field 1 and 2 as required for demo/k-anonymity.
+    is_anonymisation_demo_study = (
+        study.study_name == ANONYMISATION_DEMO_STUDY_NAME
+    )
+
+    if is_anonymisation_demo_study:
+        required_fields = [
+            field for field in all_fields
+            if field.field_name in ANONYMISATION_DEMO_FIELD_NAMES
+        ]
+
+        required_field_ids = {field.field_id for field in required_fields}
+
+        for field in required_fields:
+            db.session.add(
+                StudyRequiredField(
+                    study_id=study.study_id,
+                    field_id=field.field_id,
+                    is_required=True,
+                )
+            )
+
+        return required_fields, required_fields
+
+    # Existing random study setup for all other studies
     gender_field = all_fields[0]
     postcode_field = all_fields[1]
 
@@ -752,7 +794,6 @@ def create_study_fields(study, all_fields):
 
     selected_fields = [gender_field, postcode_field] + selected_extra_fields
 
-    # Required: always gender + postcode + some extra required fields.
     required_extra_count = random.randint(1, min(6, len(selected_extra_fields)))
     required_extra_fields = random.sample(selected_extra_fields, k=required_extra_count)
 
@@ -994,18 +1035,27 @@ def seed_data(participant_count, study_count, random_seed):
     studies = []
 
     for i in range(study_count):
-        name = STUDY_NAMES[i % len(STUDY_NAMES)]
-        if i >= len(STUDY_NAMES):
-            name = f"{name} {i + 1}"
+        if i == 0:
+            name = ANONYMISATION_DEMO_STUDY_NAME
+        else:
+            name = STUDY_NAMES[(i - 1) % len(STUDY_NAMES)]
+            if i - 1 >= len(STUDY_NAMES):
+                name = f"{name} {i + 1}"
 
         status = choose_study_status(i)
 
-        study = Study(
-            study_name=name,
-            description=(
+        description = (
+            ANONYMISATION_DEMO_STUDY_DESCRIPTION
+            if name == ANONYMISATION_DEMO_STUDY_NAME
+            else (
                 f"Demo study for testing {name.lower()}. "
                 "Includes a mixture of required and optional participant fields."
-            ),
+            )
+        )
+
+        study = Study(
+            study_name=name,
+            description=description,
             data_collection_months=random.randint(2, 8),
             research_duration_months=random.randint(4, 18),
             creator_id=random.choice(researchers).user_id,
