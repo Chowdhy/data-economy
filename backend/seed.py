@@ -117,6 +117,29 @@ EMPLOYMENT_OPTIONS = [
     "Prefer not to say",
 ]
 
+# ----------------------------------------------------------------------
+# Needed for Anonymisation Demo
+# ----------------------------------------------------------------------
+ANONYMISATION_DEMO_STUDY_NAME = "Regional Hypertension Risk Study"
+
+ANONYMISATION_DEMO_STUDY_DESCRIPTION = (
+    "A study exploring how age, sex or gender, regional location, physical "
+    "activity, and family history relate to hypertension diagnosis patterns. "
+)
+
+ANONYMISATION_DEMO_REQUIRED_FIELD_NAMES = {
+    "sex_gender",
+    "postcode",
+    "age",
+    "diagnosed_hypertension",
+}
+
+ANONYMISATION_DEMO_OPTIONAL_FIELD_NAMES = {
+    "physical_activity_level",
+    "family_history_heart_disease"
+}
+
+
 
 # ---------------------------------------------------------------------
 # Field definitions
@@ -714,6 +737,7 @@ def choose_study_status(index):
     return pattern[index % len(pattern)]
 
 
+
 def configure_study_dates(study, status):
     now = datetime.utcnow()
 
@@ -737,7 +761,36 @@ def configure_study_dates(study, status):
 
 
 def create_study_fields(study, all_fields):
-    # Always include field 1 and 2 as required for demo/k-anonymity.
+    is_anonymisation_demo_study = (
+        study.study_name == ANONYMISATION_DEMO_STUDY_NAME
+    )
+
+    if is_anonymisation_demo_study:
+        required_fields = [
+            field for field in all_fields
+            if field.field_name in ANONYMISATION_DEMO_REQUIRED_FIELD_NAMES
+        ]
+
+        optional_fields = [
+            field for field in all_fields
+            if field.field_name in ANONYMISATION_DEMO_OPTIONAL_FIELD_NAMES
+        ]
+
+        selected_fields = required_fields + optional_fields
+        required_field_ids = {field.field_id for field in required_fields}
+
+        for field in selected_fields:
+            db.session.add(
+                StudyRequiredField(
+                    study_id=study.study_id,
+                    field_id=field.field_id,
+                    is_required=field.field_id in required_field_ids,
+                )
+            )
+
+        return selected_fields , required_fields
+
+    # Existing random study setup for all other studies
     gender_field = all_fields[0]
     postcode_field = all_fields[1]
 
@@ -751,7 +804,6 @@ def create_study_fields(study, all_fields):
 
     selected_fields = [gender_field, postcode_field] + selected_extra_fields
 
-    # Required: always gender + postcode + some extra required fields.
     required_extra_count = random.randint(1, min(6, len(selected_extra_fields)))
     required_extra_fields = random.sample(selected_extra_fields, k=required_extra_count)
 
@@ -781,12 +833,17 @@ def create_participant_study_memberships(study, participants, selected_fields, r
         if field.field_id not in required_field_ids
     ]
 
-    # Not everyone joins every study.
-    join_count = random.randint(
-        max(5, len(participants) // 4),
-        max(6, int(len(participants) * 0.75)),
-    )
-    joined_participants = random.sample(participants, k=min(join_count, len(participants)))
+    # For the anonymisation demo study, include all participants so that
+    # k-anonymity groups are large enough to demo
+    if study.study_name == ANONYMISATION_DEMO_STUDY_NAME:
+        joined_participants = participants
+    else:
+        # Not everyone joins every other study
+        join_count = random.randint(
+            max(5, len(participants) // 4),
+            max(6, int(len(participants) * 0.75)),
+        )
+        joined_participants = random.sample(participants, k=min(join_count, len(participants)))
 
     for participant in joined_participants:
         consented_field_ids = set(required_field_ids)
@@ -818,15 +875,27 @@ def create_participant_study_memberships(study, participants, selected_fields, r
 
 
 def seed_participant_answers(participants, field_defs_by_id):
-    # Answers are global per participant per field in your current schema.
-    # Study consent controls which answers researchers can see.
+    required_anonymisation_fields = {
+        "sex_gender",
+        "age",
+        "postcode",
+        "diagnosed_hypertension",
+    }
+
     for participant in participants:
         for field_id, field_def in field_defs_by_id.items():
-            # Around 88% answered, 12% blank/missing to make demo realistic.
-            if random.random() < 0.88:
+            field_name = field_def["field_name"]
+
+            # For anonymisation every participant needs these quasi-identifiers
+            # Other fields can remain partly missing for demo
+            should_create_answer = (
+                field_name in required_anonymisation_fields
+                or random.random() < 0.88
+            )
+
+            if should_create_answer:
                 answer = field_def["generator"]()
                 add_answer(participant.user_id, field_id, answer)
-
 
 def create_demo_issues(regulator, studies):
     pending_studies = [study for study in studies if study.status == "pending"]
@@ -968,6 +1037,7 @@ def seed_data(participant_count, study_count, random_seed):
         fields.append(field)
 
         # Store a copy keyed by actual DB field_id.
+
         copied_def = dict(field_def)
         copied_def["field_id"] = field.field_id
         field_defs_by_id[field.field_id] = copied_def
@@ -982,18 +1052,31 @@ def seed_data(participant_count, study_count, random_seed):
     studies = []
 
     for i in range(study_count):
-        name = STUDY_NAMES[i % len(STUDY_NAMES)]
-        if i >= len(STUDY_NAMES):
-            name = f"{name} {i + 1}"
+        if i == 0:
+            name = ANONYMISATION_DEMO_STUDY_NAME
+        else:
+            name = STUDY_NAMES[(i - 1) % len(STUDY_NAMES)]
+            if i - 1 >= len(STUDY_NAMES):
+                name = f"{name} {i + 1}"
 
-        status = choose_study_status(i)
+        status = (
+            "ongoing"
+            if name == ANONYMISATION_DEMO_STUDY_NAME
+            else choose_study_status(i)
+        )
+
+        description = (
+            ANONYMISATION_DEMO_STUDY_DESCRIPTION
+            if name == ANONYMISATION_DEMO_STUDY_NAME
+            else (
+                f"Demo study for testing {name.lower()}. "
+                "Includes a mixture of required and optional participant fields."
+            )
+        )
 
         study = Study(
             study_name=name,
-            description=(
-                f"Demo study for testing {name.lower()}. "
-                "Includes a mixture of required and optional participant fields."
-            ),
+            description=description,
             data_collection_months=random.randint(2, 8),
             research_duration_months=random.randint(4, 18),
             creator_id=random.choice(researchers).user_id,
