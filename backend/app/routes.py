@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
 from datetime import datetime, timedelta
 from policies.policy_engine import get_policy_engine
+from .anonymisation import anonymise_study_records
 from .extensions import db
 from .models import (
     User,
@@ -1529,15 +1530,16 @@ def get_study_data(study_id, researcher_id=None):
         StudyParticipantConsentedField.study_id == study_id
     ).all()
 
-    data = {}
+    participant_records = {}
+
     for pid, field_id, field_name, field_desc, answer in rows:
         participant_key = str(pid)
-        data.setdefault(participant_key, []).append({
-            "field_id": field_id,
-            "field_name": field_name,
-            "field_desc": field_desc,
-            "answer": answer
-        })
+        
+        if participant_key not in participant_records:
+            participant_records[participant_key] = {}
+
+        participant_records[participant_key][field_name] = answer
+    anonymised_data = anonymise_study_records(participant_records)
 
     return jsonify({
         "study": {
@@ -1548,7 +1550,15 @@ def get_study_data(study_id, researcher_id=None):
             "research_duration_months": study.research_duration_months,
             "status": study.status,
         },
-        "participants": data
+        "privacy": {
+            "method": "k-anonymity and l-diversity",
+            "k": anonymised_data["k"],
+            "l": anonymised_data["l"],
+            "quasi_identifier_fields": anonymised_data["quasi_identifier_fields"],
+            "sensitive_fields": anonymised_data["sensitive_fields"],
+        },
+        "summary": anonymised_data["summary"],
+        "groups": anonymised_data["groups"],
     }), 200
 
 # Current functionality: 
