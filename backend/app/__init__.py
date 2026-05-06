@@ -3,6 +3,7 @@ from flask_cors import CORS
 from .extensions import db, migrate, jwt
 from .models import *
 from .routes import api
+import os
 
 
 def create_app():
@@ -21,9 +22,18 @@ def create_app():
         },
     )
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///app.db"
+    database_url = os.getenv("DATABASE_URL", "sqlite:///app.db")
+
+    # Some hosts provide postgres://, but SQLAlchemy expects postgresql://
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = "randomsecretkey"
+    app.config["JWT_SECRET_KEY"] = os.getenv(
+        "JWT_SECRET_KEY",
+        "dev-only-change-me-please-make-this-longer"
+    )
 
 
     db.init_app(app)
