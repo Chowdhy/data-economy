@@ -84,6 +84,11 @@ export default function ModifyStudyPage() {
         return;
       }
 
+      if (matchedStudy.status === "rejected") {
+        navigate(`/researcher/studies/${studyId}`, { replace: true });
+        return;
+      }
+
       setStudy(matchedStudy);
       setAvailableFields(fieldsResponse.fields);
       setIssues(issuesResponse.issues);

@@ -16,7 +16,7 @@ import type {
   RegulatorStudy,
   StudyIssue,
 } from "./types";
-import { getAccessToken } from "./auth";
+import { clearAuthSession, getAccessToken } from "./auth";
 
 const API_BASE = "http://127.0.0.1:5000/api";
 
@@ -71,6 +71,10 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 401 && options?.includeAuth !== false) {
+      clearAuthSession();
+      window.location.href = "/login";
+    }
     throw new Error(getErrorMessage(data));
   }
 
@@ -172,10 +176,10 @@ export const api = {
   getStudyData: (studyId: number) =>
     request<StudyDataResponse>(`/studies/${studyId}/data`),
 
-  joinStudy: (studyId: number, participant_id: number) =>
+  joinStudy: (studyId: number, participant_id: number, consented_field_ids: number[]) =>
     request(`/studies/${studyId}/join`, {
       method: "POST",
-      body: JSON.stringify({ participant_id }),
+      body: JSON.stringify({ participant_id, consented_field_ids }),
     }),
 
   modifyConsent: (
@@ -213,6 +217,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ answers }),
     }),
+
+  getAllStudies: () =>
+    request<{ studies: RegulatorStudy[] }>("/admin/studies"),
 
   getPendingStudies: () =>
     request<{ studies: RegulatorStudy[] }>("/admin/studies/pending"),
@@ -267,11 +274,14 @@ export const api = {
       issues: StudyIssue[];
     }>(`/admin/studies/${studyId}/issues`),
 
-  getUserLogs: (userId: number) =>
-    request<{ logs: ActivityLog[] }>(`/users/${userId}/logs`),
+  getAllLogs: () =>
+    request<{ logs: ActivityLog[] }>(`/admin/logs`),
 
   getStudyLogs: (studyId: number) =>
     request<{ logs: ActivityLog[] }>(`/admin/studies/${studyId}/logs`),
+
+  logStudyView: (studyId: number) =>
+    request<{ message: string }>(`/studies/${studyId}/view`, { method: "POST" }),
 
   getStudyResearchers: (studyId: number) =>
     request<{ study_id: number; researchers: StudyResearcher[] }>(
