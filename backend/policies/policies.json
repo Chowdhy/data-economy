@@ -17,24 +17,6 @@
           ]
         },
         {
-          "uid": "perm:view-study",
-          "action": "viewStudy",
-          "assignee": { "role": "*" },
-          "target": { "type": "study" },
-          "constraint": [
-            {
-              "leftOperand": "subject.role",
-              "operator": "in",
-              "rightOperand": ["researcher", "regulator"]
-            },
-            {
-              "leftOperand": "env.isOwnerOrRegulator",
-              "operator": "eq",
-              "rightOperand": true
-            }
-          ]
-        },
-        {
           "uid": "perm:modify-study",
           "action": "modifyStudy",
           "assignee": { "role": "researcher" },
@@ -262,8 +244,8 @@
           "target": { "type": "participantAnswers" },
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "participant" },
-            { "leftOperand": "subject.isActive", "operator": "eq", "rightOperand": true },
-            { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true }
+            { "leftOperand": "env.isSelf", "operator": "eq", "rightOperand": true },
+            { "leftOperand": "env.answersWithinConsentedFields", "operator": "eq", "rightOperand": true }
           ]
         },
         {
