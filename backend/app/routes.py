@@ -5,6 +5,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
 from datetime import datetime, timedelta
 from policies.policy_engine import get_policy_engine
+from .anonymisation import (
+    anonymise_study_records,
+    get_active_candidate_fields,
+    get_active_other_fields,
+    K_ANONYMITY_CANDIDATE_FIELDS,
+    L_DIVERSITY_CANDIDATE_FIELDS,
+)
 from .extensions import db
 from .models import (
     User,
@@ -207,11 +214,12 @@ Helper functions for serialising data into JSON dictionaries
 
 def serialise_study_summary(study):
     study_fields = split_study_field_ids(study.study_id)
+
+    issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
+
     participant_count = StudyParticipant.query.filter_by(
         study_id=study.study_id
     ).count()
-
-    issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
     latest_issue = (
         StudyIssue.query
@@ -242,12 +250,12 @@ def serialise_study_summary(study):
         "creator_id": study.creator_id,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
-        "participant_count": participant_count,
         "issue_count": issue_count,
         "reviewed_before": issue_count > 0,
         "has_open_issue": has_open_issue,
         "has_responded_issue": has_responded_issue,
         "latest_issue_status": latest_issue_status,
+        "participant_count": participant_count,
     }
 
 def serialise_field(field):
@@ -1442,6 +1450,7 @@ def get_study(study_id):
 
     refresh_study_status(study)
     study_fields = split_study_field_ids(study.study_id)
+
     participant_count = StudyParticipant.query.filter_by(
         study_id=study.study_id
     ).count()
@@ -1455,7 +1464,7 @@ def get_study(study_id):
         "status": study.status,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
-        "participant_count": participant_count,
+        "participant_count": participant_count
     }
 
     # Public access for open studies
@@ -1506,6 +1515,7 @@ def get_study_data(study_id, researcher_id=None):
     if auth_error:
         return auth_error
 
+    # Fetch all consented study fields
     rows = db.session.query(
         StudyParticipant.participant_id,
         FieldDescription.field_id,
@@ -1529,15 +1539,42 @@ def get_study_data(study_id, researcher_id=None):
         StudyParticipantConsentedField.study_id == study_id
     ).all()
 
-    data = {}
+    participant_records = {}
+    consented_field_names = set()
+
     for pid, field_id, field_name, field_desc, answer in rows:
         participant_key = str(pid)
-        data.setdefault(participant_key, []).append({
-            "field_id": field_id,
-            "field_name": field_name,
-            "field_desc": field_desc,
-            "answer": answer
-        })
+
+        if participant_key not in participant_records:
+            participant_records[participant_key] = {}
+
+        participant_records[participant_key][field_name] = answer
+        consented_field_names.add(field_name)
+
+    # Work out which anonymisation fields are active for this study
+    active_quasi_identifier_fields = get_active_candidate_fields(
+        consented_field_names,
+        K_ANONYMITY_CANDIDATE_FIELDS,
+    )
+
+    active_sensitive_fields = get_active_candidate_fields(
+        consented_field_names,
+        L_DIVERSITY_CANDIDATE_FIELDS,
+    )
+
+    active_other_fields = get_active_other_fields(
+        consented_field_names,
+        active_quasi_identifier_fields,
+        active_sensitive_fields,
+    )
+
+    # Apply k-anonymity and l-diversity, then aggregate released field values
+    anonymised_data = anonymise_study_records(
+        participant_records,
+        active_quasi_identifier_fields,
+        active_sensitive_fields,
+        active_other_fields,
+    )
 
     return jsonify({
         "study": {
@@ -1548,8 +1585,20 @@ def get_study_data(study_id, researcher_id=None):
             "research_duration_months": study.research_duration_months,
             "status": study.status,
         },
-        "participants": data
+        "privacy": {
+            "method": "k-anonymity and l-diversity",
+            "k": anonymised_data["k"],
+            "l": anonymised_data["l"],
+            "candidate_quasi_identifier_fields": anonymised_data["candidate_quasi_identifier_fields"],
+            "candidate_sensitive_fields": anonymised_data["candidate_sensitive_fields"],
+            "active_quasi_identifier_fields": anonymised_data["active_quasi_identifier_fields"],
+            "active_sensitive_fields": anonymised_data["active_sensitive_fields"],
+            "active_other_fields": anonymised_data["active_other_fields"],
+        },
+        "summary": anonymised_data["summary"],
+        "groups": anonymised_data["groups"],
     }), 200
+
 
 # Current functionality: 
 # - Get email and password from request
