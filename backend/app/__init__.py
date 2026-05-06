@@ -30,10 +30,7 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = os.getenv(
-        "JWT_SECRET_KEY",
-        "dev-only-change-me-please-make-this-longer"
-    )
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 
 
     db.init_app(app)
