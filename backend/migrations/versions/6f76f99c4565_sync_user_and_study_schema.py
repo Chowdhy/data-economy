@@ -48,8 +48,8 @@ def upgrade():
         batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=True))
         batch_op.add_column(sa.Column('created_at', sa.DateTime(), nullable=True))
 
-    op.execute("UPDATE users SET is_approved = TRUE WHERE is_approved IS NULL")
-    op.execute("UPDATE users SET is_active = TRUE WHERE is_active IS NULL")
+    op.execute("UPDATE users SET is_approved = 1 WHERE is_approved IS NULL")
+    op.execute("UPDATE users SET is_active = 1 WHERE is_active IS NULL")
     op.execute("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
 
     with op.batch_alter_table('users', schema=None) as batch_op:

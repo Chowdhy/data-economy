@@ -15,6 +15,7 @@ interface StudyOverviewCardProps {
     data_collection_months?: number;
     research_duration_months?: number;
     status: StudyStatus;
+    participant_count: number;
     required_field_ids: number[];
     optional_field_ids: number[];
     issue_count?: number;
@@ -22,6 +23,26 @@ interface StudyOverviewCardProps {
   };
   onView?: () => void;
   onModify?: () => void;
+}
+
+function getStatusTone(status: StudyStatus) {
+  switch (status) {
+    case "pending":
+      return "warning"; // amber
+    case "rejected":
+      return "danger"; // red
+    case "open":
+      return "success"; // green
+    case "ongoing":
+      return "purple"; // custom
+    case "approved":
+      return "info"; // blue
+    case "complete":
+    case "closed":
+      return "neutral"; // grey
+    default:
+      return "neutral";
+  }
 }
 
 export default function StudyOverviewCard({
@@ -45,9 +66,7 @@ export default function StudyOverviewCard({
             <p className="mt-1 text-sm text-slate-600">{study.description}</p>
           ) : null}
 
-          <p className="mt-2 text-sm text-slate-600">
-            {statusMeta.description}
-          </p>
+          <p className="mt-2 text-sm text-slate-600">{statusMeta.description}</p>
 
           <p className="mt-2 text-sm text-slate-500">
             Required fields: {study.required_field_ids.length}
@@ -64,20 +83,15 @@ export default function StudyOverviewCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+          <Badge tone={getStatusTone(study.status)}>{study.status}</Badge>
+          <Badge tone="neutral">{study.participant_count} participants</Badge>
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4">
         <Button variant="purple" onClick={onView}>
           View study
         </Button>
-
-        {displayStatus === "issues_raised" && onModify ? (
-          <Button variant="secondary" onClick={onModify}>
-            Modify study
-          </Button>
-        ) : null}
       </div>
     </Card>
   );

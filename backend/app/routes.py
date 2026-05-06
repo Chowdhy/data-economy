@@ -5,19 +5,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import and_
 from datetime import datetime, timedelta
 from policies.policy_engine import get_policy_engine
-from .anonymisation import (
-    anonymise_study_records,
-    get_active_candidate_fields,
-    get_active_other_fields,
-    K_ANONYMITY_CANDIDATE_FIELDS,
-    L_DIVERSITY_CANDIDATE_FIELDS,
-)
 from .extensions import db
 from .models import (
     User,
     Study,
     FieldDescription,
-    FieldOption,
     StudyRequiredField,
     StudyParticipant,
     StudyParticipantConsentedField,
@@ -178,13 +170,6 @@ def serialise_study_researcher(sr, study_creator_id):
         "is_creator": sr.researcher_id == study_creator_id,
     }
 
-def serialise_field_option(option):
-    return {
-        "option_id": option.option_id,
-        "value": option.value,
-        "display_order": option.display_order,
-    }
-
 def format_log_message(log, details, names):
     def name(uid):
         return names.get(uid) or f"User {uid}"
@@ -277,12 +262,11 @@ Helper functions for serialising data into JSON dictionaries
 
 def serialise_study_summary(study):
     study_fields = split_study_field_ids(study.study_id)
-
-    issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
-
     participant_count = StudyParticipant.query.filter_by(
         study_id=study.study_id
     ).count()
+
+    issue_count = StudyIssue.query.filter_by(study_id=study.study_id).count()
 
     latest_issue = (
         StudyIssue.query
@@ -313,12 +297,12 @@ def serialise_study_summary(study):
         "creator_id": study.creator_id,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
+        "participant_count": participant_count,
         "issue_count": issue_count,
         "reviewed_before": issue_count > 0,
         "has_open_issue": has_open_issue,
         "has_responded_issue": has_responded_issue,
         "latest_issue_status": latest_issue_status,
-        "participant_count": participant_count,
     }
 
 def serialise_field(field):
@@ -326,13 +310,6 @@ def serialise_field(field):
         "field_id": field.field_id,
         "name": field.field_name,
         "description": field.field_desc,
-        "field_name": field.field_name,
-        "field_desc": field.field_desc,
-        "field_type": field.field_type,
-        "options": [
-            serialise_field_option(option)
-            for option in field.options
-        ],
     }
 
 def serialise_regulator_study_detail(study):
@@ -376,7 +353,11 @@ def serialise_study_issue(issue):
     for row in issue.flagged_fields:
         flagged_field_ids.append(row.field_id)
         if row.field:
-            flagged_fields.append(serialise_field(row.field))
+            flagged_fields.append({
+                "field_id": row.field.field_id,
+                "name": row.field.field_name,
+                "description": row.field.field_desc,
+            })
 
     modification = StudyModification.query.filter_by(
         issue_id=issue.issue_id
@@ -503,73 +484,29 @@ def create_field():
 
     field_name = data.get("field_name")
     field_desc = data.get("field_desc")
-    field_type = data.get("field_type", "text")
-    options = data.get("options", [])
 
-    if not field_name or not field_name.strip():
+    if not field_name:
         return error("field_name is required")
-
-    if field_type not in {"text", "enum"}:
-        return error("field_type must be either 'text' or 'enum'", 400)
-
-    cleaned_options = []
-
-    if field_type == "enum":
-        if not isinstance(options, list):
-            return error("options must be a list for enum fields", 400)
-
-        for option in options:
-            if not isinstance(option, str):
-                return error("each enum option must be a string", 400)
-
-            stripped = option.strip()
-            if stripped:
-                cleaned_options.append(stripped)
-
-        # Remove duplicate options while preserving order.
-        cleaned_options = list(dict.fromkeys(cleaned_options))
-
-        if len(cleaned_options) < 2:
-            return error(
-                "enum fields must have at least two unique non-empty options",
-                400,
-            )
-
+    
     context = build_auth_context(
         current_user=current_user,
-        action="createField",
+        action="createField"
     )
 
     authori_error = authorize("createField", context)
     if authori_error:
         return authori_error
-
-    existing = FieldDescription.query.filter_by(
-        field_name=field_name.strip()
-    ).first()
-
+    # Prevent duplicates: 
+    existing = FieldDescription.query.filter_by(field_name=field_name).first()
     if existing:
         return error("field_name already exists", 409)
 
     field = FieldDescription(
-        field_name=field_name.strip(),
-        field_desc=field_desc.strip() if isinstance(field_desc, str) else field_desc,
-        field_type=field_type,
-        created_by=current_user.user_id,
+        field_name=field_name,
+        field_desc=field_desc,
+        created_by=current_user.user_id
     )
-
     db.session.add(field)
-    db.session.flush()
-
-    for index, option_value in enumerate(cleaned_options):
-        db.session.add(
-            FieldOption(
-                field_id=field.field_id,
-                value=option_value,
-                display_order=index,
-            )
-        )
-
     db.session.commit()
 
     return jsonify({
@@ -578,12 +515,7 @@ def create_field():
             "field_id": field.field_id,
             "field_name": field.field_name,
             "field_desc": field.field_desc,
-            "field_type": field.field_type,
-            "options": [
-                serialise_field_option(option)
-                for option in field.options
-            ],
-        },
+        }
     }), 201
 
 # Current functionality:
@@ -599,26 +531,21 @@ def list_all_fields():
     
     context = build_auth_context(
         current_user=current_user,
-        action="listFields",
+        action="listFields"
     )
 
     authori_error = authorize("listFields", context)
     if authori_error:
         return authori_error
 
-    fields = FieldDescription.query.order_by(FieldDescription.field_id.asc()).all()
+    fields = FieldDescription.query.all()
 
     return jsonify({
         "fields": [
             {
                 "field_id": f.field_id,
                 "field_name": f.field_name,
-                "field_desc": f.field_desc,
-                "field_type": f.field_type,
-                "options": [
-                    serialise_field_option(option)
-                    for option in f.options
-                ],
+                "field_desc": f.field_desc
             }
             for f in fields
         ]
@@ -1214,55 +1141,52 @@ def upsert_participant_answers(participant_id):
     data = request.get_json() or {}
     answers = data.get("answers", [])
 
+
     if not isinstance(answers, list) or not answers:
         return error("answers must be a non-empty list")
+
+    consented_fields = StudyParticipantConsentedField.query.filter_by(
+        participant_id=participant_id
+    ).all()
+    consented_field_ids = {c.field_id for c in consented_fields}
+
+
+     # Check all answers are within consent
+    field_names = [a.get("field_name") for a in answers]
+    fields = FieldDescription.query.filter(
+        FieldDescription.field_name.in_(field_names)
+    ).all()
+
+    field_map = {f.field_name: f.field_id for f in fields}
+
+    answers_valid = all(
+        field_map.get(a.get("field_name")) in consented_field_ids
+        for a in answers
+    )
 
     context = build_auth_context(
         current_user=current_user,
         action="submitAnswers",
         target_user=participant,
+        extra={
+            "answersWithinConsentedFields": answers_valid
+        }
     )
 
     auth_error = authorize("submitAnswers", context)
     if auth_error:
         return auth_error
 
+    # Business logic
     updated = []
 
     for item in answers:
-        field_id = item.get("field_id")
         field_name = item.get("field_name")
-        answer_value = item.get("answer", "")
+        answer_value = item.get("answer")
 
-        field = None
-
-        if field_id is not None:
-            field = FieldDescription.query.get(field_id)
-
-        if not field and field_name:
-            field = FieldDescription.query.filter_by(field_name=field_name).first()
-
+        field = FieldDescription.query.filter_by(field_name=field_name).first()
         if not field:
-            return error("field does not exist", 400)
-
-        if answer_value is None:
-            answer_value = ""
-
-        if not isinstance(answer_value, str):
-            answer_value = str(answer_value)
-
-        if field.field_type == "enum":
-            allowed_values = {
-                option.value
-                for option in field.options
-            }
-
-            # Allow blank answers, but validate non-blank enum answers.
-            if answer_value and answer_value not in allowed_values:
-                return error(
-                    f"answer for '{field.field_name}' must be one of: {sorted(allowed_values)}",
-                    400,
-                )
+            return error(f"field_name '{field_name}' does not exist")
 
         existing = ParticipantAnswer.query.filter_by(
             participant_id=participant_id,
@@ -1271,31 +1195,17 @@ def upsert_participant_answers(participant_id):
 
         if existing:
             existing.answer = answer_value
-            updated.append({
-                "field_id": field.field_id,
-                "field_name": field.field_name,
-                "answer": answer_value,
-                "action": "updated",
-            })
+            updated.append({"field_name": field_name, "action": "updated"})
         else:
             db.session.add(ParticipantAnswer(
                 participant_id=participant_id,
                 field_id=field.field_id,
                 answer=answer_value,
             ))
-            updated.append({
-                "field_id": field.field_id,
-                "field_name": field.field_name,
-                "answer": answer_value,
-                "action": "created",
-            })
+            updated.append({"field_name": field_name, "action": "created"})
 
-    log_action(
-        "answers_submitted",
-        user_id=participant_id,
-        details={"field_count": len(updated)},
-    )
-
+    log_action("answers_submitted", user_id=participant_id,
+               details={"field_count": len(updated)})
     db.session.commit()
 
     return jsonify({
@@ -1324,17 +1234,16 @@ def get_participant_answers(participant_id):
     context = build_auth_context(
         current_user=current_user,
         action="viewOwnAnswers",
-        target_user=participant,
+        target_user=participant
     )
 
     auth_error = authorize("viewOwnAnswers", context)
     if auth_error:
         return auth_error
 
-    fields = FieldDescription.query.order_by(FieldDescription.field_id.asc()).all()
+    fields = FieldDescription.query.all()
 
     results = []
-
     for field in fields:
         existing = ParticipantAnswer.query.filter_by(
             participant_id=participant_id,
@@ -1342,22 +1251,15 @@ def get_participant_answers(participant_id):
         ).first()
 
         results.append({
-            "field_id": field.field_id,
             "field_name": field.field_name,
             "field_description": field.field_desc,
-            "field_type": field.field_type,
-            "options": [
-                option.value
-                for option in field.options
-            ],
-            "answer": existing.answer if existing else "",
+            "answer": existing.answer if existing else ""
         })
 
     return jsonify({
         "participant_id": participant_id,
         "answers": results,
     }), 200
-
 # Current functionality:
 # - Get participant studies
 # - Check participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
@@ -1545,7 +1447,6 @@ def get_study(study_id):
 
     refresh_study_status(study)
     study_fields = split_study_field_ids(study.study_id)
-
     participant_count = StudyParticipant.query.filter_by(
         study_id=study.study_id
     ).count()
@@ -1559,7 +1460,7 @@ def get_study(study_id):
         "status": study.status,
         "required_field_ids": study_fields["required_field_ids"],
         "optional_field_ids": study_fields["optional_field_ids"],
-        "participant_count": participant_count
+        "participant_count": participant_count,
     }
 
     # Public access for open studies
@@ -1610,7 +1511,6 @@ def get_study_data(study_id, researcher_id=None):
     if auth_error:
         return auth_error
 
-    # Fetch all consented study fields
     rows = db.session.query(
         StudyParticipant.participant_id,
         FieldDescription.field_id,
@@ -1634,42 +1534,15 @@ def get_study_data(study_id, researcher_id=None):
         StudyParticipantConsentedField.study_id == study_id
     ).all()
 
-    participant_records = {}
-    consented_field_names = set()
-
+    data = {}
     for pid, field_id, field_name, field_desc, answer in rows:
         participant_key = str(pid)
-
-        if participant_key not in participant_records:
-            participant_records[participant_key] = {}
-
-        participant_records[participant_key][field_name] = answer
-        consented_field_names.add(field_name)
-
-    # Work out which anonymisation fields are active for this study
-    active_quasi_identifier_fields = get_active_candidate_fields(
-        consented_field_names,
-        K_ANONYMITY_CANDIDATE_FIELDS,
-    )
-
-    active_sensitive_fields = get_active_candidate_fields(
-        consented_field_names,
-        L_DIVERSITY_CANDIDATE_FIELDS,
-    )
-
-    active_other_fields = get_active_other_fields(
-        consented_field_names,
-        active_quasi_identifier_fields,
-        active_sensitive_fields,
-    )
-
-    # Apply k-anonymity and l-diversity, then aggregate released field values
-    anonymised_data = anonymise_study_records(
-        participant_records,
-        active_quasi_identifier_fields,
-        active_sensitive_fields,
-        active_other_fields,
-    )
+        data.setdefault(participant_key, []).append({
+            "field_id": field_id,
+            "field_name": field_name,
+            "field_desc": field_desc,
+            "answer": answer
+        })
 
     return jsonify({
         "study": {
@@ -1680,20 +1553,8 @@ def get_study_data(study_id, researcher_id=None):
             "research_duration_months": study.research_duration_months,
             "status": study.status,
         },
-        "privacy": {
-            "method": "k-anonymity and l-diversity",
-            "k": anonymised_data["k"],
-            "l": anonymised_data["l"],
-            "candidate_quasi_identifier_fields": anonymised_data["candidate_quasi_identifier_fields"],
-            "candidate_sensitive_fields": anonymised_data["candidate_sensitive_fields"],
-            "active_quasi_identifier_fields": anonymised_data["active_quasi_identifier_fields"],
-            "active_sensitive_fields": anonymised_data["active_sensitive_fields"],
-            "active_other_fields": anonymised_data["active_other_fields"],
-        },
-        "summary": anonymised_data["summary"],
-        "groups": anonymised_data["groups"],
+        "participants": data
     }), 200
-
 
 # Current functionality: 
 # - Get email and password from request

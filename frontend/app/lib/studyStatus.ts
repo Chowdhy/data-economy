@@ -1,25 +1,17 @@
 export type ResearcherDisplayStatus =
-  | "pending"
-  | "issues_raised"
+  | "awaiting_approval"
+  | "changes_requested"
   | "open"
   | "ongoing"
   | "closed"
   | "rejected";
-
-export type ResearcherDisplayStatusTone =
-  | "success"
-  | "warning"
-  | "danger"
-  | "neutral"
-  | "purple"
-  | "muted";
 
 export function getResearcherDisplayStatus(
   status: string,
   issueCount = 0,
 ): ResearcherDisplayStatus {
   if (status === "pending") {
-    return issueCount > 0 ? "issues_raised" : "pending";
+    return issueCount > 0 ? "changes_requested" : "awaiting_approval";
   }
 
   if (status === "complete" || status === "closed") {
@@ -38,43 +30,46 @@ export function getResearcherDisplayStatus(
     return "rejected";
   }
 
-  return "pending";
+  return "awaiting_approval";
 }
 
 export function getResearcherDisplayStatusMeta(
   displayStatus: ResearcherDisplayStatus,
 ): {
   label: string;
-  tone: ResearcherDisplayStatusTone;
+  tone: "success" | "warning" | "danger" | "neutral";
   description: string;
 } {
   switch (displayStatus) {
-    case "pending":
+    case "awaiting_approval":
       return {
-        label: "Pending",
+        label: "Awaiting approval",
         tone: "warning",
-        description: "Awaiting approval.",
+        description: "This study is waiting for regulator review.",
       };
 
-    case "issues_raised":
+    case "changes_requested":
       return {
-        label: "Issues raised",
+        label: "Changes requested",
         tone: "danger",
-        description: "A regulator has raised issues.",
+        description:
+          "A regulator has requested changes before this study can be approved.",
       };
 
     case "open":
       return {
         label: "Open",
-        tone: "purple",
-        description: "Open for participants to join.",
+        tone: "success",
+        description:
+          "This study is approved and open for participant data collection.",
       };
 
     case "ongoing":
       return {
         label: "Ongoing",
-        tone: "success",
-        description: "Collecting or analysing study data.",
+        tone: "neutral",
+        description:
+          "Data collection has ended and the research period is ongoing.",
       };
 
     case "closed":
@@ -87,7 +82,7 @@ export function getResearcherDisplayStatusMeta(
     case "rejected":
       return {
         label: "Rejected",
-        tone: "muted",
+        tone: "danger",
         description: "This study was rejected.",
       };
   }

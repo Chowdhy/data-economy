@@ -1,33 +1,29 @@
 import type { ReactNode } from "react";
+import { cn } from "~/lib/utils";
 
-type BadgeTone =
-  | "success"
-  | "warning"
-  | "danger"
-  | "neutral"
-  | "info"
-  | "purple"
-  | "muted";
+type BadgeTone = "success" | "warning" | "danger" | "neutral" | "purple" | "info";
 
 interface BadgeProps {
   children: ReactNode;
   tone?: BadgeTone;
 }
 
-const toneClasses: Record<BadgeTone, string> = {
-  success: "border-green-100 bg-green-50 text-green-700",
-  warning: "border-amber-100 bg-amber-50 text-amber-700",
-  danger: "border-red-100 bg-red-50 text-red-700",
-  neutral: "border-slate-100 bg-slate-50 text-slate-700",
-  info: "border-blue-100 bg-blue-50 text-blue-700",
-  purple: "border-purple-100 bg-purple-50 text-purple-700",
-  muted: "border-slate-200 bg-slate-100 text-slate-500",
+const toneStyles: Record<BadgeTone, string> = {
+  success: "bg-emerald-100 text-emerald-800",
+  warning: "bg-amber-100 text-amber-800",
+  danger: "bg-rose-100 text-rose-800",
+  neutral: "bg-slate-100 text-slate-700",
+  purple: "bg-purple-500/10 text-purple-700",
+  info: "bg-blue-500/10 text-blue-700",
 };
 
 export default function Badge({ children, tone = "neutral" }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${toneClasses[tone]}`}
+      className={cn(
+        "inline-flex rounded-full px-3 py-1 text-xs font-medium",
+        toneStyles[tone],
+      )}
     >
       {children}
     </span>
