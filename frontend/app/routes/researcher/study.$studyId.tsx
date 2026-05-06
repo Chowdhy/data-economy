@@ -154,16 +154,7 @@ export default function ResearcherStudyDetailPage() {
   const hasRespondedIssue = issues.some(
     (issue) => issue.status === "responded",
   );
-
-  console.log("STUDY DETAIL DEBUG:", {
-    hasOpenIssue,
-    hasRespondedIssue,
-    issues: issues.map((issue) => ({
-      issue_id: issue.issue_id,
-      status: issue.status,
-    })),
-    displayStatus,
-  });
+  const isRejected = displayStatus === "rejected";
 
   return (
     <AppShell
@@ -265,7 +256,7 @@ export default function ResearcherStudyDetailPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {issueCount > 0 ? (
+                {!isRejected && issueCount > 0 ? (
                   <Badge tone="danger">
                     {issueCount} issue{issueCount === 1 ? "" : "s"}
                   </Badge>
@@ -273,148 +264,163 @@ export default function ResearcherStudyDetailPage() {
               </div>
             </div>
 
-            {latestIssue ? (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-medium text-slate-900">
-                  Latest regulator feedback
+            {isRejected ? (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-sm font-semibold text-rose-900">
+                  This study has been rejected and is no longer active.
                 </p>
-
-                {latestIssue.comment ? (
-                  <p className="mt-2 text-sm text-slate-700">
-                    {latestIssue.comment}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-slate-500">
-                    This issue does not include a general comment.
-                  </p>
-                )}
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge tone="neutral">
-                    Raised {formatDate(latestIssue.created_at)}
-                  </Badge>
-
-                  {latestIssue.flagged_field_ids.length > 0 ? (
-                    <Badge tone="warning">
-                      {latestIssue.flagged_field_ids.length} flagged field
-                      {latestIssue.flagged_field_ids.length === 1 ? "" : "s"}
-                    </Badge>
-                  ) : null}
-                </div>
-
-                {latestIssue.flagged_fields &&
-                latestIssue.flagged_fields.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-slate-900">
-                      Flagged fields
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {latestIssue.flagged_fields.map((field) => (
-                        <Badge key={field.field_id} tone="warning">
-                          {field.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                <p className="mt-1 text-sm text-rose-700">
+                  Rejected studies cannot be modified or resubmitted.
+                </p>
               </div>
             ) : (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm text-slate-600">
-                  No regulator issues have been raised for this study.
-                </p>
-              </div>
-            )}
+              <>
+                {latestIssue ? (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-medium text-slate-900">
+                      Latest regulator feedback
+                    </p>
 
-            {openIssues.length > 1 ? (
-              <div className="mt-4">
-                <p className="text-sm font-medium text-slate-900">
-                  Open issues
-                </p>
-                <div className="mt-3 space-y-3">
-                  {openIssues.map((issue) => (
-                    <div
-                      key={issue.issue_id}
-                      className="rounded-xl border border-slate-200 p-4"
-                    >
-                      <div className="flex flex-wrap gap-2">
-                        <Badge tone="danger">Open issue</Badge>
-                        <Badge tone="neutral">
-                          Raised {formatDate(issue.created_at)}
+                    {latestIssue.comment ? (
+                      <p className="mt-2 text-sm text-slate-700">
+                        {latestIssue.comment}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-500">
+                        This issue does not include a general comment.
+                      </p>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Badge tone="neutral">
+                        Raised {formatDate(latestIssue.created_at)}
+                      </Badge>
+
+                      {latestIssue.flagged_field_ids.length > 0 ? (
+                        <Badge tone="warning">
+                          {latestIssue.flagged_field_ids.length} flagged field
+                          {latestIssue.flagged_field_ids.length === 1 ? "" : "s"}
                         </Badge>
-                      </div>
+                      ) : null}
+                    </div>
 
-                      {issue.comment ? (
-                        <p className="mt-3 text-sm text-slate-700">
-                          {issue.comment}
+                    {latestIssue.flagged_fields &&
+                    latestIssue.flagged_fields.length > 0 ? (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium text-slate-900">
+                          Flagged fields
                         </p>
-                      ) : (
-                        <p className="mt-3 text-sm text-slate-500">
-                          No general comment was provided.
-                        </p>
-                      )}
-
-                      {issue.flagged_fields &&
-                      issue.flagged_fields.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {issue.flagged_fields.map((field) => (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {latestIssue.flagged_fields.map((field) => (
                             <Badge key={field.field_id} tone="warning">
                               {field.name}
                             </Badge>
                           ))}
                         </div>
-                      ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-600">
+                      No regulator issues have been raised for this study.
+                    </p>
+                  </div>
+                )}
+
+                {openIssues.length > 1 ? (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-slate-900">
+                      Open issues
+                    </p>
+                    <div className="mt-3 space-y-3">
+                      {openIssues.map((issue) => (
+                        <div
+                          key={issue.issue_id}
+                          className="rounded-xl border border-slate-200 p-4"
+                        >
+                          <div className="flex flex-wrap gap-2">
+                            <Badge tone="danger">Open issue</Badge>
+                            <Badge tone="neutral">
+                              Raised {formatDate(issue.created_at)}
+                            </Badge>
+                          </div>
+
+                          {issue.comment ? (
+                            <p className="mt-3 text-sm text-slate-700">
+                              {issue.comment}
+                            </p>
+                          ) : (
+                            <p className="mt-3 text-sm text-slate-500">
+                              No general comment was provided.
+                            </p>
+                          )}
+
+                          {issue.flagged_fields &&
+                          issue.flagged_fields.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {issue.flagged_fields.map((field) => (
+                                <Badge key={field.field_id} tone="warning">
+                                  {field.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+                  </div>
+                ) : null}
 
-            {displayStatus === "changes_requested" && hasOpenIssue ? (
-              <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Action required
-                  </p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    Respond to the latest regulator feedback by updating this
-                    study.
-                  </p>
-                </div>
+                {displayStatus === "changes_requested" && hasOpenIssue ? (
+                  <div className="mt-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Action required
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        Respond to the latest regulator feedback by updating this
+                        study.
+                      </p>
+                    </div>
 
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    navigate(`/researcher/studies/${studyId}/modify`)
-                  }
-                >
-                  Modify study
-                </Button>
-              </div>
-            ) : displayStatus === "changes_requested" && hasRespondedIssue ? (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-sm font-semibold text-slate-900">
-                  Awaiting regulator review
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
-                  You have submitted changes. The study cannot be modified again
-                  until the regulator raises a new issue or approves the study.
-                </p>
-              </div>
-            ) : null}
+                    <Button
+                      variant="primary"
+                      onClick={() =>
+                        navigate(`/researcher/studies/${studyId}/modify`)
+                      }
+                    >
+                      Modify study
+                    </Button>
+                  </div>
+                ) : displayStatus === "changes_requested" && hasRespondedIssue ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Awaiting regulator review
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      You have submitted changes. The study cannot be modified again
+                      until the regulator raises a new issue or approves the study.
+                    </p>
+                  </div>
+                ) : null}
+              </>
+            )}
           </Card>
 
-          {data ? (
-            <ParticipantDataTable data={data} />
-          ) : (
-            <Card>
-              <p className="text-sm text-slate-600">
-                {dataMessage || "Participant data is not currently available."}
-              </p>
-            </Card>
-          )}
+          {!isRejected ? (
+            data ? (
+              <ParticipantDataTable data={data} />
+            ) : (
+              <Card>
+                <p className="text-sm text-slate-600">
+                  {dataMessage || "Participant data is not currently available."}
+                </p>
+              </Card>
+            )
+          ) : null}
 
-          <ResearchTeamCard
+          {!isRejected ? <ResearchTeamCard
             team={team}
             loading={teamLoading}
             error={teamError}
@@ -427,7 +433,7 @@ export default function ResearcherStudyDetailPage() {
             onAdd={handleAddResearcher}
             onUpdateAccess={handleUpdateAccess}
             onRemove={handleRemoveResearcher}
-          />
+          /> : null}
         </div>
       )}
     </AppShell>

@@ -731,30 +731,46 @@ def join_study(study_id):
     if auth_error:
         return auth_error
 
+    data = request.get_json() or {}
+    consented_field_ids = data.get("consented_field_ids", [])
+
+    if not isinstance(consented_field_ids, list):
+        return error("consented_field_ids must be a list")
+
+    study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
+    all_field_ids = {f.field_id for f in study_fields}
+    required_ids = {f.field_id for f in study_fields if f.is_required}
+
+    invalid = [fid for fid in consented_field_ids if fid not in all_field_ids]
+    if invalid:
+        return error(f"invalid field_ids: {invalid}")
+
+    if not required_ids.issubset(set(consented_field_ids)):
+        return error("all required fields must be consented to when joining")
+
     link = StudyParticipant(
         study_id=study_id,
         participant_id=current_user.user_id,
-        consent_all_fields=False,
+        consent_all_fields=(len(consented_field_ids) == len(all_field_ids)),
     )
     db.session.add(link)
-    log_action("participant_joined", user_id=current_user.user_id, study_id=study_id)
-    db.session.commit()
-    # Remove auto consent logic:
-    ''' required_fields = StudyRequiredField.query.filter_by(
-        study_id=study_id,
-        is_required=True
-    ).all()
-    for required in required_fields:
+
+    for fid in consented_field_ids:
         db.session.add(StudyParticipantConsentedField(
             study_id=study_id,
             participant_id=current_user.user_id,
-            field_id=required.field_id,
-        )) '''
+            field_id=fid,
+        ))
+
+    log_action("participant_joined", user_id=current_user.user_id, study_id=study_id,
+               details={"consented_field_count": len(consented_field_ids)})
+    db.session.commit()
 
     return jsonify({
-        "message": "participant joined study and consented to all required fields by default",
+        "message": "participant joined study",
         "study_id": study_id,
         "participant_id": current_user.user_id,
+        "consented_field_ids": consented_field_ids,
     }), 201
 
 
