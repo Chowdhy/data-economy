@@ -7,7 +7,7 @@ import Input from "~/components/ui/Input";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
-import type { FieldDescription } from "~/lib/types";
+import type { FieldDescription, FieldType } from "~/lib/types";
 
 export default function CreateStudyPage() {
   const navigate = useNavigate();
@@ -35,6 +35,8 @@ export default function CreateStudyPage() {
   // Inline field creation state
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldDesc, setNewFieldDesc] = useState("");
+  const [newFieldType, setNewFieldType] = useState<FieldType>("text");
+  const [newFieldOptionsText, setNewFieldOptionsText] = useState("");
   const [newFieldGroup, setNewFieldGroup] = useState<"required" | "optional">(
     "required",
   );
@@ -83,6 +85,53 @@ export default function CreateStudyPage() {
     setRequiredFieldIds((current) => current.filter((id) => id !== fieldId));
   }
 
+  function parseEnumOptions(optionsText: string) {
+    return Array.from(
+      new Set(
+        optionsText
+          .split("\n")
+          .map((option) => option.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
+  function renderFieldCard(field: FieldDescription) {
+    const isEnum = field.field_type === "enum";
+    const options = field.options || [];
+
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-slate-900">
+            {field.field_name}
+          </p>
+
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600">
+            {isEnum ? "Multiple choice" : "Free text"}
+          </span>
+        </div>
+
+        {field.field_desc ? (
+          <p className="mt-1 text-sm text-slate-500">{field.field_desc}</p>
+        ) : null}
+
+        {isEnum && options.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {options.map((option) => (
+              <span
+                key={option.option_id}
+                className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-600 ring-1 ring-slate-200"
+              >
+                {option.value}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   async function handleCreateField(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setFieldMessage("");
@@ -93,12 +142,22 @@ export default function CreateStudyPage() {
       return;
     }
 
+    const enumOptions =
+      newFieldType === "enum" ? parseEnumOptions(newFieldOptionsText) : [];
+
+    if (newFieldType === "enum" && enumOptions.length < 2) {
+      setFieldError("Multiple choice fields need at least two unique options.");
+      return;
+    }
+
     try {
       setCreatingField(true);
 
       const createdField = await api.createField({
         field_name: newFieldName.trim(),
         field_desc: newFieldDesc.trim() || undefined,
+        field_type: newFieldType,
+        options: enumOptions,
       });
 
       const createdFieldId = createdField.field.field_id;
@@ -128,6 +187,8 @@ export default function CreateStudyPage() {
       setFieldMessage("Field created successfully.");
       setNewFieldName("");
       setNewFieldDesc("");
+      setNewFieldType("text");
+      setNewFieldOptionsText("");
       setNewFieldGroup("required");
     } catch (err) {
       setFieldError(
@@ -164,9 +225,7 @@ export default function CreateStudyPage() {
       !Number.isInteger(parsedDataCollectionMonths) ||
       parsedDataCollectionMonths <= 0
     ) {
-      setError(
-        "Please enter a valid data collection duration in whole months.",
-      );
+      setError("Please enter a valid data collection duration in whole months.");
       return;
     }
 
@@ -330,16 +389,8 @@ export default function CreateStudyPage() {
                             }
                             className="mt-1"
                           />
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {field.field_name}
-                            </p>
-                            {field.field_desc ? (
-                              <p className="text-sm text-slate-500">
-                                {field.field_desc}
-                              </p>
-                            ) : null}
-                          </div>
+
+                          {renderFieldCard(field)}
                         </label>
                       ))}
                     </div>
@@ -376,16 +427,8 @@ export default function CreateStudyPage() {
                             }
                             className="mt-1"
                           />
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {field.field_name}
-                            </p>
-                            {field.field_desc ? (
-                              <p className="text-sm text-slate-500">
-                                {field.field_desc}
-                              </p>
-                            ) : null}
-                          </div>
+
+                          {renderFieldCard(field)}
                         </label>
                       ))}
                     </div>
@@ -454,6 +497,39 @@ export default function CreateStudyPage() {
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
               />
             </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Field type
+              </label>
+              <select
+                value={newFieldType}
+                onChange={(e) => setNewFieldType(e.target.value as FieldType)}
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="text">Free text</option>
+                <option value="enum">Multiple choice</option>
+              </select>
+            </div>
+
+            {newFieldType === "enum" ? (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Options
+                </label>
+                <textarea
+                  value={newFieldOptionsText}
+                  onChange={(e) => setNewFieldOptionsText(e.target.value)}
+                  rows={5}
+                  placeholder={`One option per line, e.g.\nYes\nNo\nPrefer not to say`}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Add one option per line. Duplicate or empty options will be
+                  ignored.
+                </p>
+              </div>
+            ) : null}
 
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">
