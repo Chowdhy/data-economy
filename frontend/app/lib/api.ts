@@ -18,7 +18,7 @@ import type {
 } from "./types";
 import { clearAuthSession, getAccessToken } from "./auth";
 
-const API_BASE = "http://127.0.0.1:5000/api";
+const API_BASE = "/api";
 
 interface RequestOptions extends RequestInit {
   includeAuth?: boolean;
