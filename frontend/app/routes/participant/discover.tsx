@@ -55,13 +55,13 @@ export default function ParticipantDiscoverPage() {
 
   function handleExpandStudy(study: AvailableStudy) {
     setExpandedStudyId(study.study_id);
-    // Default: no optional fields selected
     setSelectedOptional((prev) => ({
       ...prev,
       [study.study_id]: prev[study.study_id] ?? [],
     }));
     setError("");
     setMessage("");
+    api.logStudyView(study.study_id).catch(() => {});
   }
 
   function toggleOptional(studyId: number, fieldId: number) {

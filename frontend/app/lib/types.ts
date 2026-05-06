@@ -180,7 +180,7 @@ export interface ActivityLog {
   user_id: number | null;
   study_id: number | null;
   action: string;
-  details: Record<string, unknown> | null;
+  message: string;
   created_at: string;
 }
 

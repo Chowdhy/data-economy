@@ -209,6 +209,9 @@ export const api = {
       body: JSON.stringify({ answers }),
     }),
 
+  getAllStudies: () =>
+    request<{ studies: RegulatorStudy[] }>("/admin/studies"),
+
   getPendingStudies: () =>
     request<{ studies: RegulatorStudy[] }>("/admin/studies/pending"),
 
@@ -262,11 +265,14 @@ export const api = {
       issues: StudyIssue[];
     }>(`/admin/studies/${studyId}/issues`),
 
-  getUserLogs: (userId: number) =>
-    request<{ logs: ActivityLog[] }>(`/users/${userId}/logs`),
+  getAllLogs: () =>
+    request<{ logs: ActivityLog[] }>(`/admin/logs`),
 
   getStudyLogs: (studyId: number) =>
     request<{ logs: ActivityLog[] }>(`/admin/studies/${studyId}/logs`),
+
+  logStudyView: (studyId: number) =>
+    request<{ message: string }>(`/studies/${studyId}/view`, { method: "POST" }),
 
   getStudyResearchers: (studyId: number) =>
     request<{ study_id: number; researchers: StudyResearcher[] }>(
