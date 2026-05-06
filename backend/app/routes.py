@@ -178,6 +178,53 @@ def serialise_study_researcher(sr, study_creator_id):
         "is_creator": sr.researcher_id == study_creator_id,
     }
 
+def format_log_message(log, details, names):
+    def name(uid):
+        return names.get(uid) or f"User {uid}"
+
+    def ref(key):
+        try:
+            uid = int(details.get(key)) if details and details.get(key) is not None else None
+        except (TypeError, ValueError):
+            uid = None
+        return names.get(uid) if uid and names.get(uid) else (f"User {uid}" if uid else "?")
+
+    actor = name(log.user_id)
+
+    if log.action == "study_created":
+        return f"{actor} CREATED this study"
+    if log.action == "study_viewed":
+        return f"{actor} VIEWED this study"
+    if log.action == "participant_joined":
+        return f"{actor} ENROLLED in this study"
+    if log.action == "participant_withdrew":
+        return f"{actor} WITHDREW from this study"
+    if log.action == "consent_modified":
+        return f"{actor} MODIFIED their consent for this study"
+    if log.action == "answers_submitted":
+        return f"{actor} SUBMITTED answers for this study"
+    if log.action == "study_approved":
+        return f"{actor} APPROVED this study"
+    if log.action == "study_rejected":
+        reason = details.get("reason", "") if details else ""
+        base = f"{actor} REJECTED this study"
+        return f"{base} — Reason: {reason}" if reason else base
+    if log.action == "study_modified":
+        return f"{actor} SUBMITTED a modification for this study"
+    if log.action == "issue_raised":
+        return f"{actor} RAISED an issue on this study"
+    if log.action == "researcher_added":
+        added = ref("added_researcher_id")
+        return f"{actor} ADDED {added} to this study"
+    if log.action == "researcher_access_updated":
+        target = ref("researcher_id")
+        level = details.get("new_access_level", "") if details else ""
+        suffix = f" to {level}" if level else ""
+        return f"{actor} UPDATED access for {target}{suffix}"
+    if log.action == "researcher_removed":
+        removed = ref("removed_researcher_id")
+        return f"{actor} REMOVED {removed} from this study"
+    return f"{actor} performed {log.action.replace('_', ' ')}"
 def serialise_field_option(option):
     return {
         "option_id": option.option_id,
@@ -192,12 +239,27 @@ def serialise_log_entry(log):
             details = json.loads(log.details)
         except (json.JSONDecodeError, TypeError):
             details = log.details
+
+    user_ids = set()
+    if log.user_id:
+        user_ids.add(log.user_id)
+    if details:
+        for key in ("added_researcher_id", "removed_researcher_id", "researcher_id"):
+            try:
+                val = details.get(key)
+                if val is not None:
+                    user_ids.add(int(val))
+            except (TypeError, ValueError):
+                pass
+
+    names = {u.user_id: u.name for u in User.query.filter(User.user_id.in_(user_ids)).all()} if user_ids else {}
+
     return {
         "log_id": log.log_id,
         "user_id": log.user_id,
         "study_id": log.study_id,
         "action": log.action,
-        "details": details,
+        "message": format_log_message(log, details, names),
         "created_at": log.created_at.isoformat(),
     }
 
@@ -764,7 +826,23 @@ def create_study():
         }
     }), 201
 
-# Current functionality: 
+@api.route("/studies/<int:study_id>/view", methods=["POST"])
+@jwt_required()
+def log_study_view(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    if current_user.role_id != "participant":
+        return jsonify({"message": "view not tracked for this role"}), 200
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+    log_action("study_viewed", user_id=current_user.user_id, study_id=study_id)
+    db.session.commit()
+    return jsonify({"message": "view logged"}), 200
+
+
+# Current functionality:
 # - Require JWT and role check for participant
 # - Get study by ID and validate it exists
 # - Policy check that the study is open for joining
@@ -804,30 +882,46 @@ def join_study(study_id):
     if auth_error:
         return auth_error
 
+    data = request.get_json() or {}
+    consented_field_ids = data.get("consented_field_ids", [])
+
+    if not isinstance(consented_field_ids, list):
+        return error("consented_field_ids must be a list")
+
+    study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
+    all_field_ids = {f.field_id for f in study_fields}
+    required_ids = {f.field_id for f in study_fields if f.is_required}
+
+    invalid = [fid for fid in consented_field_ids if fid not in all_field_ids]
+    if invalid:
+        return error(f"invalid field_ids: {invalid}")
+
+    if not required_ids.issubset(set(consented_field_ids)):
+        return error("all required fields must be consented to when joining")
+
     link = StudyParticipant(
         study_id=study_id,
         participant_id=current_user.user_id,
-        consent_all_fields=False,
+        consent_all_fields=(len(consented_field_ids) == len(all_field_ids)),
     )
     db.session.add(link)
-    log_action("participant_joined", user_id=current_user.user_id, study_id=study_id)
-    db.session.commit()
-    # Remove auto consent logic:
-    ''' required_fields = StudyRequiredField.query.filter_by(
-        study_id=study_id,
-        is_required=True
-    ).all()
-    for required in required_fields:
+
+    for fid in consented_field_ids:
         db.session.add(StudyParticipantConsentedField(
             study_id=study_id,
             participant_id=current_user.user_id,
-            field_id=required.field_id,
-        )) '''
+            field_id=fid,
+        ))
+
+    log_action("participant_joined", user_id=current_user.user_id, study_id=study_id,
+               details={"consented_field_count": len(consented_field_ids)})
+    db.session.commit()
 
     return jsonify({
-        "message": "participant joined study and consented to all required fields by default",
+        "message": "participant joined study",
         "study_id": study_id,
         "participant_id": current_user.user_id,
+        "consented_field_ids": consented_field_ids,
     }), 201
 
 
@@ -1967,6 +2061,22 @@ def modify_study(study_id):
     }), 200
 
 #Used to return the pending studies with all the info
+@api.route("/admin/studies", methods=["GET"])
+@jwt_required()
+def list_all_studies():
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    if current_user.role_id != "regulator":
+        return error("only regulators can view all studies", 403)
+    studies = Study.query.order_by(Study.study_id.desc()).all()
+    results = []
+    for study in studies:
+        refresh_study_status(study)
+        results.append(serialise_study_summary(study))
+    return jsonify({"studies": results}), 200
+
+
 @api.route("/admin/studies/pending", methods=["GET"])
 @jwt_required()
 def list_pending_studies():
@@ -2123,8 +2233,8 @@ def get_user_logs(user_id):
     if not current_user:
         return error("user not found", 404)
 
-    if current_user.user_id != user_id and current_user.role_id != "regulator":
-        return error("not allowed to view this user's logs", 403)
+    if current_user.role_id != "regulator":
+        return error("only regulators can view user logs", 403)
 
     logs = (
         ActivityLog.query
@@ -2134,6 +2244,23 @@ def get_user_logs(user_id):
         .all()
     )
 
+    return jsonify({"logs": [serialise_log_entry(l) for l in logs]}), 200
+
+
+@api.route("/admin/logs", methods=["GET"])
+@jwt_required()
+def get_all_logs():
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+    if current_user.role_id != "regulator":
+        return error("only regulators can view all logs", 403)
+    logs = (
+        ActivityLog.query
+        .order_by(ActivityLog.created_at.desc())
+        .limit(200)
+        .all()
+    )
     return jsonify({"logs": [serialise_log_entry(l) for l in logs]}), 200
 
 
