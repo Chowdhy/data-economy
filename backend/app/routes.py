@@ -178,6 +178,7 @@ def serialise_study_researcher(sr, study_creator_id):
         "is_creator": sr.researcher_id == study_creator_id,
     }
 
+<<<<<<< HEAD
 def serialise_field_option(option):
     return {
         "option_id": option.option_id,
@@ -185,6 +186,8 @@ def serialise_field_option(option):
         "display_order": option.display_order,
     }
 
+=======
+>>>>>>> 0aa0380d01bd1861e35fc951882c077d402ecd00
 def format_log_message(log, details, names):
     def name(uid):
         return names.get(uid) or f"User {uid}"
@@ -232,6 +235,15 @@ def format_log_message(log, details, names):
         removed = ref("removed_researcher_id")
         return f"{actor} REMOVED {removed} from this study"
     return f"{actor} performed {log.action.replace('_', ' ')}"
+<<<<<<< HEAD
+=======
+def serialise_field_option(option):
+    return {
+        "option_id": option.option_id,
+        "value": option.value,
+        "display_order": option.display_order,
+    }
+>>>>>>> 0aa0380d01bd1861e35fc951882c077d402ecd00
 
 def serialise_log_entry(log):
     details = None
