@@ -10,40 +10,37 @@ from .routes import api
 
 
 def get_base_dir() -> Path:
-    """
-    Returns the base directory for both normal Python execution and PyInstaller.
-
-    Normal project structure:
-        data-economy/
-        ├── backend/
-        │   └── app/
-        │       └── __init__.py
-        └── frontend/
-            └── dist/
-
-    In PyInstaller:
-        files are unpacked into sys._MEIPASS temporarily.
-    """
-
     if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)
 
-    # __file__ = backend/app/__init__.py
-    # parents[0] = backend/app
-    # parents[1] = backend
-    # parents[2] = project root
+    # backend/app/__init__.py -> backend -> project root
     return Path(__file__).resolve().parents[2]
+
+
+def find_frontend_build_dir(base_dir: Path) -> Path | None:
+    possible_paths = [
+        base_dir / "frontend" / "dist",
+        base_dir / "frontend" / "build" / "client",
+        base_dir / "frontend" / "build",
+    ]
+
+    for path in possible_paths:
+        if (path / "index.html").exists():
+            return path
+
+    return None
 
 
 def create_app():
     base_dir = get_base_dir()
-    frontend_dist = base_dir / "frontend" / "dist"
+    frontend_build_dir = find_frontend_build_dir(base_dir)
 
-    app = Flask(
-        __name__,
-        static_folder=str(frontend_dist) if frontend_dist.exists() else None,
-        static_url_path="",
-    )
+    print("BASE DIR:", base_dir)
+    print("FRONTEND BUILD DIR:", frontend_build_dir)
+
+    # Disable Flask's automatic /static route.
+    # We will serve the React build ourselves below.
+    app = Flask(__name__, static_folder=None)
 
     CORS(
         app,
@@ -66,34 +63,42 @@ def create_app():
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # API routes must be registered before the React catch-all route.
     app.register_blueprint(api, url_prefix="/api")
 
     @app.route("/")
     def serve_react_index():
-        if not frontend_dist.exists():
+        if frontend_build_dir is None:
             return {
-                "message": "Frontend build not found. Run `npm run build` inside the frontend folder first."
+                "message": (
+                    "Frontend build not found. Run `npm run build` inside the frontend folder first. "
+                    "Expected one of: frontend/dist, frontend/build/client, or frontend/build."
+                )
             }, 404
 
-        return send_from_directory(frontend_dist, "index.html")
+        return send_from_directory(frontend_build_dir, "index.html")
+
+    @app.route("/assets/<path:filename>")
+    def serve_react_assets(filename):
+        if frontend_build_dir is None:
+            return {"message": "Frontend build not found."}, 404
+
+        return send_from_directory(frontend_build_dir / "assets", filename)
 
     @app.route("/<path:path>")
     def serve_react_routes(path):
-        if not frontend_dist.exists():
+        if frontend_build_dir is None:
             return {
-                "message": "Frontend build not found. Run `npm run build` inside the frontend folder first."
+                "message": (
+                    "Frontend build not found. Run `npm run build` inside the frontend folder first. "
+                    "Expected one of: frontend/dist, frontend/build/client, or frontend/build."
+                )
             }, 404
 
-        requested_file = frontend_dist / path
+        requested_file = frontend_build_dir / path
 
         if requested_file.exists() and requested_file.is_file():
-            return send_from_directory(frontend_dist, path)
+            return send_from_directory(frontend_build_dir, path)
 
-        # This is important for React Router routes like:
-        # /participant/dashboard
-        # /researcher/studies/1
-        # /regulator/studies
-        return send_from_directory(frontend_dist, "index.html")
+        return send_from_directory(frontend_build_dir, "index.html")
 
     return app
