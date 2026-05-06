@@ -2,6 +2,7 @@ from app import create_app
 from app.extensions import db
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
+from sqlalchemy import text
 import argparse
 import random
 
@@ -687,24 +688,30 @@ def add_user(name, email, password, role_id, is_active=True):
 
 
 def add_field(field_def):
+    explicit_field_id = field_def.get("field_id")
+
     field = FieldDescription(
-        field_id=field_def.get("field_id"),
+        field_id=explicit_field_id,
         field_name=field_def["field_name"],
         field_desc=field_def["field_desc"],
-        field_type=field_def["field_type"],
+        field_type=field_def.get("field_type", "text"),
+        created_by=field_def.get("created_by"),
     )
 
     db.session.add(field)
     db.session.flush()
 
-    for index, option_value in enumerate(field_def.get("options", [])):
-        db.session.add(
-            FieldOption(
-                field_id=field.field_id,
-                value=option_value,
-                display_order=index,
-            )
-        )
+    # PostgreSQL sequences do not automatically advance when we insert
+    # explicit primary keys like field_id=1 or field_id=2.
+    # SQLite handles this differently, so this is only needed for Postgres.
+    if db.engine.dialect.name == "postgresql":
+        db.session.execute(text("""
+            SELECT setval(
+                pg_get_serial_sequence('field_descriptions', 'field_id'),
+                COALESCE((SELECT MAX(field_id) FROM field_descriptions), 1),
+                TRUE
+            );
+        """))
 
     return field
 
@@ -1032,6 +1039,8 @@ def seed_data(participant_count, study_count, random_seed):
     fields = []
     field_defs_by_id = {}
 
+    db.session.commit()
+    
     for field_def in FIELD_DEFINITIONS:
         field = add_field(field_def)
         fields.append(field)
