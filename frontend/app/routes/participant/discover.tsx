@@ -109,23 +109,6 @@ export default function ParticipantDiscoverPage() {
                         {study.description}
                       </p>
                     ) : null}
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Badge tone="neutral">{study.status}</Badge>
-                      {study.data_collection_months ? (
-                        <Badge tone="neutral">
-                          {study.data_collection_months} months
-                        </Badge>
-                      ) : null}
-                      <Badge tone="success">
-                        {requiredFields.length} required fields
-                      </Badge>
-                      {optionalFields.length > 0 ? (
-                        <Badge tone="neutral">
-                          {optionalFields.length} optional fields
-                        </Badge>
-                      ) : null}
-                    </div>
                   </div>
 
                   <Button

@@ -249,7 +249,7 @@ FIELD_DEFINITIONS = [
     {
         "field_id": 2,
         "field_name": "postcode",
-        "field_desc": "Participant postcode. Used for regional and k-anonymity demonstrations.",
+        "field_desc": "Participant's postcode",
         "field_type": "text",
         "options": [],
         "generator": random_postcode,

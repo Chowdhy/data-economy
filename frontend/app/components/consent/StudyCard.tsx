@@ -1,6 +1,10 @@
 import Badge from "~/components/ui/Badge";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
+import {
+  getResearcherDisplayStatus,
+  getResearcherDisplayStatusMeta,
+} from "~/lib/studyStatus";
 import { formatDate } from "~/lib/utils";
 
 interface StudyCardProps {
@@ -23,6 +27,10 @@ export default function StudyCard({
   onWithdrawStudy,
   onModifyConsent,
 }: StudyCardProps) {
+  const displayStatus = getResearcherDisplayStatus(study.status);
+  const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
+  const canModifyStudy = displayStatus === "open";
+
   return (
     <Card>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -39,7 +47,8 @@ export default function StudyCard({
           <Badge tone={study.consent_all_fields ? "success" : "warning"}>
             {study.consent_all_fields ? "Full consent" : "Partial consent"}
           </Badge>
-          <Badge tone="neutral">{study.status}</Badge>
+
+          <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
         </div>
       </div>
 
@@ -49,14 +58,17 @@ export default function StudyCard({
         </p>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="secondary" onClick={onModifyConsent}>
-          Manage consent
-        </Button>
-        <Button variant="ghost" onClick={onWithdrawStudy}>
-          Leave study
-        </Button>
-      </div>
+      {canModifyStudy ? (
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button variant="primary" onClick={onModifyConsent}>
+            Manage consent
+          </Button>
+
+          <Button variant="ghost" onClick={onWithdrawStudy}>
+            Leave study
+          </Button>
+        </div>
+      ) : null}
     </Card>
   );
 }
