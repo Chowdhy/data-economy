@@ -24,7 +24,7 @@ export default function Sidebar({ role }: SidebarProps) {
           ]
         : [
             { to: "/regulator/dashboard", label: "Dashboard" },
-            { to: "/regulator/studies", label: "Pending Studies" },
+            { to: "/regulator/studies", label: "Studies" },
           ];
 
   return (

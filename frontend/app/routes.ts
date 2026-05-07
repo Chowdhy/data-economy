@@ -24,4 +24,8 @@ export default [
   route("/regulator/dashboard", "routes/regulator/dashboard.tsx"),
   route("/regulator/studies", "routes/regulator/studies.tsx"),
   route("/regulator/studies/:studyId", "routes/regulator/study.$studyId.tsx"),
+  route(
+    "/regulator/studies/:studyId/logs",
+    "routes/regulator/study.$studyId.logs.tsx",
+  ),
 ] satisfies RouteConfig;
