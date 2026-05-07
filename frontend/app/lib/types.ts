@@ -236,6 +236,7 @@ export interface CreateFieldResponse {
 export interface ActivityLog {
   log_id: number;
   user_id: number | null;
+  user_name: string | null;
   study_id: number | null;
   action: string;
   details: Record<string, unknown> | null;

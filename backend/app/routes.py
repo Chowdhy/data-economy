@@ -192,9 +192,14 @@ def serialise_log_entry(log):
             details = json.loads(log.details)
         except (json.JSONDecodeError, TypeError):
             details = log.details
+    user_name = None
+    if log.user_id:
+        user = User.query.get(log.user_id)
+        user_name = user.name if user else None
     return {
         "log_id": log.log_id,
         "user_id": log.user_id,
+        "user_name": user_name,
         "study_id": log.study_id,
         "action": log.action,
         "details": details,
@@ -1972,6 +1977,28 @@ def modify_study(study_id):
         "issue_status": issue.status,
         "modification_id": modification.modification_id
     }), 200
+
+@api.route("/admin/studies/all", methods=["GET"])
+@jwt_required()
+def list_all_studies():
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    if current_user.role_id != "regulator":
+        return error("only regulators can view all studies", 403)
+
+    studies = (
+        Study.query
+        .filter(Study.status.in_(["pending", "open", "ongoing", "complete"]))
+        .order_by(Study.study_id.desc())
+        .all()
+    )
+
+    for study in studies:
+        refresh_study_status(study)
+
+    return jsonify({"studies": [serialise_study_summary(s) for s in studies]}), 200
 
 #Used to return the pending studies with all the info
 @api.route("/admin/studies/pending", methods=["GET"])

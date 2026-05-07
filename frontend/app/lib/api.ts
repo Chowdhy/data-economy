@@ -224,6 +224,9 @@ export const api = {
   getPendingStudies: () =>
     request<{ studies: RegulatorStudy[] }>("/admin/studies/pending"),
 
+  getAllRegulatorStudies: () =>
+    request<{ studies: RegulatorStudy[] }>("/admin/studies/all"),
+
   approveStudy: (studyId: number) =>
     request<{
       message: string;
