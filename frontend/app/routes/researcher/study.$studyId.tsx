@@ -178,7 +178,7 @@ export default function ResearcherStudyDetailPage() {
     <AppShell
       role="researcher"
       title={study ? study.study_name : "Study Details"}
-      subtitle="Review the research team, study details, and anonymised study data where available."
+      subtitle="Review the research team, study details and study data where available."
     >
       <SectionHeading
         title="Study details"
@@ -436,16 +436,9 @@ export default function ResearcherStudyDetailPage() {
             </Card>
           ) : null}
 
-          {data ? (
+          {study?.status === "ongoing" && data ? (
             <ParticipantDataTable data={data} />
-          ) : (
-            <Card>
-              <p className="text-sm text-slate-600">
-                {dataMessage ||
-                  "Anonymised study data is not currently available."}
-              </p>
-            </Card>
-          )}
+          ) : null}
         </div>
       )}
     </AppShell>

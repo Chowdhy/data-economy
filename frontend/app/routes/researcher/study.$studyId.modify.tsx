@@ -212,7 +212,7 @@ export default function ModifyStudyPage() {
   const issueCount = issues.length;
   const displayStatus = study
     ? getResearcherDisplayStatus(study.status, issueCount)
-    : "awaiting_approval";
+    : "pending";
   const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
   const latestIssue = issues.length > 0 ? issues[0] : null;
   const issueId = latestIssue?.issue_id ?? 0;
@@ -422,6 +422,7 @@ export default function ModifyStudyPage() {
                       {availableFields.map((field) => {
                         const isFlagged =
                           flaggedFieldIds.includes(field.field_id) &&
+                          study.required_field_ids.includes(field.field_id) &&
                           requiredFieldIds.includes(field.field_id);
 
                         return (
@@ -472,6 +473,7 @@ export default function ModifyStudyPage() {
                       {availableFields.map((field) => {
                         const isFlagged =
                           flaggedFieldIds.includes(field.field_id) &&
+                          study.optional_field_ids.includes(field.field_id) &&
                           optionalFieldIds.includes(field.field_id);
 
                         return (

@@ -74,7 +74,7 @@ export default function StudyOverviewCard({
         </Button>
 
         {displayStatus === "issues_raised" && onModify ? (
-          <Button variant="secondary" onClick={onModify}>
+          <Button variant="primary" onClick={onModify}>
             Modify study
           </Button>
         ) : null}

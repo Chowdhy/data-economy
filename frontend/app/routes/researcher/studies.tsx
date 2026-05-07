@@ -60,14 +60,10 @@ export default function ResearcherStudiesPage() {
   }
 
   return (
-    <AppShell
-      role="researcher"
-      title="Studies"
-      subtitle="Review each study's approval status, requested changes, field requirements, and participant count."
-    >
+    <AppShell role="researcher" title="Studies">
       <SectionHeading
         title="Study list"
-        description="This page gives a more detailed overview of the studies you have created."
+        description="Review each study's approval status, requested changes, field requirements and participant count."
       />
 
       {loading ? (
@@ -157,7 +153,7 @@ export default function ResearcherStudiesPage() {
 
                   {displayStatus === "issues_raised" && study.has_open_issue ? (
                     <Button
-                      variant="secondary"
+                      variant="primary"
                       onClick={() =>
                         navigate(`/researcher/studies/${study.study_id}/modify`)
                       }
