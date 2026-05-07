@@ -63,11 +63,7 @@ export default function ResearcherDashboard() {
   ).length;
 
   return (
-    <AppShell
-      role="researcher"
-      title="Researcher Dashboard"
-      subtitle="Manage studies, review participation, and access only consented data."
-    >
+    <AppShell role="researcher" title="Researcher Dashboard">
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card>

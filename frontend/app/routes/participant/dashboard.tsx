@@ -49,7 +49,7 @@ export default function ParticipantDashboard() {
       await loadStudies();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to withdraw from study"
+        err instanceof Error ? err.message : "Failed to withdraw from study",
       );
     }
   }
@@ -60,15 +60,11 @@ export default function ParticipantDashboard() {
 
   const fullConsentCount = studies.filter((s) => s.consent_all_fields).length;
   const partialConsentCount = studies.filter(
-    (s) => !s.consent_all_fields
+    (s) => !s.consent_all_fields,
   ).length;
 
   return (
-    <AppShell
-      role="participant"
-      title="Participant Dashboard"
-      subtitle="Review your studies and manage what data you consent to share."
-    >
+    <AppShell role="participant" title="Participant Dashboard">
       <div className="space-y-6">
         <ConsentSummary
           totalStudies={studies.length}
@@ -82,9 +78,13 @@ export default function ParticipantDashboard() {
               Discover open studies
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Browse studies you can join and review the required information before opting in.
+              Browse studies you can join and review the required information
+              before opting in.
             </p>
-            <Button className="mt-4" onClick={() => navigate("/participant/discover")}>
+            <Button
+              className="mt-4"
+              onClick={() => navigate("/participant/discover")}
+            >
               Find studies
             </Button>
           </Card>
@@ -94,7 +94,8 @@ export default function ParticipantDashboard() {
               Update your answers
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Keep your saved participant data current so studies can use your latest information.
+              Keep your saved participant data current so studies can use your
+              latest information.
             </p>
             <Button
               className="mt-4"

@@ -1,17 +1,25 @@
 import { useEffect, useState } from "react";
 import AppShell from "~/components/layout/AppShell";
+import Badge from "~/components/ui/Badge";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
+import {
+  getResearcherDisplayStatus,
+  getResearcherDisplayStatusMeta,
+} from "~/lib/studyStatus";
 import type { FieldDescription, ParticipantStudy } from "~/lib/types";
-import { titleCase } from "~/lib/utils";
 
 export default function ParticipantStudiesPage() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
-  const [draftConsents, setDraftConsents] = useState<Record<number, number[]>>({});
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
+  const [draftConsents, setDraftConsents] = useState<Record<number, number[]>>(
+    {},
+  );
   const [expandedStudyId, setExpandedStudyId] = useState<number | null>(null);
   const [savingStudyId, setSavingStudyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,9 +47,13 @@ export default function ParticipantStudiesPage() {
 
       setStudies(studiesData.studies);
       setAvailableFields(fieldsData.fields);
+
       setDraftConsents(
         Object.fromEntries(
-          studiesData.studies.map((study) => [study.study_id, study.consented_field_ids]),
+          studiesData.studies.map((study) => [
+            study.study_id,
+            study.consented_field_ids,
+          ]),
         ),
       );
     } catch (err) {
@@ -68,12 +80,49 @@ export default function ParticipantStudiesPage() {
     });
   }
 
+  async function handleLeaveStudy(study: ParticipantStudy) {
+    if (!participantId) {
+      return;
+    }
+
+    const confirmLeave = window.confirm(
+      `Are you sure you want to leave "${study.study_name}"? You will no longer be part of this study.`,
+    );
+
+    if (!confirmLeave) {
+      return;
+    }
+
+    try {
+      setSavingStudyId(study.study_id);
+      setError("");
+      setMessage("");
+
+      await api.withdrawFromStudy(study.study_id, participantId);
+
+      setMessage(`${study.study_name}: you have left the study.`);
+      await loadStudies();
+
+      if (expandedStudyId === study.study_id) {
+        setExpandedStudyId(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to leave study");
+    } finally {
+      setSavingStudyId(null);
+    }
+  }
+
   async function handleSave(study: ParticipantStudy) {
     if (!participantId) {
       return;
     }
 
-    const consentedFieldIds = draftConsents[study.study_id] || [];
+    const selectedFieldIds = draftConsents[study.study_id] || [];
+
+    const consentedFieldIds = Array.from(
+      new Set([...study.required_field_ids, ...selectedFieldIds]),
+    );
 
     try {
       setSavingStudyId(study.study_id);
@@ -86,7 +135,10 @@ export default function ParticipantStudiesPage() {
         consentedFieldIds,
       );
 
-      if (response.message === "withdrawn from study due to removing required fields") {
+      if (
+        response.message ===
+        "withdrawn from study due to removing required fields"
+      ) {
         setMessage(
           `${study.study_name}: removing a required field withdrew you from the study.`,
         );
@@ -95,6 +147,7 @@ export default function ParticipantStudiesPage() {
       }
 
       await loadStudies();
+
       if (expandedStudyId === study.study_id) {
         setExpandedStudyId(null);
       }
@@ -110,17 +163,16 @@ export default function ParticipantStudiesPage() {
   }, [participantId]);
 
   return (
-    <AppShell
-      role="participant"
-      title="My Studies"
-      subtitle="Review the fields each study can access and update your consent while the study is open."
-    >
+    <AppShell role="participant" title="My Studies">
       <SectionHeading
         title="Study consent details"
         description="Required fields keep you enrolled. Optional fields can be toggled on or off while the study is open."
       />
 
-      {message ? <p className="mb-4 text-sm text-emerald-700">{message}</p> : null}
+      {message ? (
+        <p className="mb-4 text-sm text-emerald-700">{message}</p>
+      ) : null}
+
       {error ? <p className="mb-4 text-sm text-rose-600">{error}</p> : null}
 
       {loading ? (
@@ -135,7 +187,14 @@ export default function ParticipantStudiesPage() {
             const requiredFields = getFields(study.required_field_ids);
             const optionalFields = getFields(study.optional_field_ids);
             const selectedFieldIds = draftConsents[study.study_id] || [];
-            const canModify = study.status === "open";
+
+            const effectiveSelectedFieldIds = Array.from(
+              new Set([...study.required_field_ids, ...selectedFieldIds]),
+            );
+
+            const displayStatus = getResearcherDisplayStatus(study.status);
+            const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
+            const canModify = displayStatus === "open";
             const isExpanded = expandedStudyId === study.study_id;
 
             return (
@@ -152,28 +211,30 @@ export default function ParticipantStudiesPage() {
                       </p>
                     ) : null}
 
-                    <p className="mt-2 text-sm text-slate-500">
-                      Status: {titleCase(study.status)}
-                      {study.duration_months
-                        ? ` | Duration: ${study.duration_months} months`
-                        : ""}
-                    </p>
                     <p className="mt-1 text-sm text-slate-500">
-                      Current consent: {selectedFieldIds.length} of{" "}
-                      {study.required_field_ids.length + study.optional_field_ids.length}{" "}
+                      Current consent: {effectiveSelectedFieldIds.length} of{" "}
+                      {study.required_field_ids.length +
+                        study.optional_field_ids.length}{" "}
                       fields
                     </p>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() =>
-                      setExpandedStudyId(isExpanded ? null : study.study_id)
-                    }
-                  >
-                    {isExpanded ? "Hide editor" : "Modify consent"}
-                  </Button>
+                  <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
+                    <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+
+                    {canModify ? (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        className="px-2.5 py-1 text-xs"
+                        onClick={() =>
+                          setExpandedStudyId(isExpanded ? null : study.study_id)
+                        }
+                      >
+                        {isExpanded ? "Hide editor" : "Modify Consent"}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {isExpanded ? (
@@ -182,36 +243,29 @@ export default function ParticipantStudiesPage() {
                       <h3 className="text-sm font-semibold text-slate-900">
                         Required fields
                       </h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Removing any required field will withdraw you from the study.
+
+                      <p className="mt-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        These fields are required for this study. If you no
+                        longer consent to sharing any required field, you must
+                        leave the study.
                       </p>
 
                       <div className="mt-3 space-y-2">
                         {requiredFields.map((field) => (
-                          <label
+                          <div
                             key={field.field_id}
-                            className="flex items-start gap-3 rounded-xl border border-slate-200 p-3"
+                            className="rounded-xl border border-slate-200 bg-slate-50 p-3"
                           >
-                            <input
-                              type="checkbox"
-                              checked={selectedFieldIds.includes(field.field_id)}
-                              onChange={() =>
-                                toggleConsent(study.study_id, field.field_id)
-                              }
-                              disabled={!canModify}
-                              className="mt-1"
-                            />
-                            <div>
-                              <p className="text-sm font-medium text-slate-900">
-                                {field.field_name}
+                            <p className="text-sm font-medium text-slate-900">
+                              {field.field_name}
+                            </p>
+
+                            {field.field_desc ? (
+                              <p className="text-sm text-slate-500">
+                                {field.field_desc}
                               </p>
-                              {field.field_desc ? (
-                                <p className="text-sm text-slate-500">
-                                  {field.field_desc}
-                                </p>
-                              ) : null}
-                            </div>
-                          </label>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -220,8 +274,10 @@ export default function ParticipantStudiesPage() {
                       <h3 className="text-sm font-semibold text-slate-900">
                         Optional fields
                       </h3>
+
                       <p className="mt-1 text-sm text-slate-500">
-                        Optional fields can be shared when you are comfortable doing so.
+                        You can choose which optional fields this study may
+                        access.
                       </p>
 
                       <div className="mt-3 space-y-2">
@@ -237,17 +293,21 @@ export default function ParticipantStudiesPage() {
                             >
                               <input
                                 type="checkbox"
-                                checked={selectedFieldIds.includes(field.field_id)}
+                                checked={selectedFieldIds.includes(
+                                  field.field_id,
+                                )}
                                 onChange={() =>
                                   toggleConsent(study.study_id, field.field_id)
                                 }
                                 disabled={!canModify}
                                 className="mt-1"
                               />
+
                               <div>
                                 <p className="text-sm font-medium text-slate-900">
                                   {field.field_name}
                                 </p>
+
                                 {field.field_desc ? (
                                   <p className="text-sm text-slate-500">
                                     {field.field_desc}
@@ -260,34 +320,28 @@ export default function ParticipantStudiesPage() {
                       </div>
                     </div>
 
-                    {!canModify ? (
-                      <p className="text-sm text-amber-700">
-                        Consent can only be changed while the study status is Open.
-                      </p>
-                    ) : null}
-
                     <div className="flex flex-wrap gap-3">
                       <Button
                         type="button"
                         onClick={() => handleSave(study)}
-                        disabled={!canModify || savingStudyId === study.study_id}
+                        disabled={
+                          !canModify || savingStudyId === study.study_id
+                        }
                       >
                         {savingStudyId === study.study_id
                           ? "Saving..."
                           : "Save consent"}
                       </Button>
+
                       <Button
                         type="button"
                         variant="ghost"
-                        onClick={() =>
-                          setDraftConsents((current) => ({
-                            ...current,
-                            [study.study_id]: study.consented_field_ids,
-                          }))
+                        onClick={() => handleLeaveStudy(study)}
+                        disabled={
+                          !canModify || savingStudyId === study.study_id
                         }
-                        disabled={savingStudyId === study.study_id}
                       >
-                        Reset changes
+                        Leave study
                       </Button>
                     </div>
                   </div>

@@ -49,11 +49,7 @@ export default function RegulatorDashboard() {
   }, [studies]);
 
   return (
-    <AppShell
-      role="regulator"
-      title="Change to Hi [Name]"
-      subtitle="Review submitted studies and approve, reject or request modifications"
-    >
+    <AppShell role="regulator" title="Regulator dashboard">
       <div className="space-y-6">
         {isLoading ? (
           <Card>
