@@ -33,11 +33,7 @@ export default function RegulatorStudiesPage() {
   }, []);
 
   return (
-    <AppShell
-      role="regulator"
-      title="Pending Studies"
-      subtitle="Review studies submitted by researchers before approval."
-    >
+    <AppShell role="regulator" title="Pending Studies">
       <div className="space-y-6">
         <SectionHeading
           title="Studies awaiting review"
