@@ -18,7 +18,7 @@ import type {
 } from "./types";
 import { getAccessToken } from "./auth";
 
-const API_BASE = "http://127.0.0.1:5000/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 interface RequestOptions extends RequestInit {
   includeAuth?: boolean;
