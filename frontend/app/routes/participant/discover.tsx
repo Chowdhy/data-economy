@@ -72,17 +72,15 @@ export default function ParticipantDiscoverPage() {
   }, [participantId]);
 
   return (
-    <AppShell
-      role="participant"
-      title="Join Studies"
-      subtitle="Browse open studies and join the ones that match what you are comfortable sharing."
-    >
+    <AppShell role="participant" title="Join Studies">
       <SectionHeading
         title="Available studies"
-        description="Joining a study automatically shares all required fields first. Optional fields can be managed later."
+        description="Joining a study automatically shares all required fields first. Consent for optional fields can be managed later."
       />
 
-      {message ? <p className="mb-4 text-sm text-emerald-700">{message}</p> : null}
+      {message ? (
+        <p className="mb-4 text-sm text-emerald-700">{message}</p>
+      ) : null}
       {error ? <p className="mb-4 text-sm text-rose-600">{error}</p> : null}
 
       {loading ? (
@@ -135,7 +133,9 @@ export default function ParticipantDiscoverPage() {
                     onClick={() => handleJoinStudy(study.study_id)}
                     disabled={joiningStudyId === study.study_id}
                   >
-                    {joiningStudyId === study.study_id ? "Joining..." : "Join study"}
+                    {joiningStudyId === study.study_id
+                      ? "Joining..."
+                      : "Join study"}
                   </Button>
                 </div>
 

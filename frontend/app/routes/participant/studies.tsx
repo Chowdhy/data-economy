@@ -10,8 +10,12 @@ import { titleCase } from "~/lib/utils";
 
 export default function ParticipantStudiesPage() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
-  const [availableFields, setAvailableFields] = useState<FieldDescription[]>([]);
-  const [draftConsents, setDraftConsents] = useState<Record<number, number[]>>({});
+  const [availableFields, setAvailableFields] = useState<FieldDescription[]>(
+    [],
+  );
+  const [draftConsents, setDraftConsents] = useState<Record<number, number[]>>(
+    {},
+  );
   const [expandedStudyId, setExpandedStudyId] = useState<number | null>(null);
   const [savingStudyId, setSavingStudyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +45,10 @@ export default function ParticipantStudiesPage() {
       setAvailableFields(fieldsData.fields);
       setDraftConsents(
         Object.fromEntries(
-          studiesData.studies.map((study) => [study.study_id, study.consented_field_ids]),
+          studiesData.studies.map((study) => [
+            study.study_id,
+            study.consented_field_ids,
+          ]),
         ),
       );
     } catch (err) {
@@ -86,7 +93,10 @@ export default function ParticipantStudiesPage() {
         consentedFieldIds,
       );
 
-      if (response.message === "withdrawn from study due to removing required fields") {
+      if (
+        response.message ===
+        "withdrawn from study due to removing required fields"
+      ) {
         setMessage(
           `${study.study_name}: removing a required field withdrew you from the study.`,
         );
@@ -110,17 +120,15 @@ export default function ParticipantStudiesPage() {
   }, [participantId]);
 
   return (
-    <AppShell
-      role="participant"
-      title="My Studies"
-      subtitle="Review the fields each study can access and update your consent while the study is open."
-    >
+    <AppShell role="participant" title="My Studies">
       <SectionHeading
         title="Study consent details"
         description="Required fields keep you enrolled. Optional fields can be toggled on or off while the study is open."
       />
 
-      {message ? <p className="mb-4 text-sm text-emerald-700">{message}</p> : null}
+      {message ? (
+        <p className="mb-4 text-sm text-emerald-700">{message}</p>
+      ) : null}
       {error ? <p className="mb-4 text-sm text-rose-600">{error}</p> : null}
 
       {loading ? (
@@ -160,7 +168,8 @@ export default function ParticipantStudiesPage() {
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
                       Current consent: {selectedFieldIds.length} of{" "}
-                      {study.required_field_ids.length + study.optional_field_ids.length}{" "}
+                      {study.required_field_ids.length +
+                        study.optional_field_ids.length}{" "}
                       fields
                     </p>
                   </div>
@@ -183,7 +192,8 @@ export default function ParticipantStudiesPage() {
                         Required fields
                       </h3>
                       <p className="mt-1 text-sm text-slate-500">
-                        Removing any required field will withdraw you from the study.
+                        Removing any required field will withdraw you from the
+                        study.
                       </p>
 
                       <div className="mt-3 space-y-2">
@@ -194,7 +204,9 @@ export default function ParticipantStudiesPage() {
                           >
                             <input
                               type="checkbox"
-                              checked={selectedFieldIds.includes(field.field_id)}
+                              checked={selectedFieldIds.includes(
+                                field.field_id,
+                              )}
                               onChange={() =>
                                 toggleConsent(study.study_id, field.field_id)
                               }
@@ -221,7 +233,8 @@ export default function ParticipantStudiesPage() {
                         Optional fields
                       </h3>
                       <p className="mt-1 text-sm text-slate-500">
-                        Optional fields can be shared when you are comfortable doing so.
+                        Optional fields can be shared when you are comfortable
+                        doing so.
                       </p>
 
                       <div className="mt-3 space-y-2">
@@ -237,7 +250,9 @@ export default function ParticipantStudiesPage() {
                             >
                               <input
                                 type="checkbox"
-                                checked={selectedFieldIds.includes(field.field_id)}
+                                checked={selectedFieldIds.includes(
+                                  field.field_id,
+                                )}
                                 onChange={() =>
                                   toggleConsent(study.study_id, field.field_id)
                                 }
@@ -262,7 +277,8 @@ export default function ParticipantStudiesPage() {
 
                     {!canModify ? (
                       <p className="text-sm text-amber-700">
-                        Consent can only be changed while the study status is Open.
+                        Consent can only be changed while the study status is
+                        Open.
                       </p>
                     ) : null}
 
@@ -270,7 +286,9 @@ export default function ParticipantStudiesPage() {
                       <Button
                         type="button"
                         onClick={() => handleSave(study)}
-                        disabled={!canModify || savingStudyId === study.study_id}
+                        disabled={
+                          !canModify || savingStudyId === study.study_id
+                        }
                       >
                         {savingStudyId === study.study_id
                           ? "Saving..."
