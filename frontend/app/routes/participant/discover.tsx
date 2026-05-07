@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import AppShell from "~/components/layout/AppShell";
-import Badge from "~/components/ui/Badge";
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
@@ -13,6 +12,12 @@ export default function ParticipantDiscoverPage() {
   const [fields, setFields] = useState<FieldDescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningStudyId, setJoiningStudyId] = useState<number | null>(null);
+  const [consentingStudyId, setConsentingStudyId] = useState<number | null>(
+    null,
+  );
+  const [selectedOptionals, setSelectedOptionals] = useState<
+    Record<number, number[]>
+  >({});
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -48,17 +53,44 @@ export default function ParticipantDiscoverPage() {
     return fields.filter((field) => fieldIds.includes(field.field_id));
   }
 
-  async function handleJoinStudy(studyId: number) {
-    if (!participantId) {
-      return;
-    }
+  function openConsentForm(study: AvailableStudy) {
+    setSelectedOptionals((prev) => ({ ...prev, [study.study_id]: [] }));
+    setConsentingStudyId(study.study_id);
+    setError("");
+    setMessage("");
+  }
+
+  function toggleOptional(studyId: number, fieldId: number) {
+    setSelectedOptionals((prev) => {
+      const current = prev[studyId] ?? [];
+      return {
+        ...prev,
+        [studyId]: current.includes(fieldId)
+          ? current.filter((id) => id !== fieldId)
+          : [...current, fieldId],
+      };
+    });
+  }
+
+  async function handleConfirmJoin(study: AvailableStudy) {
+    if (!participantId) return;
+
+    const optionalSelections = selectedOptionals[study.study_id] ?? [];
+    const allConsentedIds = [
+      ...study.required_field_ids,
+      ...optionalSelections,
+    ];
 
     try {
-      setJoiningStudyId(studyId);
+      setJoiningStudyId(study.study_id);
       setError("");
       setMessage("");
-      await api.joinStudy(studyId, participantId);
+
+      await api.joinStudy(study.study_id, participantId);
+      await api.modifyConsent(study.study_id, participantId, allConsentedIds);
+
       setMessage("Study joined successfully.");
+      setConsentingStudyId(null);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join study");
@@ -75,7 +107,7 @@ export default function ParticipantDiscoverPage() {
     <AppShell role="participant" title="Join Studies">
       <SectionHeading
         title="Available studies"
-        description="Joining a study automatically shares all required fields first. Consent for optional fields can be managed later."
+        description="Review which fields each study requires before joining. You can also consent to optional fields now or manage them later."
       />
 
       {message ? (
@@ -96,6 +128,9 @@ export default function ParticipantDiscoverPage() {
           {studies.map((study) => {
             const requiredFields = getFieldNames(study.required_field_ids);
             const optionalFields = getFieldNames(study.optional_field_ids);
+            const isConsenting = consentingStudyId === study.study_id;
+            const optionalSelections =
+              selectedOptionals[study.study_id] ?? [];
 
             return (
               <Card key={study.study_id}>
@@ -111,56 +146,148 @@ export default function ParticipantDiscoverPage() {
                     ) : null}
                   </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => handleJoinStudy(study.study_id)}
-                    disabled={joiningStudyId === study.study_id}
-                  >
-                    {joiningStudyId === study.study_id
-                      ? "Joining..."
-                      : "Join study"}
-                  </Button>
+                  {!isConsenting ? (
+                    <Button
+                      type="button"
+                      onClick={() => openConsentForm(study)}
+                      disabled={joiningStudyId === study.study_id}
+                    >
+                      Join study
+                    </Button>
+                  ) : null}
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Required fields
-                    </h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {requiredFields.map((field) => (
-                        <span
-                          key={`${study.study_id}-required-${field.field_id}`}
-                          className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
-                        >
-                          {field.field_name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Optional fields
-                    </h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {optionalFields.length > 0 ? (
-                        optionalFields.map((field) => (
+                {!isConsenting ? (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Required fields
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {requiredFields.map((field) => (
                           <span
-                            key={`${study.study_id}-optional-${field.field_id}`}
-                            className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+                            key={`${study.study_id}-required-${field.field_id}`}
+                            className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
                           >
                             {field.field_name}
                           </span>
-                        ))
-                      ) : (
-                        <p className="text-sm text-slate-500">
-                          No optional fields.
-                        </p>
-                      )}
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Optional fields
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {optionalFields.length > 0 ? (
+                          optionalFields.map((field) => (
+                            <span
+                              key={`${study.study_id}-optional-${field.field_id}`}
+                              className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+                            >
+                              {field.field_name}
+                            </span>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-500">
+                            No optional fields.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="mt-5 space-y-5 border-t border-slate-200 pt-5">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Required fields
+                      </h3>
+                      <p className="mt-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        You must consent to these fields to join this study.
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {requiredFields.map((field) => (
+                          <div
+                            key={field.field_id}
+                            className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                          >
+                            <p className="text-sm font-medium text-slate-900">
+                              {field.field_name}
+                            </p>
+                            {field.field_desc ? (
+                              <p className="mt-0.5 text-sm text-slate-500">
+                                {field.field_desc}
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {optionalFields.length > 0 ? (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">
+                          Optional fields
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          These fields are optional. You can consent to them now
+                          or manage them later from My Studies.
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {optionalFields.map((field) => (
+                            <label
+                              key={field.field_id}
+                              className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={optionalSelections.includes(
+                                  field.field_id,
+                                )}
+                                onChange={() =>
+                                  toggleOptional(study.study_id, field.field_id)
+                                }
+                                className="mt-1"
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {field.field_name}
+                                </p>
+                                {field.field_desc ? (
+                                  <p className="mt-0.5 text-sm text-slate-500">
+                                    {field.field_desc}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        onClick={() => handleConfirmJoin(study)}
+                        disabled={joiningStudyId === study.study_id}
+                      >
+                        {joiningStudyId === study.study_id
+                          ? "Joining..."
+                          : "Confirm & join"}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setConsentingStudyId(null)}
+                        disabled={joiningStudyId === study.study_id}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             );
           })}

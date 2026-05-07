@@ -16,7 +16,7 @@ import type {
   RegulatorStudy,
   StudyIssue,
 } from "./types";
-import { getAccessToken } from "./auth";
+import { clearAuthSession, getAccessToken } from "./auth";
 
 const API_BASE = "/api";
 
@@ -71,6 +71,13 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const data = await response.json();
 
   if (!response.ok) {
+    if (
+      (response.status === 401 || response.status === 422) &&
+      options?.includeAuth !== false
+    ) {
+      clearAuthSession();
+      window.location.href = "/login";
+    }
     throw new Error(getErrorMessage(data));
   }
 

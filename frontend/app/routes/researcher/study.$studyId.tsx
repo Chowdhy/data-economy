@@ -189,20 +189,22 @@ export default function ResearcherStudyDetailPage() {
         <p className="text-sm text-slate-500">Loading study data...</p>
       ) : (
         <div className="space-y-4">
-          <ResearchTeamCard
-            team={team}
-            loading={teamLoading}
-            error={teamError}
-            currentUserId={currentUser?.user_id ?? null}
-            addEmail={addEmail}
-            addAccessLevel={addAccessLevel}
-            addMessage={addMessage}
-            onAddEmailChange={setAddEmail}
-            onAddAccessLevelChange={setAddAccessLevel}
-            onAdd={handleAddResearcher}
-            onUpdateAccess={handleUpdateAccess}
-            onRemove={handleRemoveResearcher}
-          />
+          {study ? (
+            <ResearchTeamCard
+              team={team}
+              loading={teamLoading}
+              error={teamError}
+              currentUserId={currentUser?.user_id ?? null}
+              addEmail={addEmail}
+              addAccessLevel={addAccessLevel}
+              addMessage={addMessage}
+              onAddEmailChange={setAddEmail}
+              onAddAccessLevelChange={setAddAccessLevel}
+              onAdd={handleAddResearcher}
+              onUpdateAccess={handleUpdateAccess}
+              onRemove={handleRemoveResearcher}
+            />
+          ) : null}
 
           {study ? (
             <Card>

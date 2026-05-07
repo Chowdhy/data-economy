@@ -1449,6 +1449,12 @@ def get_study(study_id):
         return error("study not found", 404)
 
     refresh_study_status(study)
+
+    # Block non-regulator access to rejected studies
+    if study.status == "rejected":
+        if not current_user or current_user.role_id != "regulator":
+            return error("study not found", 404)
+
     study_fields = split_study_field_ids(study.study_id)
 
     participant_count = StudyParticipant.query.filter_by(
@@ -1849,19 +1855,22 @@ def modify_study(study_id):
     description = data.get("description")
     comment = data.get("comment") or ""
 
-    if not required_field_ids and not optional_field_ids and not description:
-        return error("nothing to update",400)
-    
-    all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
+    has_field_update = bool(required_field_ids) or bool(optional_field_ids)
 
-    if all_field_ids:
+    if not has_field_update and not description:
+        return error("nothing to update", 400)
+
+    if has_field_update and not required_field_ids:
+        return error("at least one required field must be specified", 400)
+
+    if has_field_update:
+        all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
         fields = FieldDescription.query.filter(
             FieldDescription.field_id.in_(all_field_ids)
         ).all()
-
         if len(fields) != len(all_field_ids):
             return error("one or more field_ids do not exist", 400)
-        
+
     # Build policy context
     collab = get_study_researcher(study.study_id, current_user.user_id)
     can_edit = (
@@ -1873,7 +1882,6 @@ def modify_study(study_id):
         action="modifyStudy",
         resource=study,
         extra={
-            "hasRequiredFields": bool(required_field_ids),
             "canEdit": can_edit,
         }
     )
@@ -1881,14 +1889,6 @@ def modify_study(study_id):
     auth_error = authorize("modifyStudy", context)
     if auth_error:
         return auth_error
-    
-    split_fields = split_study_field_ids(study_id)
-
-    previous_required_ids = set(split_fields.get("required_field_ids", []))
-    previous_optional_ids = set(split_fields.get("optional_field_ids", []))
-
-    new_required_ids = set(required_field_ids)
-    new_optional_ids = set(optional_field_ids)
 
     modification = StudyModification(
         issue_id=issue_id,
@@ -1897,55 +1897,62 @@ def modify_study(study_id):
     db.session.add(modification)
     db.session.flush()
 
-    removed_required_fields = previous_required_ids - new_required_ids
-    added_required_fields = new_required_ids - previous_required_ids
+    if has_field_update:
+        split_fields = split_study_field_ids(study_id)
+        previous_required_ids = set(split_fields.get("required_field_ids", []))
+        previous_optional_ids = set(split_fields.get("optional_field_ids", []))
+        new_required_ids = set(required_field_ids)
+        new_optional_ids = set(optional_field_ids)
 
-    for field_id in removed_required_fields:
-        db.session.add(StudyModificationRequiredField(
-            modification_id=modification.modification_id,
-            field_id=field_id,
-            modification_type="remove"
-        ))
+        removed_required_fields = previous_required_ids - new_required_ids
+        added_required_fields = new_required_ids - previous_required_ids
 
-    for field_id in added_required_fields:
-        db.session.add(StudyModificationRequiredField(
-            modification_id=modification.modification_id,
-            field_id=field_id,
-            modification_type="add"
-        ))
+        for field_id in removed_required_fields:
+            db.session.add(StudyModificationRequiredField(
+                modification_id=modification.modification_id,
+                field_id=field_id,
+                modification_type="remove"
+            ))
 
-    removed_optional_fields = previous_optional_ids - new_optional_ids
-    added_optional_fields = new_optional_ids - previous_optional_ids
+        for field_id in added_required_fields:
+            db.session.add(StudyModificationRequiredField(
+                modification_id=modification.modification_id,
+                field_id=field_id,
+                modification_type="add"
+            ))
 
-    for field_id in removed_optional_fields:
-        db.session.add(StudyModificationOptionalField(
-            modification_id=modification.modification_id,
-            field_id=field_id,
-            modification_type="remove"
-        ))
+        removed_optional_fields = previous_optional_ids - new_optional_ids
+        added_optional_fields = new_optional_ids - previous_optional_ids
 
-    for field_id in added_optional_fields:
-        db.session.add(StudyModificationOptionalField(
-            modification_id=modification.modification_id,
-            field_id=field_id,
-            modification_type="add"
-        ))
+        for field_id in removed_optional_fields:
+            db.session.add(StudyModificationOptionalField(
+                modification_id=modification.modification_id,
+                field_id=field_id,
+                modification_type="remove"
+            ))
 
-    StudyRequiredField.query.filter_by(study_id=study_id).delete()
+        for field_id in added_optional_fields:
+            db.session.add(StudyModificationOptionalField(
+                modification_id=modification.modification_id,
+                field_id=field_id,
+                modification_type="add"
+            ))
 
-    for field_id in required_field_ids:
-        db.session.add(StudyRequiredField(
-            study_id=study_id,
-            field_id=field_id,
-            is_required=True
-        ))
+        StudyRequiredField.query.filter_by(study_id=study_id).delete()
 
-    for field_id in optional_field_ids:
-        db.session.add(StudyRequiredField(
-            study_id=study_id,
-            field_id=field_id,
-            is_required=False
-        ))
+        for field_id in required_field_ids:
+            db.session.add(StudyRequiredField(
+                study_id=study_id,
+                field_id=field_id,
+                is_required=True
+            ))
+
+        for field_id in optional_field_ids:
+            db.session.add(StudyRequiredField(
+                study_id=study_id,
+                field_id=field_id,
+                is_required=False
+            ))
 
     if description:
         study.description = description

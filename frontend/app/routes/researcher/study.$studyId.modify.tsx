@@ -84,6 +84,23 @@ export default function ModifyStudyPage() {
         return;
       }
 
+      if (matchedStudy.status === "rejected") {
+        setStudy(null);
+        setError("This study was rejected. Modifications are not permitted.");
+        return;
+      }
+
+      const openIssues = issuesResponse.issues.filter(
+        (i) => i.status === "open",
+      );
+      if (openIssues.length === 0) {
+        setStudy(null);
+        setError(
+          "No open regulator issues found. Modifications can only be submitted in response to an open issue.",
+        );
+        return;
+      }
+
       setStudy(matchedStudy);
       setAvailableFields(fieldsResponse.fields);
       setIssues(issuesResponse.issues);
