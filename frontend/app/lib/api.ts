@@ -18,7 +18,7 @@ import type {
 } from "./types";
 import { getAccessToken } from "./auth";
 
-const API_BASE = "";
+const API_BASE = "/api";
 
 interface RequestOptions extends RequestInit {
   includeAuth?: boolean;
