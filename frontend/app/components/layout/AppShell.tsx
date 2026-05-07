@@ -1,6 +1,5 @@
 import { useEffect, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
-import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { getCurrentUser, getDefaultRouteForRole } from "~/lib/auth";
 
@@ -52,13 +51,9 @@ export default function AppShell({
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <Topbar title={title} subtitle={subtitle} currentUser={currentUser} />
+        <Topbar title={title} subtitle={subtitle} currentUser={currentUser} role={role} />
 
-        <div className="mt-6 flex gap-6">
-          {role ? <Sidebar role={role} /> : null}
-
-          <main className="min-w-0 flex-1">{children}</main>
-        </div>
+        <main className="mt-6 min-w-0">{children}</main>
       </div>
     </div>
   );
