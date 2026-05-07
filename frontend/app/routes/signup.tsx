@@ -7,12 +7,14 @@ import { api } from "~/lib/api";
 import type { Role } from "~/lib/types";
 
 export default function SignupPage() {
+  type SignupRole = "participant" | "researcher";
+
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [roleId, setRoleId] = useState<Role>("participant");
+  const [roleId, setRoleId] = useState<SignupRole>("participant");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +37,7 @@ export default function SignupPage() {
         role_id: roleId,
       });
 
-      navigate("/login", {
+      navigate("/", {
         replace: true,
         state: {
           signupMessage:
@@ -54,7 +56,9 @@ export default function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <Card className="w-full max-w-md">
-        <h1 className="text-2xl font-semibold text-slate-900">Create account</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">
+          Create account
+        </h1>
         <p className="mt-2 text-sm text-slate-600">
           Sign up as a participant or researcher to start using the platform.
         </p>
@@ -136,7 +140,7 @@ export default function SignupPage() {
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?{" "}
           <Link
-            to="/login"
+            to="/"
             className="font-medium text-emerald-700 hover:text-emerald-800"
           >
             Sign in

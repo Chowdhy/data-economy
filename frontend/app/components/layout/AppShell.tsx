@@ -24,7 +24,7 @@ export default function AppShell({
 
   useEffect(() => {
     if (!currentUser) {
-      navigate("/login", {
+      navigate("/", {
         replace: true,
         state: {
           from: location.pathname,
