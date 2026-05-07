@@ -42,14 +42,6 @@
           "constraint": [
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "researcher" },
             { "leftOperand": "env.canEdit", "operator": "eq", "rightOperand": true }
-          ],
-          "duty": [
-            {
-              "action": "hasValidFields",
-              "constraint": [
-                { "leftOperand": "env.hasRequiredFields", "operator": "eq", "rightOperand": true }
-              ]
-            }
           ]
         },
         {
@@ -245,14 +237,6 @@
             { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "participant" },
             { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "open" },
             { "leftOperand": "env.isEnrolled", "operator": "eq", "rightOperand": true }
-          ],
-          "duty": [
-            {
-              "action": "retainRequiredFields",
-              "constraint": [
-                { "leftOperand": "env.requiredFieldsProvided", "operator": "eq", "rightOperand": true }
-              ]
-            }
           ]
         },
         {
