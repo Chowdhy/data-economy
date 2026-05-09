@@ -24,6 +24,8 @@ export default function RegulatorStudyReviewPage() {
   const [comment, setComment] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   async function loadIssues(currentStudyId: number) {
     try {
@@ -105,6 +107,23 @@ export default function RegulatorStudyReviewPage() {
     } catch (err) {
       console.error("Failed to reject study", err);
       setActionMessage("Could not reject the study.");
+    }
+  }
+
+  async function handleDelete() {
+    if (!studyId) return;
+
+    try {
+      setIsDeleting(true);
+      setActionMessage(null);
+      await api.deleteStudy(Number(studyId));
+      navigate("/regulator/studies");
+    } catch (err) {
+      console.error("Failed to delete study", err);
+      setActionMessage("Could not delete the study.");
+      setShowDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -233,6 +252,45 @@ export default function RegulatorStudyReviewPage() {
                 >
                   Study Logs
                 </Button>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Delete study
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Permanently remove this study and all associated data.
+                  </p>
+                </div>
+                {showDeleteConfirm ? (
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-rose-600">Are you sure?</p>
+                    <Button
+                      variant="danger"
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? "Deleting..." : "Yes, delete"}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="danger"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    Delete study
+                  </Button>
+                )}
               </div>
             </Card>
           </>

@@ -5,7 +5,7 @@ import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
-import type { AvailableStudy, FieldDescription } from "~/lib/types";
+import type { AvailableStudy, FieldDescription, ParticipantAnswerField } from "~/lib/types";
 
 export default function ParticipantDiscoverPage() {
   const [studies, setStudies] = useState<AvailableStudy[]>([]);
@@ -20,6 +20,13 @@ export default function ParticipantDiscoverPage() {
   >({});
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [studyAnswerFields, setStudyAnswerFields] = useState<
+    ParticipantAnswerField[]
+  >([]);
+  const [pendingAnswers, setPendingAnswers] = useState<Record<number, string>>(
+    {},
+  );
+  const [loadingAnswers, setLoadingAnswers] = useState(false);
 
   const currentUser = getCurrentUser();
   const participantId =
@@ -53,11 +60,31 @@ export default function ParticipantDiscoverPage() {
     return fields.filter((field) => fieldIds.includes(field.field_id));
   }
 
-  function openConsentForm(study: AvailableStudy) {
+  async function openConsentForm(study: AvailableStudy) {
     setSelectedOptionals((prev) => ({ ...prev, [study.study_id]: [] }));
     setConsentingStudyId(study.study_id);
     setError("");
     setMessage("");
+    setPendingAnswers({});
+    setStudyAnswerFields([]);
+    setLoadingAnswers(true);
+
+    try {
+      if (participantId) {
+        const response = await api.getParticipantAnswers(participantId);
+        setStudyAnswerFields(response.answers);
+        const initial: Record<number, string> = {};
+        for (const fieldId of study.required_field_ids) {
+          const existing = response.answers.find((a) => a.field_id === fieldId);
+          initial[fieldId] = existing?.answer ?? "";
+        }
+        setPendingAnswers(initial);
+      }
+    } catch {
+      // proceed with empty state; user can still fill in answers
+    } finally {
+      setLoadingAnswers(false);
+    }
   }
 
   function toggleOptional(studyId: number, fieldId: number) {
@@ -75,6 +102,14 @@ export default function ParticipantDiscoverPage() {
   async function handleConfirmJoin(study: AvailableStudy) {
     if (!participantId) return;
 
+    const missingFields = study.required_field_ids.filter(
+      (id) => !pendingAnswers[id]?.trim(),
+    );
+    if (missingFields.length > 0) {
+      setError("Please fill in all required fields before joining.");
+      return;
+    }
+
     const optionalSelections = selectedOptionals[study.study_id] ?? [];
     const allConsentedIds = [
       ...study.required_field_ids,
@@ -85,6 +120,16 @@ export default function ParticipantDiscoverPage() {
       setJoiningStudyId(study.study_id);
       setError("");
       setMessage("");
+
+      const answersToSave = study.required_field_ids.map((id) => {
+        const field = studyAnswerFields.find((a) => a.field_id === id);
+        return {
+          field_id: id,
+          field_name: field?.field_name ?? String(id),
+          answer: pendingAnswers[id] ?? "",
+        };
+      });
+      await api.saveAnswers(participantId, answersToSave);
 
       await api.joinStudy(study.study_id, participantId);
       await api.modifyConsent(study.study_id, participantId, allConsentedIds);
@@ -204,24 +249,81 @@ export default function ParticipantDiscoverPage() {
                         Required fields
                       </h3>
                       <p className="mt-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                        You must consent to these fields to join this study.
+                        You must consent to these fields and provide answers to
+                        join this study.
                       </p>
-                      <div className="mt-3 space-y-2">
-                        {requiredFields.map((field) => (
-                          <div
-                            key={field.field_id}
-                            className="rounded-xl border border-slate-200 bg-slate-50 p-3"
-                          >
-                            <p className="text-sm font-medium text-slate-900">
-                              {field.field_name}
-                            </p>
-                            {field.field_desc ? (
-                              <p className="mt-0.5 text-sm text-slate-500">
-                                {field.field_desc}
-                              </p>
-                            ) : null}
-                          </div>
-                        ))}
+                      <div className="mt-3 space-y-3">
+                        {requiredFields.map((field) => {
+                          const answerField = studyAnswerFields.find(
+                            (a) => a.field_id === field.field_id,
+                          );
+                          const currentValue =
+                            pendingAnswers[field.field_id] ?? "";
+                          const isMissing = !currentValue.trim();
+
+                          return (
+                            <div
+                              key={field.field_id}
+                              className={`rounded-xl border p-3 ${isMissing ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"}`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-slate-900">
+                                  {field.field_name}
+                                </p>
+                                {isMissing && !loadingAnswers ? (
+                                  <span className="text-xs text-rose-600">
+                                    required
+                                  </span>
+                                ) : null}
+                              </div>
+                              {field.field_desc ? (
+                                <p className="mt-0.5 text-sm text-slate-500">
+                                  {field.field_desc}
+                                </p>
+                              ) : null}
+                              {loadingAnswers ? (
+                                <p className="mt-2 text-sm text-slate-400">
+                                  Loading...
+                                </p>
+                              ) : answerField?.field_type === "enum" ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {answerField.options.map((opt) => (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      onClick={() =>
+                                        setPendingAnswers((prev) => ({
+                                          ...prev,
+                                          [field.field_id]: opt,
+                                        }))
+                                      }
+                                      className={`rounded-full border px-3 py-1 text-sm ${
+                                        currentValue === opt
+                                          ? "border-emerald-600 bg-emerald-600 text-white"
+                                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      {opt}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={currentValue}
+                                  onChange={(e) =>
+                                    setPendingAnswers((prev) => ({
+                                      ...prev,
+                                      [field.field_id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Enter your answer"
+                                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -270,7 +372,13 @@ export default function ParticipantDiscoverPage() {
                       <Button
                         type="button"
                         onClick={() => handleConfirmJoin(study)}
-                        disabled={joiningStudyId === study.study_id}
+                        disabled={
+                          joiningStudyId === study.study_id ||
+                          loadingAnswers ||
+                          study.required_field_ids.some(
+                            (id) => !pendingAnswers[id]?.trim(),
+                          )
+                        }
                       >
                         {joiningStudyId === study.study_id
                           ? "Joining..."
@@ -280,7 +388,11 @@ export default function ParticipantDiscoverPage() {
                       <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => setConsentingStudyId(null)}
+                        onClick={() => {
+                          setConsentingStudyId(null);
+                          setPendingAnswers({});
+                          setStudyAnswerFields([]);
+                        }}
                         disabled={joiningStudyId === study.study_id}
                       >
                         Cancel

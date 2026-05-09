@@ -2171,6 +2171,37 @@ def get_user_logs(user_id):
     return jsonify({"logs": [serialise_log_entry(l) for l in logs]}), 200
 
 
+@api.route("/admin/studies/<int:study_id>", methods=["DELETE"])
+@jwt_required()
+def delete_study(study_id):
+    current_user = get_current_user()
+    if not current_user:
+        return error("user not found", 404)
+
+    study = Study.query.get(study_id)
+    if not study:
+        return error("study not found", 404)
+
+    context = build_auth_context(
+        current_user=current_user,
+        action="deleteStudy",
+        resource=study
+    )
+
+    authori_error = authorize("deleteStudy", context)
+    if authori_error:
+        return authori_error
+
+    study_name = study.study_name
+    log_action("study_deleted", user_id=current_user.user_id, study_id=study_id,
+               details={"study_name": study_name})
+
+    db.session.delete(study)
+    db.session.commit()
+
+    return jsonify({"message": "study deleted", "study_id": study_id}), 200
+
+
 @api.route("/admin/studies/<int:study_id>/logs", methods=["GET"])
 @jwt_required()
 def get_study_logs(study_id):
