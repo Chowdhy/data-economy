@@ -133,6 +133,15 @@
             { "leftOperand": "env.isOwnerOrRegulator", "operator": "eq", "rightOperand": true },
             { "leftOperand": "resource.status", "operator": "eq", "rightOperand": "ongoing" }
           ]
+        },
+        {
+          "uid": "perm:delete-study",
+          "action": "deleteStudy",
+          "assignee": { "role": "regulator" },
+          "target": { "type": "study" },
+          "constraint": [
+            { "leftOperand": "subject.role", "operator": "eq", "rightOperand": "regulator" }
+          ]
         }
       ],
       "prohibition": [
@@ -161,6 +170,15 @@
           "target": { "type": "studyData" },
           "constraint": [
             { "leftOperand": "env.isOwnerOrRegulator", "operator": "eq", "rightOperand": false }
+          ]
+        },
+        {
+          "uid": "prohibit-nonregulator-delete-study",
+          "action": "deleteStudy",
+          "assignee": { "role": "*" },
+          "target": { "type": "study" },
+          "constraint": [
+            { "leftOperand": "subject.role", "operator": "neq", "rightOperand": "regulator" }
           ]
         }
       ]

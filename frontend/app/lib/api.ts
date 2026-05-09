@@ -283,6 +283,12 @@ export const api = {
   getStudyLogs: (studyId: number) =>
     request<{ logs: ActivityLog[] }>(`/admin/studies/${studyId}/logs`),
 
+  deleteStudy: (studyId: number) =>
+    request<{ message: string; study_id: number }>(
+      `/admin/studies/${studyId}`,
+      { method: "DELETE" },
+    ),
+
   getStudyResearchers: (studyId: number) =>
     request<{ study_id: number; researchers: StudyResearcher[] }>(
       `/studies/${studyId}/researchers`,
