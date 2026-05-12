@@ -23,11 +23,7 @@ flask --app app:create_app db upgrade
 
 From `backend/`:
 
-```bash
-python seed.py
-```
-
-Larger seed to demonstrate k-anonymity and l-diversity:
+Seed the data to demonstrate k-anonymity and l-diversity:
 
 ```bash
 python seed.py --participants 1000 --studies 8
