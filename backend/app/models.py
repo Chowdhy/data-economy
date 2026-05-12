@@ -1,7 +1,7 @@
 from .extensions import db
 from datetime import datetime
 
-
+# Accounts for everyone who uses the system: participants, researchers, and regulators
 class User(db.Model):
     __tablename__ = "users"
 
@@ -15,9 +15,7 @@ class User(db.Model):
         default="participant"
     )  # participant, researcher, or regulator
 
-    # Adding a requested_role flag for researchers - regulators need to approve them in order for them to be active researchers on the platform:
-    # requested_role = db.Column(db.String(50), nullable=True)
-    # is_approved = db.Column(db.Boolean, default=False)
+
 
     is_active = db.Column(db.Boolean, default=True)
 
@@ -42,7 +40,7 @@ class User(db.Model):
         cascade="all, delete-orphan",
     )
 
-
+# A research study created by a researcher, including its status and duration
 class Study(db.Model):
     __tablename__ = "studies"
 
@@ -93,7 +91,7 @@ class Study(db.Model):
         foreign_keys="StudyResearcher.study_id",
     )
 
-
+# Catalogue of all possible questions/fields that studies can ask about
 class FieldDescription(db.Model):
     __tablename__ = "field_descriptions"
 
@@ -138,7 +136,7 @@ class FieldDescription(db.Model):
         order_by="FieldOption.display_order",
     )
 
-
+# The predefined choices available for an enum-type field
 class FieldOption(db.Model):
     __tablename__ = "field_options"
 
@@ -163,7 +161,7 @@ class FieldOption(db.Model):
         ),
     )
 
-
+# Links a study to the fields it requires participants to answer
 class StudyRequiredField(db.Model):
     __tablename__ = "study_required_fields"
 
@@ -184,7 +182,7 @@ class StudyRequiredField(db.Model):
     study = db.relationship("Study", back_populates="required_fields")
     field = db.relationship("FieldDescription", back_populates="study_links")
 
-
+# Records which participants have joined which studies
 class StudyParticipant(db.Model):
     __tablename__ = "study_participants"
 
@@ -213,7 +211,7 @@ class StudyParticipant(db.Model):
         overlaps="consented_fields",
     )
 
-
+# Records exactly which fields a participant has agreed to share with a given study
 class StudyParticipantConsentedField(db.Model):
     __tablename__ = "study_participant_consented_fields"
 
@@ -265,7 +263,7 @@ class StudyParticipantConsentedField(db.Model):
         overlaps="consented_fields,participant,study",
     )
 
-
+# A participant's actual answer to a specific field
 class ParticipantAnswer(db.Model):
     __tablename__ = "participant_answers"
 
@@ -303,7 +301,7 @@ class ParticipantAnswer(db.Model):
         ),
     )
 
-
+# A concern raised by a regulator about a study, e.g. during review
 class StudyIssue(db.Model):
     __tablename__ = "study_issues"
 
@@ -332,7 +330,7 @@ class StudyIssue(db.Model):
 
     regulator = db.relationship("User")
 
-
+# Links a regulator's issue to the specific fields they flagged
 class StudyIssueField(db.Model):
     __tablename__ = "study_issue_fields"
 
@@ -355,7 +353,7 @@ class StudyIssueField(db.Model):
 
     field = db.relationship("FieldDescription")
 
-
+# A change made to a study in response to a regulator's issue
 class StudyModification(db.Model):
     __tablename__ = "study_modifications"
 
@@ -374,7 +372,7 @@ class StudyModification(db.Model):
 
     comment = db.Column(db.Text, nullable=False)
 
-
+# Records which optional fields were added or removed as part of a modification
 class StudyModificationOptionalField(db.Model):
     __tablename__ = "study_modification_optional_fields"
 
@@ -399,7 +397,7 @@ class StudyModificationOptionalField(db.Model):
 
     field = db.relationship("FieldDescription")
 
-
+# Audit log of actions taken in the system for traceability
 class ActivityLog(db.Model):
     __tablename__ = "activity_logs"
 
@@ -410,7 +408,7 @@ class ActivityLog(db.Model):
     details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-
+# Links researchers to the studies they have access to, with an access level
 class StudyResearcher(db.Model):
     __tablename__ = "study_researchers"
 
@@ -431,7 +429,7 @@ class StudyResearcher(db.Model):
 
     researcher = db.relationship("User")
 
-
+# Records which required fields were added or removed as part of a modification
 class StudyModificationRequiredField(db.Model):
     __tablename__ = "study_modification_required_fields"
 
