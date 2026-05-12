@@ -434,26 +434,26 @@ def create_field():
     at least two unique non-empty options. Field names are globally unique.
     Returns the created field, including its persisted enum options.
     """
-    current_user = get_current_user()
-    if not current_user:
+     current_user = get_current_user()
+     if not current_user:
         return error("user not found", 404)
 
-    data = request.get_json() or {}
+     data = request.get_json() or {}
 
-    field_name = data.get("field_name")
-    field_desc = data.get("field_desc")
-    field_type = data.get("field_type", "text")
-    options = data.get("options", [])
+     field_name = data.get("field_name")
+     field_desc = data.get("field_desc")
+     field_type = data.get("field_type", "text")
+     options = data.get("options", [])
 
-    if not field_name or not field_name.strip():
+     if not field_name or not field_name.strip():
         return error("field_name is required")
 
-    if field_type not in {"text", "enum"}:
+     if field_type not in {"text", "enum"}:
         return error("field_type must be either 'text' or 'enum'", 400)
 
-    cleaned_options = []
+     cleaned_options = []
     
-    if field_type == "enum":
+     if field_type == "enum":
         if not isinstance(options, list):
             return error("options must be a list for enum fields", 400)
 
@@ -474,34 +474,34 @@ def create_field():
                 400,
             )
 
-    context = build_auth_context(
+     context = build_auth_context(
         current_user=current_user,
         action="createField",
     )
 
-    authori_error = authorize("createField", context)
-    if authori_error:
+     authori_error = authorize("createField", context)
+     if authori_error:
         return authori_error
 
-    existing = FieldDescription.query.filter_by(
+     existing = FieldDescription.query.filter_by(
         field_name=field_name.strip()
     ).first()
 
-    if existing:
+     if existing:
         return error("field_name already exists", 409)
 
-    field = FieldDescription(
-        field_name=field_name.strip(),
+     field = FieldDescription(
+         field_name=field_name.strip(),
         field_desc=field_desc.strip() if isinstance(field_desc, str) else field_desc,
         field_type=field_type,
         created_by=current_user.user_id,
     )
 
-    db.session.add(field)
-    # Ensure field.field_id is populating before inserting options:
-    db.session.flush()
+     db.session.add(field)
+     # Ensure field.field_id is populating before inserting options:
+     db.session.flush()
 
-    for index, option_value in enumerate(cleaned_options):
+     for index, option_value in enumerate(cleaned_options):
         db.session.add(
             FieldOption(
                 field_id=field.field_id,
@@ -510,9 +510,9 @@ def create_field():
             )
         )
 
-    db.session.commit()
+     db.session.commit()
 
-    return jsonify({
+     return jsonify({
         "message": "field created by researcher",
         "field": {
             "field_id": field.field_id,

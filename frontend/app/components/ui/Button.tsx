@@ -3,11 +3,18 @@ import { cn } from "~/lib/utils";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "purple";
 
+/**
+ * Props expected by the Button component
+ */
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: ButtonVariant;
 }
 
+/**
+ * Maps each button variant to its corresponding
+ * Tailwind CSS styling classes
+ */
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
     "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500",
@@ -20,6 +27,12 @@ const variantStyles: Record<ButtonVariant, string> = {
   purple: "bg-purple-100 text-purple-800 hover:bg-purple-200",
 };
 
+
+/**
+ * Reusable Button component used across the application.
+ * Supports multiple visual variants and extends all
+ * standard HTML button attributes.
+ */
 export default function Button({
   children,
   variant = "primary",

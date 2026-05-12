@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+/**
+ * Available visual styles for the Badge component
+ */
 type BadgeTone =
   | "success"
   | "warning"
@@ -9,11 +12,18 @@ type BadgeTone =
   | "purple"
   | "muted";
 
+ /**
+ * Props expected by the Badge component
+ */
 interface BadgeProps {
   children: ReactNode;
   tone?: BadgeTone;
 }
 
+/**
+ * Maps each badge tone to its corresponding
+ * Tailwind CSS styling classes
+ */
 const toneClasses: Record<BadgeTone, string> = {
   success: "border-green-100 bg-green-50 text-green-700",
   warning: "border-amber-100 bg-amber-50 text-amber-700",
@@ -24,6 +34,11 @@ const toneClasses: Record<BadgeTone, string> = {
   muted: "border-slate-200 bg-slate-100 text-slate-500",
 };
 
+/**
+ * Reusable Badge component used for displaying
+ * status labels, tags, and small highlighted text.
+ * Styling changes dynamically based on the selected tone.
+ */
 export default function Badge({ children, tone = "neutral" }: BadgeProps) {
   return (
     <span

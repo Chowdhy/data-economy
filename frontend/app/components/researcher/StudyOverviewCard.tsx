@@ -7,6 +7,10 @@ import {
   getResearcherDisplayStatusMeta,
 } from "~/lib/studyStatus";
 
+
+/**
+ * Props expected by the StudyOverviewCard component
+ */
 interface StudyOverviewCardProps {
   study: {
     study_id: number;
@@ -24,6 +28,12 @@ interface StudyOverviewCardProps {
   onModify?: () => void;
 }
 
+/**
+ * Displays a study summary card for researchers.
+ * Shows study details, status badge, field counts,
+ * durations, and action buttons for viewing
+ * or modifying the study.
+ */
 export default function StudyOverviewCard({
   study,
   onView,

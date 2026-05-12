@@ -1,10 +1,17 @@
 import Card from "~/components/ui/Card";
 import type { RegulatorStudyDetail, StudyStatus } from "~/lib/types";
 
+/**
+ * Props expected by the StudyReviewSummary component
+ */
 type StudyReviewSummaryProps = {
   study: RegulatorStudyDetail;
 };
 
+/**
+ * Returns Tailwind CSS classes based on study status.
+ * Used for displaying the colored status badge.
+ */
 function getStatusClasses(status?: StudyStatus) {
   switch (status) {
     case "pending":
@@ -22,6 +29,11 @@ function getStatusClasses(status?: StudyStatus) {
   }
 }
 
+/**
+ * Displays a high-level summary of a study for regulator review.
+ * Includes study information, status, metadata,
+ * and counts of required and optional fields.
+ */
 export default function StudyReviewSummary({ study }: StudyReviewSummaryProps) {
   return (
     <Card>

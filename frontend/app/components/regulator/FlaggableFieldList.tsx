@@ -1,6 +1,9 @@
 import Card from "~/components/ui/Card";
 import type { StudyField } from "~/lib/types";
 
+/**
+ * Props expected by the FlaggableFieldList component
+ */
 type FlaggableFieldListProps = {
   title: string;
   description?: string;
@@ -9,6 +12,11 @@ type FlaggableFieldListProps = {
   onToggleField: (fieldId: number) => void;
 };
 
+/**
+ * Displays a list of study fields that can be flagged
+ * by selecting checkboxes. Used for regulator issue feedback.
+ * Supports both free text and multiple choice fields.
+ */
 export default function FlaggableFieldList({
   title,
   description,

@@ -2,10 +2,18 @@ import Card from "~/components/ui/Card";
 
 import type { FieldDescription } from "~/lib/types";
 
+/**
+ * Props expected by the RequiredFieldsList component
+ */
 interface RequiredFieldsListProps {
   fields: FieldDescription[];
 }
 
+/**
+ * Displays all required fields for a study inside
+ * a Card component using pill-style field tags.
+ * If no required fields exist, a fallback message is shown.
+ */
 export default function RequiredFieldsList({
   fields,
 }: RequiredFieldsListProps) {

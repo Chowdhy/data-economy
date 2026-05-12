@@ -4,6 +4,9 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { getCurrentUser, getDefaultRouteForRole } from "~/lib/auth";
 
+/**
+ * Props expected by the AppShell component
+ */
 interface AppShellProps {
   title: string;
   subtitle?: string;
@@ -11,6 +14,12 @@ interface AppShellProps {
   children: ReactNode;
 }
 
+/**
+ * AppShell provides the main page layout structure.
+ * It handles authentication, role-based access control,
+ * page redirection, and renders the shared UI layout
+ * including Topbar, Sidebar, and main content area.
+ */
 export default function AppShell({
   title,
   subtitle,

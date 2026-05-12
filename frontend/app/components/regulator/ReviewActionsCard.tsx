@@ -1,6 +1,9 @@
 import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 
+/**
+ * Props expected by the ReviewActionsCard component
+ */
 type ReviewActionsCardProps = {
   selectedFieldCount: number;
   totalFieldCount: number;
@@ -13,6 +16,11 @@ type ReviewActionsCardProps = {
   onRaiseIssues: () => void;
 };
 
+/**
+ * Displays regulator review actions for a study.
+ * Allows approving, rejecting, or raising issues,
+ * along with adding comments and rejection reasons.
+ */
 export default function ReviewActionsCard({
   selectedFieldCount,
   totalFieldCount,

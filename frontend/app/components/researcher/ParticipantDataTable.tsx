@@ -2,16 +2,30 @@ import { Fragment, useState } from "react";
 import Card from "~/components/ui/Card";
 import type { AnonymisedGroup, StudyDataResponse } from "~/lib/types";
 
+/**
+ * Props expected by the ParticipantDataTable component
+ */
 interface ParticipantDataTableProps {
   data: StudyDataResponse;
 }
 
+/**
+ * Converts database-style field names into
+ * user-friendly display labels.
+ *
+ * Example:
+ * first_name → First Name
+ */
 function formatFieldName(fieldName: string) {
   return fieldName
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+/**
+ * Returns display labels for quasi-identifiers.
+ * Some fields require more readable labels.
+ */
 function getQuasiIdentifierLabel(fieldName: string) {
   if (fieldName === "sex_gender") return "Sex / gender";
   if (fieldName === "age") return "Age range";
@@ -20,6 +34,11 @@ function getQuasiIdentifierLabel(fieldName: string) {
   return formatFieldName(fieldName);
 }
 
+
+/**
+ * Retrieves the displayed quasi-identifier value
+ * for a specific anonymised group.
+ */
 function getQuasiIdentifierValue(group: AnonymisedGroup, fieldName: string) {
   if (fieldName === "age") return group.quasi_identifiers.age_range ?? "-";
 
@@ -30,6 +49,10 @@ function getQuasiIdentifierValue(group: AnonymisedGroup, fieldName: string) {
   return group.quasi_identifiers[fieldName] ?? "-";
 }
 
+/**
+ * Converts grouped field value counts into
+ * flat table rows for easier rendering.
+ */
 function getBreakdownRows(group: AnonymisedGroup) {
   return Object.entries(group.field_value_counts).flatMap(
     ([fieldName, valueCounts]) =>
@@ -41,6 +64,13 @@ function getBreakdownRows(group: AnonymisedGroup) {
   );
 }
 
+/**
+ * Displays anonymised participant study data using
+ * k-anonymity and l-diversity grouped outputs.
+ *
+ * Includes privacy explanation, released groups,
+ * expandable breakdown tables, and summary statistics.
+ */
 export default function ParticipantDataTable({
   data,
 }: ParticipantDataTableProps) {
