@@ -1,16 +1,21 @@
 import re
 from collections import defaultdict
 
-
+# Minimum group size = a group must have at least 5 people to be released
 K_ANONYMITY_THRESHOLD = 5
+# Minimum variety of sensitive values per group = prevents inferring someone's
+# sensitive info just because everyone in their group shares the same value
 L_DIVERSITY_THRESHOLD = 2
 
+# Fields that could indirectly identify someone if combined (quasi-identifiers).
+# These get generalised (e.g. exact age to age range) before grouping.
 K_ANONYMITY_CANDIDATE_FIELDS = [
     "sex_gender",
     "age",
     "postcode",
 ]
-
+# Fields considered sensitive = we want a mix of values within each group
+# so individuals can't be singled out by their sensitive attributes.
 L_DIVERSITY_CANDIDATE_FIELDS = [
     "diagnosed_hypertension",
     "diagnosed_diabetes",
@@ -23,6 +28,7 @@ L_DIVERSITY_CANDIDATE_FIELDS = [
 
 
 def normalise_answer(answer):
+    # Turn blank values into a consistent unknown string: 
     if answer is None:
         return "Unknown"
 
@@ -35,6 +41,7 @@ def normalise_answer(answer):
 
 
 def generalise_age(age):
+    # Convert exact age into a general age band to reduce identifiability: 
     try:
         age = int(age)
     except (TypeError, ValueError):
@@ -55,21 +62,24 @@ def generalise_age(age):
 
 
 def generalise_postcode(postcode):
+    # Reduce a full postcode to just its letter predix (the postcode area): 
     postcode = normalise_answer(postcode)
 
     if postcode == "Unknown":
         return "Unknown"
 
+    # Grab the leading letters only (e.g. "SO" from "SO17 1AB"):
     match = re.match(r"^[A-Za-z]+", postcode.strip())
 
     if not match:
         return "Unknown"
 
-    # Keep postcode prefix only, e.g. SO17 1AB -> SO.
+    # Keep postcode prefix only, e.g. SO17 1AB  to SO:
     return match.group(0).upper()
 
 
 def generalise_gender(gender):
+    # Collapse gender into a small fixed set of buckets: 
     gender = normalise_answer(gender)
 
     if gender == "Man":
@@ -98,6 +108,7 @@ def generalise_quasi_identifier(field_name, value):
 
 
 def get_output_quasi_identifier_name(field_name):
+    # Rename generalised fields so output reflects that they're broader: 
     if field_name == "age":
         return "age_range"
 
@@ -108,6 +119,7 @@ def get_output_quasi_identifier_name(field_name):
 
 
 def get_active_candidate_fields(consented_field_names, candidate_fields):
+    # Only use candidate fields that the particular actually consented to share: 
     return [
         field_name
         for field_name in candidate_fields
@@ -120,6 +132,7 @@ def get_active_other_fields(
     active_quasi_identifier_fields,
     active_sensitive_fields,
 ):
+    # "Other" fields = consented fields that aren't quasi-identifiers or sensitive
     excluded_fields = set(active_quasi_identifier_fields) | set(active_sensitive_fields)
 
     return sorted([
@@ -130,6 +143,7 @@ def get_active_other_fields(
 
 
 def has_required_quasi_identifiers(record, active_quasi_identifier_fields):
+    # Drop records missing any quasi-identifier: 
     for field_name in active_quasi_identifier_fields:
         if normalise_answer(record.get(field_name)) == "Unknown":
             return False
@@ -138,6 +152,7 @@ def has_required_quasi_identifiers(record, active_quasi_identifier_fields):
 
 
 def generalise_quasi_identifiers(record, active_quasi_identifier_fields):
+    # Build a dict of generalised quasi-identifier values for one record
     generalised = {}
 
     for field_name in active_quasi_identifier_fields:
@@ -151,6 +166,8 @@ def generalise_quasi_identifiers(record, active_quasi_identifier_fields):
 
 
 def get_group_key(generalised_quasi_identifiers, active_quasi_identifier_fields):
+    # Build a hashable key used to group records sharing the same generalised values.
+    # If there are no quasi-identifiers, everyone goes into a single group.
     if not active_quasi_identifier_fields:
         return ("all_participants",)
 
@@ -163,14 +180,16 @@ def get_group_key(generalised_quasi_identifiers, active_quasi_identifier_fields)
 
 
 def passes_k_anonymity(group_records, k):
+    # Group is only safe to release if it contains at least k people: 
     return len(group_records) >= k
 
 
 def passes_l_diversity(group_released_records, active_sensitive_fields, l):
     # If the study does not request configured sensitive fields,
-    # there is no l-diversity check to apply
+    # there is no l-diversity check to apply:
     if not active_sensitive_fields:
         return True
+    # For each sensitive field, the group needs at least l distinct known values
 
     for field_name in active_sensitive_fields:
         known_values = {
@@ -183,7 +202,7 @@ def passes_l_diversity(group_released_records, active_sensitive_fields, l):
         # group has no known values for it, the group should not be released
         if not known_values:
             return False
-
+        # Not enough variety!
         if len(known_values) < l:
             return False
 
@@ -191,6 +210,7 @@ def passes_l_diversity(group_released_records, active_sensitive_fields, l):
 
 
 def build_released_record(record, active_sensitive_fields, active_other_fields):
+    # Strip a record down to only the fields the study is allowed to release: 
     released_fields = active_sensitive_fields + active_other_fields
 
     return {
@@ -200,6 +220,8 @@ def build_released_record(record, active_sensitive_fields, active_other_fields):
 
 
 def build_field_value_counts(group_released_records, released_fields):
+    # For each released field, count how often each value appears in the group.
+    # This is what's published instead of individual-level data.
     field_value_counts = {}
 
     for field_name in released_fields:
@@ -223,14 +245,16 @@ def anonymise_study_records(
 
     if active_other_fields is None:
         active_other_fields = []
+    # Bucket records by their generalised quasi-identifier values
 
     grouped_records = defaultdict(list)
-
+    
     total_participants = len(records)
     eligible_participants = 0
     excluded_missing_quasi_identifiers = 0
-
+    # FIRST: Generalise each record and assign it to a group: 
     for participant_id, record in records.items():
+        # Skip anyone missing quasi-identifier data: 
         if not has_required_quasi_identifiers(
             record,
             active_quasi_identifier_fields,
@@ -261,6 +285,7 @@ def anonymise_study_records(
             "released_record": released_record,
         })
 
+    # SECOND: check each group against both k-anonymity and l-diversity: 
     released_groups = []
     suppressed_by_k = 0
     suppressed_by_l = 0
@@ -276,12 +301,12 @@ def anonymise_study_records(
             item["released_record"]
             for item in group_items
         ]
-
+        # Too small, supress the whole group:
         if not passes_k_anonymity(group_items, K_ANONYMITY_THRESHOLD):
             suppressed_by_k += 1
             suppressed_participants_by_k += group_size
             continue
-
+        # Not enough variety in sensitive values, supress group:
         if not passes_l_diversity(
             group_released_records,
             active_sensitive_fields,
@@ -290,21 +315,22 @@ def anonymise_study_records(
             suppressed_by_l += 1
             suppressed_participants_by_l += group_size
             continue
-
+        # All records in a group share the same generalised quasi-identifiers,
+        # so we can grab them from any item (the first one is fine)
         first_item = group_items[0]
 
         field_value_counts = build_field_value_counts(
             group_released_records,
             released_fields,
         )
-
+        # Build the piblished group, aggregate counts only, no individual rows: 
         released_groups.append({
             "group_id": f"G{len(released_groups) + 1}",
             "group_size": group_size,
             "quasi_identifiers": first_item["quasi_identifiers"],
             "field_value_counts": field_value_counts,
         })
-
+    # Sum up how many participants made it through vs were suppressed: 
     released_participants = sum(
         group["group_size"]
         for group in released_groups
@@ -315,6 +341,7 @@ def anonymise_study_records(
         + suppressed_participants_by_k
         + suppressed_participants_by_l
     )
+    # Return the anonymised output plus a summary of what happened
 
     return {
         "k": K_ANONYMITY_THRESHOLD,
