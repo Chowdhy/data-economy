@@ -146,6 +146,7 @@ export interface StudyDetail {
   required_field_ids: number[];
   optional_field_ids: number[];
   participant_count: number;
+  rejection_reason?: string | null;
 }
 
 export interface AnonymisedStudySummary {

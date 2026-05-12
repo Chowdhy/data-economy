@@ -189,7 +189,7 @@ export default function ResearcherStudyDetailPage() {
         <p className="text-sm text-slate-500">Loading study data...</p>
       ) : (
         <div className="space-y-4">
-          {study ? (
+          {study && displayStatus !== "rejected" ? (
             <ResearchTeamCard
               team={team}
               loading={teamLoading}
@@ -284,7 +284,33 @@ export default function ResearcherStudyDetailPage() {
             </Card>
           )}
 
-          {shouldShowReviewStatus ? (
+          {displayStatus === "rejected" && study ? (
+            <Card>
+              <h2 className="text-base font-semibold text-slate-900">
+                Rejection
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                This study was rejected by a regulator and is no longer active.
+              </p>
+
+              {study.rejection_reason ? (
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                  <p className="text-sm font-medium text-slate-900">
+                    Rejection reason
+                  </p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    {study.rejection_reason}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm text-slate-600">
+                    No rejection reason was provided.
+                  </p>
+                </div>
+              )}
+            </Card>
+          ) : shouldShowReviewStatus ? (
             <Card>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>

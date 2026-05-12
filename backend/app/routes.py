@@ -64,7 +64,6 @@ def split_study_field_ids(study_id):
     }
 
 
-
 # Get the current user based on JWT identity claim:
 def get_current_user():
     user_id = get_jwt_identity()
@@ -1247,10 +1246,19 @@ def get_study(study_id):
 
     refresh_study_status(study)
 
+    # Rejected studies are only visible to the study's researchers and regulators
     # Block non-regulator access to rejected studies:
     if study.status == "rejected":
-        if not current_user or current_user.role_id != "regulator":
+        if not current_user:
             return error("study not found", 404)
+        if current_user.role_id != "regulator":
+            is_member = StudyResearcher.query.filter_by(
+                study_id=study.study_id,
+                researcher_id=current_user.user_id
+            ).first() is not None
+            is_creator = study.creator_id == current_user.user_id
+            if not (is_member or is_creator):
+                return error("study not found", 404)
 
     study_fields = split_study_field_ids(study.study_id)
 
@@ -1269,6 +1277,22 @@ def get_study(study_id):
         "optional_field_ids": study_fields["optional_field_ids"],
         "participant_count": participant_count
     }
+
+    # For rejected studies return early with the rejection reason; skip policy engine
+    if study.status == "rejected":
+        rejection_log = ActivityLog.query.filter_by(
+            study_id=study.study_id,
+            action="study_rejected"
+        ).order_by(ActivityLog.created_at.desc()).first()
+        rejection_reason = None
+        if rejection_log and rejection_log.details:
+            try:
+                details = json.loads(rejection_log.details)
+                rejection_reason = details.get("reason")
+            except (json.JSONDecodeError, TypeError):
+                pass
+        payload["rejection_reason"] = rejection_reason
+        return jsonify({"study": payload}), 200
 
     # Public access for open studies: 
     if study.status == "open":
