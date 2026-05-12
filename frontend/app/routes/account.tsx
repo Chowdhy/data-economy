@@ -15,6 +15,11 @@ import { api } from "~/lib/api";
 import { titleCase } from "~/lib/utils";
 import type { ActivityLog } from "~/lib/types";
 
+/**
+ * Account page for the currently signed-in user.
+ * Displays account details, saved sessions for quick account switching and logout.
+ */
+
 function formatAction(action: string): string {
   return action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -200,7 +205,9 @@ export default function AccountPage() {
           {logsLoading ? (
             <p className="mt-4 text-sm text-slate-500">Loading activity...</p>
           ) : logs.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">No activity recorded yet.</p>
+            <p className="mt-4 text-sm text-slate-500">
+              No activity recorded yet.
+            </p>
           ) : (
             <div className="mt-4 divide-y divide-slate-100">
               {logs.map((log) => (

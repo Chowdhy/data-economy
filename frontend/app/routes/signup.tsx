@@ -6,6 +6,12 @@ import Input from "~/components/ui/Input";
 import { api } from "~/lib/api";
 import type { Role } from "~/lib/types";
 
+/**
+ * Signup page for new accounts.
+ * Only allows creating participant and researcher accounts
+ * Redirects to login page on successful signup
+ */
+
 export default function SignupPage() {
   type SignupRole = "participant" | "researcher";
 
