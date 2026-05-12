@@ -7,6 +7,9 @@ import {
 } from "~/lib/studyStatus";
 import { formatDate } from "~/lib/utils";
 
+/**
+ * Props expected by the StudyCard component
+ */
 interface StudyCardProps {
   study: {
     study_id: number;
@@ -22,6 +25,10 @@ interface StudyCardProps {
   onModifyConsent?: () => void;
 }
 
+/**
+ * Displays a single study card showing study details,
+ * consent status, study status, and available actions.
+ */
 export default function StudyCard({
   study,
   onWithdrawStudy,

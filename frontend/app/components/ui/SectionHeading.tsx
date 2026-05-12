@@ -1,8 +1,17 @@
+/**
+ * Props expected by the SectionHeading component
+ */
 interface SectionHeadingProps {
   title: string;
   description?: string;
 }
 
+/**
+ * Reusable SectionHeading component used for displaying
+ * page section titles with an optional description.
+ *
+ * Helps maintain consistent heading styling across the application.
+ */
 export default function SectionHeading({
   title,
   description,

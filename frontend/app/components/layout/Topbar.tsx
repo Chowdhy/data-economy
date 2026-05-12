@@ -4,12 +4,20 @@ import { clearAuthSession } from "~/lib/auth";
 import type { User } from "~/lib/types";
 import { titleCase } from "~/lib/utils";
 
+/**
+ * Props expected by the Topbar component
+ */
 interface TopbarProps {
   title: string;
   subtitle?: string;
   currentUser: User;
 }
 
+/**
+ * Topbar component displayed at the top of each page.
+ * Shows page title, optional subtitle, current user details,
+ * and account action buttons such as account switching and logout.
+ */
 export default function Topbar({ title, subtitle, currentUser }: TopbarProps) {
   const navigate = useNavigate();
   const location = useLocation();

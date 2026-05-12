@@ -1,10 +1,17 @@
 import Card from "~/components/ui/Card";
 import type { StudyIssue } from "~/lib/types";
 
+/**
+ * Props expected by the IssueHistoryList component
+ */
 type IssueHistoryListProps = {
   issues: StudyIssue[];
 };
 
+/**
+ * Formats a date string into a readable UK date and time format.
+ * If the value is invalid, the original value is returned.
+ */
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -15,6 +22,11 @@ function formatDate(value: string) {
   });
 }
 
+/**
+ * Displays the full issue history for a study,
+ * including regulator comments, flagged fields,
+ * and researcher responses with required/optional modifications.
+ */
 export default function IssueHistoryList({ issues }: IssueHistoryListProps) {
   return (
     <Card>

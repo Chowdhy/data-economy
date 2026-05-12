@@ -1,10 +1,18 @@
 import { Link, useLocation } from "react-router";
 import { cn } from "~/lib/utils";
 
+/**
+ * Props expected by the Sidebar component
+ */
 interface SidebarProps {
   role: "participant" | "researcher" | "regulator";
 }
 
+/**
+ * Sidebar component for role-based navigation.
+ * Displays different menu links depending on whether
+ * the user is a participant, researcher, or regulator.
+ */
 export default function Sidebar({ role }: SidebarProps) {
   const location = useLocation();
 

@@ -1,11 +1,19 @@
 import Card from "~/components/ui/Card";
 
+/**
+ * Props expected by the ConsentSummary component
+ */
 interface ConsentSummaryProps {
   totalStudies: number;
   fullConsentCount: number;
   partialConsentCount: number;
 }
 
+/**
+ * Displays a summary overview of the user's consent status.
+ * Shows total studies joined, full consent count,
+ * and partial consent count inside styled summary cards.
+ */
 export default function ConsentSummary({
   totalStudies,
   fullConsentCount,

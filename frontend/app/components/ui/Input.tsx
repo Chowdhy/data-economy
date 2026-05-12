@@ -1,6 +1,15 @@
 import type { InputHTMLAttributes } from "react";
 import { cn } from "~/lib/utils";
 
+/**
+ * Reusable Input component used across the application.
+ *
+ * Extends all standard HTML input attributes such as
+ * type, placeholder, value, onChange, disabled, etc.
+ *
+ * Provides consistent styling for forms including
+ * borders, spacing, focus states, and text appearance.
+ */
 export default function Input({
   className,
   ...props
