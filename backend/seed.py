@@ -25,10 +25,7 @@ from app.models import (
 )
 
 
-# ---------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------
-
+# Configuration:
 DEFAULT_PARTICIPANT_COUNT = 60
 DEFAULT_STUDY_COUNT = 8
 DEFAULT_RANDOM_SEED = 42
@@ -118,9 +115,7 @@ EMPLOYMENT_OPTIONS = [
     "Prefer not to say",
 ]
 
-# ----------------------------------------------------------------------
-# Needed for Anonymisation Demo
-# ----------------------------------------------------------------------
+# Needed for anonymisation demonstration: 
 ANONYMISATION_DEMO_STUDY_NAME = "Regional Hypertension Risk Study"
 
 ANONYMISATION_DEMO_STUDY_DESCRIPTION = (
@@ -142,16 +137,15 @@ ANONYMISATION_DEMO_OPTIONAL_FIELD_NAMES = {
 
 
 
-# ---------------------------------------------------------------------
+
 # Field definitions
-# ---------------------------------------------------------------------
+
 # field_type:
 # - "text": free text answer
 # - "enum": answer selected from options
 #
 # generator:
 # - Used to generate realistic-ish demo answers.
-# ---------------------------------------------------------------------
 
 def random_postcode():
     prefix = random.choice(POSTCODE_PREFIXES)
@@ -647,12 +641,10 @@ STUDY_NAMES = [
 ]
 
 
-# ---------------------------------------------------------------------
-# Clear existing data
-# ---------------------------------------------------------------------
+# Clear existing data: 
 
 def clear_data():
-    # Delete children first to avoid FK issues.
+    # Delete children first to avoid FK issues:
     db.session.query(StudyModificationOptionalField).delete()
     db.session.query(StudyModificationRequiredField).delete()
     db.session.query(StudyModification).delete()
@@ -671,9 +663,6 @@ def clear_data():
     db.session.commit()
 
 
-# ---------------------------------------------------------------------
-# Seed helpers
-# ---------------------------------------------------------------------
 
 def add_user(name, email, password, role_id, is_active=True):
     user = User(
@@ -953,20 +942,14 @@ def create_activity_log(action, user_id=None, study_id=None, details=None):
     )
 
 
-# ---------------------------------------------------------------------
-# Main seed
-# ---------------------------------------------------------------------
-
+# Main seed:
 def seed_data(participant_count, study_count, random_seed):
     random.seed(random_seed)
 
-    # -------------------------------------------------------------
-    # Core accounts
-    # -------------------------------------------------------------
-
+    # Core Accounts:
     regulator = add_user(
         name="Regulator 1",
-        email="regulator@gmai.com",
+        email="regulator@gmail.com",
         password="admin123",
         role_id="regulator",
     )
@@ -1032,9 +1015,6 @@ def seed_data(participant_count, study_count, random_seed):
 
     db.session.flush()
 
-    # -------------------------------------------------------------
-    # Fields
-    # -------------------------------------------------------------
 
     fields = []
     field_defs_by_id = {}
@@ -1053,10 +1033,7 @@ def seed_data(participant_count, study_count, random_seed):
 
     db.session.flush()
 
-    # -------------------------------------------------------------
-    # Studies
-    # -------------------------------------------------------------
-
+    # Studies: 
     researchers = [researcher_1, researcher_2]
     studies = []
 
@@ -1123,16 +1100,10 @@ def seed_data(participant_count, study_count, random_seed):
 
     db.session.flush()
 
-    # -------------------------------------------------------------
-    # Global participant answers
-    # -------------------------------------------------------------
 
     seed_participant_answers(participants, field_defs_by_id)
 
-    # -------------------------------------------------------------
-    # Collaborators
-    # -------------------------------------------------------------
-
+     # Collaborators:
     for study in studies:
         if study.creator_id == researcher_1.user_id:
             collaborator = researcher_2
@@ -1150,17 +1121,11 @@ def seed_data(participant_count, study_count, random_seed):
                 )
             )
 
-    # -------------------------------------------------------------
-    # Some regulator issues on pending studies
-    # -------------------------------------------------------------
 
     create_demo_issues(regulator, studies)
 
     db.session.commit()
 
-    # -------------------------------------------------------------
-    # Console summary
-    # -------------------------------------------------------------
 
     print("Seed data inserted successfully.")
     print("")
@@ -1191,10 +1156,7 @@ def seed_data(participant_count, study_count, random_seed):
     print(f"  {', '.join(POSTCODE_PREFIXES)}")
 
 
-# ---------------------------------------------------------------------
-# Entrypoint
-# ---------------------------------------------------------------------
-
+# Entrypoint: 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed demo data.")
     parser.add_argument(
