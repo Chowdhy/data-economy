@@ -31,27 +31,30 @@ from .models import (
     StudyResearcher,
 )
 
+# Blueprint registers all API routes under a common prefix
+# Initialises the policy engine
 api = Blueprint("api", __name__)
 policy_engine = get_policy_engine()
 
 # Helper functions:
-# check_policy will return an error response if the action is not allowed under current policies, otherwise returns None (will remove):
+# check_policy returns an error response if the action is not allowed under current policies, otherwise returns None
 def check_policy(action, context):
     if not policy_engine.is_allowed(action, context):
         return error(f"action '{action}' is not allowed under current policies", 403)
 # Main authorization entry point for all protected endpoints:
+# Evaluates the policy engine and return a generic error if denied
 def authorize(action, context):
     decision = policy_engine.evaluate(action, context)
     if not decision.allowed:
-        # Log details server-side only; never expose policy internals to the client
+        # Log details server-side only!!! never expose policy internals to the client
         print(f"[AUTH DENIED] action='{action}' failures={decision.failures} "
               f"prohibitions={decision.matched_prohibitions}")
         return error("Access denied.", 403)
     return None
-# Standardized error response function:
+# Standardised JSON error response used across the API
 def error(message, status=400):
     return jsonify({"error": message}), status
-# Utility function to split required vs optional field ids for a study:
+# Splits the fields associated with a study into required vs. optional id lists
 def split_study_field_ids(study_id):
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     return {
@@ -62,14 +65,21 @@ def split_study_field_ids(study_id):
 
 
 
-# Get current user based on JWT identity:
+# Get the current user based on JWT identity claim:
 def get_current_user():
     user_id = get_jwt_identity()
     if user_id is None:
         return None
     return User.query.get(int(user_id))
 # Shared context builder for policy evaluation
-# This function constructs a context dictionary that includes information about the current user, the action being performed, the resource involved, any target user (for actions involving another user), membership status (e.g., whether the user is enrolled in a study), and any extra context needed for specific policy checks. This standardized context can then be used across different policy evaluations to determine if an action is allowed.
+# This function constructs a context dictionary that includes:
+# - information about the current user, 
+# - the action being performed, 
+# - the resource involved, 
+# - any target user (for actions involving another user), 
+# - membership status (e.g., whether the user is enrolled in a study),
+# - and any extra context needed for specific policy checks 
+# This standardized context can then be used across different policy evaluations to determine if an action is allowed
 def build_auth_context(
     current_user,
     action,
