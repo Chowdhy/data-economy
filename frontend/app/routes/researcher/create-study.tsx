@@ -9,6 +9,11 @@ import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
 import type { FieldDescription, FieldType } from "~/lib/types";
 
+/*
+Create study page for researchers 
+Provides a form to enter study details and optional/requireed fields
+*/
+
 export default function CreateStudyPage() {
   const navigate = useNavigate();
 
@@ -225,7 +230,9 @@ export default function CreateStudyPage() {
       !Number.isInteger(parsedDataCollectionMonths) ||
       parsedDataCollectionMonths <= 0
     ) {
-      setError("Please enter a valid data collection duration in whole months.");
+      setError(
+        "Please enter a valid data collection duration in whole months.",
+      );
       return;
     }
 

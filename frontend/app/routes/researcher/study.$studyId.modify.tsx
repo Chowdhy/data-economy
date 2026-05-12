@@ -18,6 +18,12 @@ import type {
   StudyIssue,
 } from "~/lib/types";
 
+/*
+Modify study page for researchers
+Allows researchers to modify study details in response to regulator feedback and resubmit for approval
+Only accessible when there is an open issue with the study
+*/
+
 export default function ModifyStudyPage() {
   const navigate = useNavigate();
   const params = useParams();

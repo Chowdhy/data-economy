@@ -13,6 +13,11 @@ import {
 } from "~/lib/studyStatus";
 import type { FieldDescription, ResearcherStudy } from "~/lib/types";
 
+/*
+Researcher studies page
+Displays list of all studies created by the researcher with details such as status, participant count and required fields
+Allows researcher to click into each study for more details and modify studies with requested changes
+*/
 export default function ResearcherStudiesPage() {
   const navigate = useNavigate();
 

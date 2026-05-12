@@ -10,6 +10,12 @@ import { api } from "~/lib/api";
 import type { ParticipantStudy } from "~/lib/types";
 import { getCurrentUser } from "~/lib/auth";
 
+/**
+ * Participant dashbaord page
+ * Shows summary of consent status for joined studies and option to modify consent
+ * Allows quick access to open study discovery and profile editing
+ */
+
 export default function ParticipantDashboard() {
   const navigate = useNavigate();
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);

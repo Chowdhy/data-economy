@@ -6,6 +6,12 @@ import Card from "~/components/ui/Card";
 import { api } from "~/lib/api";
 import type { ActivityLog } from "~/lib/types";
 
+/*
+Study logs for regulator, per study
+Shows a chronological list of all actions taken on the study, by whom and when
+E.g. study creation, modifications, approvals, participant joins/withdrawals, consent changes etc
+*/
+
 const ACTION_LABELS: Record<string, string> = {
   study_created: "created this study",
   study_approved: "approved this study",
@@ -18,7 +24,8 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function formatLogEntry(log: ActivityLog): string {
-  const actor = log.user_name ?? (log.user_id ? `User #${log.user_id}` : "System");
+  const actor =
+    log.user_name ?? (log.user_id ? `User #${log.user_id}` : "System");
   const action = ACTION_LABELS[log.action] ?? log.action.replace(/_/g, " ");
   return `${actor} ${action}`;
 }
@@ -87,7 +94,8 @@ export default function RegulatorStudyLogsPage() {
               Activity log
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              A full record of every action taken on this study, in chronological order.
+              A full record of every action taken on this study, in
+              chronological order.
             </p>
 
             {logs.length === 0 ? (

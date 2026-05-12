@@ -1,8 +1,10 @@
 import { type RouteConfig, route } from "@react-router/dev/routes";
 
+/**
+ * Maps URL paths to the React Router file that should be rendered.
+ */
 export default [
   route("/", "routes/login.tsx"),
- // route("/login", "routes/login.tsx"),
   route("/signup", "routes/signup.tsx"),
   route("/account", "routes/account.tsx"),
 
@@ -12,7 +14,6 @@ export default [
   route("/participant/profile", "routes/participant/profile.tsx"),
 
   route("/researcher/dashboard", "routes/researcher/dashboard.tsx"),
-  //route("/researcher/fields", "routes/researcher/fields.tsx"),
   route("/researcher/studies", "routes/researcher/studies.tsx"),
   route("/researcher/create-study", "routes/researcher/create-study.tsx"),
   route("/researcher/studies/:studyId", "routes/researcher/study.$studyId.tsx"),

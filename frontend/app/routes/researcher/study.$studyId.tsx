@@ -20,6 +20,13 @@ import type {
   StudyResearcherAccessLevel,
 } from "~/lib/types";
 
+/**
+ * Study details page for researchers
+ * Displays details of the study, review status and anonymised participant data where available
+ * Allows researchers to manage the research team and modify the study when there is regulator feedback
+ * Only accessible to researchers on the study team
+ */
+
 function formatDate(value: string) {
   const date = new Date(value);
 

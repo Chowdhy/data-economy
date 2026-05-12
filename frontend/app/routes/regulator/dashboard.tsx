@@ -6,6 +6,10 @@ import Card from "~/components/ui/Card";
 import { api } from "~/lib/api";
 import type { RegulatorStudy } from "~/lib/types";
 
+/*
+Regulator dashboard page
+Shows overview of all studies - new, pending modifications and those needing reviewing again
+*/
 export default function RegulatorDashboard() {
   const navigate = useNavigate();
 

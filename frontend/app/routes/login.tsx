@@ -12,6 +12,11 @@ import Button from "~/components/ui/Button";
 import Card from "~/components/ui/Card";
 import Input from "~/components/ui/Input";
 
+/**
+ * Login page for users
+ * Directs users to correct dashboard for their account role type
+ */
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,9 +83,15 @@ export default function LoginPage() {
           Sign in to your account to continue.
         </p>
 
-        {loginMessage ? <p className="mt-4 text-sm text-slate-600">{loginMessage}</p> : null}
-        {logoutMessage ? <p className="mt-2 text-sm text-emerald-700">{logoutMessage}</p> : null}
-        {signupMessage ? <p className="mt-2 text-sm text-emerald-700">{signupMessage}</p> : null}
+        {loginMessage ? (
+          <p className="mt-4 text-sm text-slate-600">{loginMessage}</p>
+        ) : null}
+        {logoutMessage ? (
+          <p className="mt-2 text-sm text-emerald-700">{logoutMessage}</p>
+        ) : null}
+        {signupMessage ? (
+          <p className="mt-2 text-sm text-emerald-700">{signupMessage}</p>
+        ) : null}
         {currentUser ? (
           <p className="mt-2 text-sm text-slate-500">
             Current session: {currentUser.name} ({currentUser.email})
@@ -151,7 +162,9 @@ export default function LoginPage() {
                       <p className="text-sm font-medium text-slate-900">
                         {session.user.name}
                       </p>
-                      <p className="text-sm text-slate-600">{session.user.email}</p>
+                      <p className="text-sm text-slate-600">
+                        {session.user.email}
+                      </p>
                       <p className="text-xs text-slate-500">
                         {session.user.role_id}
                       </p>

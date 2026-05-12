@@ -5,7 +5,17 @@ import Card from "~/components/ui/Card";
 import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
-import type { AvailableStudy, FieldDescription, ParticipantAnswerField } from "~/lib/types";
+import type {
+  AvailableStudy,
+  FieldDescription,
+  ParticipantAnswerField,
+} from "~/lib/types";
+
+/**
+ * Participant study discovery page
+ * Shows open studies available to join with details on required and optional fields
+ * Participant can join study
+ */
 
 export default function ParticipantDiscoverPage() {
   const [studies, setStudies] = useState<AvailableStudy[]>([]);
@@ -174,8 +184,7 @@ export default function ParticipantDiscoverPage() {
             const requiredFields = getFieldNames(study.required_field_ids);
             const optionalFields = getFieldNames(study.optional_field_ids);
             const isConsenting = consentingStudyId === study.study_id;
-            const optionalSelections =
-              selectedOptionals[study.study_id] ?? [];
+            const optionalSelections = selectedOptionals[study.study_id] ?? [];
 
             return (
               <Card key={study.study_id}>
