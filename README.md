@@ -33,7 +33,27 @@ Larger seed to demonstrate k-anonymity and l-diversity:
 python seed.py --participants 1000 --studies 8
 ```
 
-## 4. Demo accounts
+## 4. Serve the frontend through Flask
+
+From the project root:
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ../backend
+source .venv/bin/activate
+flask --app app:create_app run
+
+```
+
+Open:
+
+```txt
+http://127.0.0.1:5000
+```
+
+## Demo accounts
 
 | Role | Email | Password |
 |---|---|---|
@@ -44,39 +64,3 @@ python seed.py --participants 1000 --studies 8
 | Participant | `jane@gmail.com` | `test123` |
 | Participant | `sam@gmail.com` | `test123` |
 | Participant | `participant4@gmail.com` | `test123` |
-
-
-## 5. Frontend setup
-
-Open a second terminal from the project root:
-
-```bash
-cd frontend
-npm install
-```
-
-## 6. Build the frontend
-
-From `frontend/`:
-
-```bash
-npm run build
-```
-
-## 7. Serve the built frontend through Flask
-
-From the project root:
-
-```bash
-cd frontend
-npm run build
-cd ../backend
-source .venv/bin/activate
-flask --app app:create_app run
-```
-
-Open:
-
-```txt
-http://127.0.0.1:5000
-```
