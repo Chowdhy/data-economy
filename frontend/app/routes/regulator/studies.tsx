@@ -7,6 +7,11 @@ import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import type { RegulatorStudy } from "~/lib/types";
 
+/**
+ * Regulator studies page
+ * Displays list all studies with details such as status, participant count and review history
+ * Allows regulator to click into each study for more details and review actions
+ */
 function statusBadge(study: RegulatorStudy) {
   const { status, latest_issue_status } = study;
 
@@ -158,9 +163,7 @@ export default function RegulatorStudiesPage() {
   }, []);
 
   const pendingApproval = studies.filter(
-    (s) =>
-      s.status === "pending" &&
-      s.latest_issue_status !== "open",
+    (s) => s.status === "pending" && s.latest_issue_status !== "open",
   );
 
   const awaitingModification = studies.filter(

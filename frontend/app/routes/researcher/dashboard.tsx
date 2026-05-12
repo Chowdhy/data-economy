@@ -10,6 +10,10 @@ import { getCurrentUser } from "~/lib/auth";
 import { getResearcherDisplayStatus } from "~/lib/studyStatus";
 import type { ResearcherStudy } from "~/lib/types";
 
+/*
+Researcher dashboard page
+Shows overview of all studies
+*/
 export default function ResearcherDashboard() {
   const navigate = useNavigate();
 

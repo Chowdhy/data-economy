@@ -10,6 +10,11 @@ import Card from "~/components/ui/Card";
 import { api } from "~/lib/api";
 import type { RegulatorStudyDetail, StudyIssue } from "~/lib/types";
 
+/*
+Regulator study review page
+Displays detailed information about the study
+Allows regulator to review i.e. approve, reject or raise issues
+*/
 export default function RegulatorStudyReviewPage() {
   const navigate = useNavigate();
   const { studyId } = useParams();
@@ -246,9 +251,7 @@ export default function RegulatorStudyReviewPage() {
                 </div>
                 <Button
                   variant="secondary"
-                  onClick={() =>
-                    navigate(`/regulator/studies/${studyId}/logs`)
-                  }
+                  onClick={() => navigate(`/regulator/studies/${studyId}/logs`)}
                 >
                   Study Logs
                 </Button>
@@ -299,4 +302,3 @@ export default function RegulatorStudyReviewPage() {
     </AppShell>
   );
 }
-

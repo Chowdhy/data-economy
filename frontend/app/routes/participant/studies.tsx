@@ -12,6 +12,12 @@ import {
 } from "~/lib/studyStatus";
 import type { FieldDescription, ParticipantStudy } from "~/lib/types";
 
+/**
+ * Participant study management page
+ * Shows studies participant has joined with details on consented fields and study status
+ * Allows modifying consented optional fields and leaving studies
+ */
+
 export default function ParticipantStudiesPage() {
   const [studies, setStudies] = useState<ParticipantStudy[]>([]);
   const [availableFields, setAvailableFields] = useState<FieldDescription[]>(

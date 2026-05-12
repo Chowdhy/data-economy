@@ -7,7 +7,11 @@ import SectionHeading from "~/components/ui/SectionHeading";
 import { api } from "~/lib/api";
 import { getCurrentUser } from "~/lib/auth";
 import type { FieldType } from "~/lib/types";
-
+/** 
+Participant's profile page
+Displays and manages the answers to study fields
+Participants can update their answers 
+*/
 interface AnswerRow {
   field_id: number;
   field_name: string;
