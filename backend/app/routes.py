@@ -31,27 +31,30 @@ from .models import (
     StudyResearcher,
 )
 
+# Blueprint registers all API routes under a common prefix
+# Initialises the policy engine
 api = Blueprint("api", __name__)
 policy_engine = get_policy_engine()
 
 # Helper functions:
-# check_policy will return an error response if the action is not allowed under current policies, otherwise returns None (will remove):
+# check_policy returns an error response if the action is not allowed under current policies, otherwise returns None:
 def check_policy(action, context):
     if not policy_engine.is_allowed(action, context):
         return error(f"action '{action}' is not allowed under current policies", 403)
 # Main authorization entry point for all protected endpoints:
+# Evaluates the policy engine and return a generic error if denied.
 def authorize(action, context):
     decision = policy_engine.evaluate(action, context)
     if not decision.allowed:
-        # Log details server-side only; never expose policy internals to the client
+        # Log details server-side only!!! never expose policy internals to the client:
         print(f"[AUTH DENIED] action='{action}' failures={decision.failures} "
               f"prohibitions={decision.matched_prohibitions}")
         return error("Access denied.", 403)
     return None
-# Standardized error response function:
+# Standardised JSON error response used across the API:
 def error(message, status=400):
     return jsonify({"error": message}), status
-# Utility function to split required vs optional field ids for a study:
+# Splits the fields associated with a study into required vs. optional id lists:
 def split_study_field_ids(study_id):
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     return {
@@ -61,15 +64,21 @@ def split_study_field_ids(study_id):
     }
 
 
-
-# Get current user based on JWT identity:
+# Get the current user based on JWT identity claim:
 def get_current_user():
     user_id = get_jwt_identity()
     if user_id is None:
         return None
     return User.query.get(int(user_id))
 # Shared context builder for policy evaluation
-# This function constructs a context dictionary that includes information about the current user, the action being performed, the resource involved, any target user (for actions involving another user), membership status (e.g., whether the user is enrolled in a study), and any extra context needed for specific policy checks. This standardized context can then be used across different policy evaluations to determine if an action is allowed.
+# This function constructs a context dictionary that includes:
+# - information about the current user, 
+# - the action being performed, 
+# - the resource involved, 
+# - any target user (for actions involving another user), 
+# - membership status (e.g., whether the user is enrolled in a study),
+# - and any extra context needed for specific policy checks 
+# This standardized context can then be used across different policy evaluations to determine if an action is allowed.
 def build_auth_context(
     current_user,
     action,
@@ -83,14 +92,12 @@ def build_auth_context(
         "subject": {
             "userId": current_user.user_id if current_user else None,
             "role": current_user.role_id if current_user else None,
-            #"isApproved": getattr(current_user, "is_approved", None),
             "isActive": getattr(current_user, "is_active", None),
         },
         "resource": {
             "studyId": getattr(resource, "study_id", None),
             "creatorId": getattr(resource, "creator_id", None),
             "status": getattr(resource, "status", None),
-            #"hasPendingRoleRequest": bool(getattr(target_user, "requested_role", None)) if target_user else None,
         },
         "env": {
             "isOwner": bool(current_user and resource and getattr(resource, "creator_id", None) == current_user.user_id),
@@ -109,7 +116,7 @@ def build_auth_context(
         context["env"].update(extra)
 
     return context
-# Role check helper (will remove):
+# Role check helper (not needed):
 def require_role(*allowed_roles):
     user = get_current_user()
     if not user: 
@@ -117,10 +124,11 @@ def require_role(*allowed_roles):
     if user.role_id not in allowed_roles:
         return None, error("user does not have required role", 403)
     return user, None
-# Utility function to add months to a datetime (approximate as 30 days per month):
+# Utility function to add a number of months to a datetime (approximate as 30 days per month):
 def add_months_as_days(start_dt, months):
     return start_dt + timedelta(days=30 * months)
-# Utility function to refresh study status based on current time and study timelines:
+# Utility function to refresh study status based on current time and its lifecycle timestamps:
+# Transtitions: open to ongoing to complete.
 def refresh_study_status(study):
     if not study:
         return None
@@ -141,7 +149,8 @@ def refresh_study_status(study):
 
     return study
 
-# Log a user/study action to the activity_logs table (call before db.session.commit):
+# Records a user/study action in the activity_logs table.
+# Should be called before db.session.commit() so the log entry is part of the same transaction:
 def log_action(action, user_id=None, study_id=None, details=None):
     entry = ActivityLog(
         user_id=user_id,
@@ -168,6 +177,7 @@ def can_access_study_data(study, user):
     collab = get_study_researcher(study.study_id, user.user_id)
     return collab is not None and collab.access_level in ("editor",)
 
+# Each of these helpers convert a SQLAlchemy model row into a JSON-friendly dict:
 def serialise_study_researcher(sr, study_creator_id):
     return {
         "researcher_id": sr.researcher_id,
@@ -206,17 +216,13 @@ def serialise_log_entry(log):
         "created_at": log.created_at.isoformat(),
     }
 
-# Health check:
+# Health check endpoint:
 @api.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
 
 
-'''
-Helper functions for serialising data into JSON dictionaries
-(we could move to separate file)
-'''
-
+# Compact view of a study used in listings, includes issue and participant aggregates:
 def serialise_study_summary(study):
     study_fields = split_study_field_ids(study.study_id)
 
@@ -262,7 +268,7 @@ def serialise_study_summary(study):
         "latest_issue_status": latest_issue_status,
         "participant_count": participant_count,
     }
-
+# Full field representation, including its enum options if any:
 def serialise_field(field):
     return {
         "field_id": field.field_id,
@@ -276,7 +282,7 @@ def serialise_field(field):
             for option in field.options
         ],
     }
-
+# Expanded study view for the regulator review screen:
 def serialise_regulator_study_detail(study):
     study_fields = split_study_field_ids(study.study_id)
     participant_count = StudyParticipant.query.filter_by(
@@ -310,7 +316,7 @@ def serialise_regulator_study_detail(study):
         "required_fields": required_fields,
         "optional_fields": optional_fields,
     }
-
+# Combines any issue with its flagged fields and (if any) the researcher's modification response:
 def serialise_study_issue(issue):
     flagged_fields = []
     flagged_field_ids = []
@@ -366,19 +372,15 @@ def serialise_study_issue(issue):
     }
 
 
-# Creating a new user: 
-# Current functionality: 
-# - Get name, email, password, and requested_role
-# - Validate required fields
-# - Ensure role is either participant or researcher
-# - Check email uniqueness
-# - Hash password before storing it 
-# - Assign: participant = approved, researcher = pending approval
-# - Save user 
-# - Return user info
-# Future functionality: 
+
 @api.route("/users", methods=["POST"])
 def create_user():
+    """Register a new participant or researcher account.
+    Accepts name, email, password and an optional role_id (defaults to
+    'participant'). Rejects unknown roles, duplicate emails, and missing
+    fields. Stores a hashed password and returns the new user's id, email
+    and role.
+    """
     data = request.get_json() or {}
 
     name = data.get("name")
@@ -389,6 +391,7 @@ def create_user():
     if not all([name, email, password]):
         return error("name, email, and password are required")
 
+    # Self-registration is restricted to non-privileged roles )admins): 
     if role_id not in {"participant", "researcher"}:
         return error("role must be 'participant' or 'researcher'")
     
@@ -397,7 +400,7 @@ def create_user():
     if existing:
         return error("email already exists", 409)
     
-    # Hash plain text password: 
+    # Hash plain text password (never store plaintext): 
     hashed_password = generate_password_hash(password)
 
   
@@ -408,8 +411,6 @@ def create_user():
         email=email,
         password_hash=hashed_password,
         role_id=role_id,
-        #requested_role=stored_requested_role,
-        #is_approved=is_approved
     )
     db.session.add(user)
     db.session.commit()
@@ -424,19 +425,15 @@ def create_user():
     }), 201
 
 
-# Current functionality: 
-# - Require JWT and role check for researcher
-# - Get field_name and field_desc from request
-# - Validate field_name 
-# - Check field name uniqueness
-# - Create field with created_by 
-# - Save field and return field info
-# Future functionality: 
-# Should researchers be able to create new fields? Or should they be able somehow pick from a list of predefined fields. 
-# Trying to make this more polic-engine based. 
+
 @api.route("/fields", methods=["POST"])
 @jwt_required()
 def create_field():
+     """Create a new field definition (text or enum).
+    Authorised via the policy engine ('createField'). Enum fields require
+    at least two unique non-empty options. Field names are globally unique.
+    Returns the created field, including its persisted enum options.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -455,7 +452,7 @@ def create_field():
         return error("field_type must be either 'text' or 'enum'", 400)
 
     cleaned_options = []
-
+    
     if field_type == "enum":
         if not isinstance(options, list):
             return error("options must be a list for enum fields", 400)
@@ -468,7 +465,7 @@ def create_field():
             if stripped:
                 cleaned_options.append(stripped)
 
-        # Remove duplicate options while preserving order.
+        # Remove duplicate options while preserving order:
         cleaned_options = list(dict.fromkeys(cleaned_options))
 
         if len(cleaned_options) < 2:
@@ -501,6 +498,7 @@ def create_field():
     )
 
     db.session.add(field)
+    # Ensure field.field_id is populating before inserting options:
     db.session.flush()
 
     for index, option_value in enumerate(cleaned_options):
@@ -528,13 +526,14 @@ def create_field():
         },
     }), 201
 
-# Current functionality:
-# - Require JWT and role check for researcher
-# - List all fields with their descriptions
-# - Return list  
+
 @api.route("/fields", methods=["GET"])
 @jwt_required()
 def list_all_fields():
+    """List every field definition in the catalogue.
+    Authorised via the policy engine ('listFields'). Returns fields in
+    ascending id order, including their enum options where applicable.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -566,93 +565,16 @@ def list_all_fields():
         ]
     }), 200
 
-
-
-''' @api.route("/studies/<int:study_id>/fields", methods=["GET"])
-@jwt_required()
-def get_study_fields(study_id):
-    current_user = get_current_user()
-    if not current_user:
-        return error("user not found", 404)
-
-    study = Study.query.get(study_id)
-    if not study:
-        return error("study not found", 404)
-
-    # Policy context: 
-    context = {"studyStatus": study.status} # pending, open, ongoing, complete
-
-    # Regulator can only see fields for pending status they have not approved yet:
-    if current_user.role_id == "regulator":
-        policy_error = check_policy("viewFieldsRegulator", context)
-        if policy_error:
-            return policy_error
-
-        fields = db.session.query(FieldDescription).join(
-            StudyRequiredField
-        ).filter(
-            StudyRequiredField.study_id == study_id
-        ).all()
-
-    # Researcher can only see fields for their own studies:
-    elif current_user.role_id == "researcher":
-        if study.creator_id != current_user.user_id:
-            return error("not your study", 403)
-
-        fields = db.session.query(FieldDescription).join(
-            StudyRequiredField
-        ).filter(
-            StudyRequiredField.study_id == study_id
-        ).all()
-
-    # Participants can only see fields when the study is open:
-    else:
-        policy_error = check_policy("viewFieldsParticipant", context)
-        if policy_error:
-            return policy_error
-
-        # Must be enrolled:
-        membership = StudyParticipant.query.filter_by(
-            study_id=study_id,
-            participant_id=current_user.user_id
-        ).first()
-
-        if not membership:
-            return error("not enrolled in this study", 403)
-
-        fields = db.session.query(FieldDescription).join(
-            StudyRequiredField
-        ).filter(
-            StudyRequiredField.study_id == study_id
-        ).all()
-
-    return jsonify({
-        "study_id": study_id,
-        "fields": [
-            {
-                "field_id": f.field_id,
-                "field_name": f.field_name,
-                "field_desc": f.field_desc
-            }
-            for f in fields
-        ]
-    }), 200 '''
-
-# Current functionality: 
-# - Require JWT and role check for researcher
-# - Get study data and field IDs
-# - Validate inputs
-# - Validate field_ids exist
-# - Enforce max active studies per researcher (I will move this to the policy engine later)
-# - Create study with pending status
-# - Insert required vs optional field links
-# - Return study info
-# Future functionality: 
-# - Should researchers be able to create new fields? Or should they be able somehow pick from a list of predefined fields.
-# - More policy engine-based checks 
 @api.route("/studies", methods=["POST"])
 @jwt_required()
 def create_study():
+    """Create a new study in 'pending' status awaiting regulator approval.
+    Validates that durations are positive integers, that at least one
+    required field is provided, and that every supplied field id exists.
+    Authorisation (including any per-researcher active-study cap) is
+    delegated to the policy engine via 'createStudy'. Persists the
+    required/optional field associations and logs the creation.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -684,12 +606,12 @@ def create_study():
 
     if not isinstance(optional_field_ids, list):
         return error("optional_field_ids must be a list")
-
+    
     active_count = Study.query.filter(
         Study.creator_id == current_user.user_id,
-        Study.status.in_(["pending", "open", "ongoing"]) # shall I add complete? 
+        Study.status.in_(["pending", "open", "ongoing"])
     ).count()
-
+    # Verification for existence of every supplied field id: 
     all_field_ids = list(dict.fromkeys(required_field_ids + optional_field_ids))
 
     fields = FieldDescription.query.filter(
@@ -700,8 +622,6 @@ def create_study():
         return error("one or more field_ids do not exist")
     else:
         valid_field_ids  = (len(fields) == len(all_field_ids))
-
-    
 
     context = build_auth_context(
         current_user=current_user,
@@ -769,20 +689,16 @@ def create_study():
         }
     }), 201
 
-# Current functionality: 
-# - Require JWT and role check for participant
-# - Get study by ID and validate it exists
-# - Policy check that the study is open for joining
-# - Check already joined
-# - Create StudyParticipant link with consent_all_fields=False by default
-# - Auto-consent to required fields (maybe this is wrong?)
-# - Return success message
-# Future functionality:
-# - More policy engine-based checks (max active pending studies?)
-# - Should participants be auto-consented to required fields upon joining? Or should they have to explicitly consent to each field (with required fields enforced at the policy level)?
 @api.route("/studies/<int:study_id>/join", methods=["POST"])
 @jwt_required()
 def join_study(study_id):
+    """Enrol the current user as a participant in a study.
+    Refreshes the study's status so the policy engine sees its current
+    lifecycle state, then delegates the join decision (including
+    already-enrolled detection) to 'joinStudy'. Creates a membership row
+    with consent_all_fields=False; consent is granted explicitly later
+    via /consent/modify.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -792,7 +708,7 @@ def join_study(study_id):
         return error("study not found", 404)
     
     refresh_study_status(study)
-    
+    # Pre-fetch any existing membership so the policy engine can detect double-joins: 
     membership = StudyParticipant.query.filter_by(
         study_id=study_id,
         participant_id=current_user.user_id
@@ -817,74 +733,12 @@ def join_study(study_id):
     db.session.add(link)
     log_action("participant_joined", user_id=current_user.user_id, study_id=study_id)
     db.session.commit()
-    # Remove auto consent logic:
-    ''' required_fields = StudyRequiredField.query.filter_by(
-        study_id=study_id,
-        is_required=True
-    ).all()
-    for required in required_fields:
-        db.session.add(StudyParticipantConsentedField(
-            study_id=study_id,
-            participant_id=current_user.user_id,
-            field_id=required.field_id,
-        )) '''
 
     return jsonify({
         "message": "participant joined study and consented to all required fields by default",
         "study_id": study_id,
         "participant_id": current_user.user_id,
     }), 201
-
-
-''' @api.route("/studies/<int:study_id>/consent/withdraw", methods=["POST"])
-def withdraw_consent_fields(study_id):
-    data = request.get_json() or {}
-
-    participant_id = data.get("participant_id")
-    field_ids = data.get("field_ids", [])
-
-    if participant_id is None:
-        return error("participant_id is required")
-    if not isinstance(field_ids, list) or not field_ids:
-        return error("field_ids must be a non-empty list")
-
-    membership = StudyParticipant.query.filter_by(
-        study_id=study_id,
-        participant_id=participant_id,
-    ).first()
-
-    if not membership:
-        return error("participant is not enrolled in this study", 404)
-
-    consent_rows = StudyParticipantConsentedField.query.filter(
-        StudyParticipantConsentedField.study_id == study_id,
-        StudyParticipantConsentedField.participant_id == participant_id,
-        StudyParticipantConsentedField.field_id.in_(field_ids),
-    ).all()
-
-    found_field_ids = {row.field_id for row in consent_rows}
-    missing = [fid for fid in field_ids if fid not in found_field_ids]
-    if missing:
-        return error(f"these fields are not currently consented and cannot be withdrawn: {missing}")
-
-    for row in consent_rows:
-        db.session.delete(row)
-
-    membership.consent_all_fields = False
-    db.session.commit()
-
-    remaining_count = StudyParticipantConsentedField.query.filter_by(
-        study_id=study_id,
-        participant_id=participant_id,
-    ).count()
-
-    return jsonify({
-        "message": "consent withdrawn for selected fields",
-        "study_id": study_id,
-        "participant_id": participant_id,
-        "withdrawn_field_ids": field_ids,
-        "remaining_consented_field_count": remaining_count,
-    }), 200 '''
 
 
 # Current functionality:
@@ -897,6 +751,10 @@ def withdraw_consent_fields(study_id):
 @api.route("/studies/<int:study_id>/withdraw", methods=["POST"])
 @jwt_required()
 def withdraw_from_study(study_id):
+    """Withdraw the current user from a study by deleting their membership.
+    Authorisation is delegated to 'withdrawStudy'; the policy engine
+    handles enrolment and lifecycle-stage checks.
+    """
     current_user = get_current_user()
 
     if not current_user:
@@ -933,91 +791,15 @@ def withdraw_from_study(study_id):
         "participant_id": current_user.user_id,
     }), 200
 
-''' @api.route("/studies/<int:study_id>/consent/regrant", methods=["POST"])
-def regrant_consent_fields(study_id):
-    data = request.get_json() or {}
-
-    participant_id = data.get("participant_id")
-    field_ids = data.get("field_ids", [])
-
-    if participant_id is None:
-        return error("participant_id is required")
-    if not isinstance(field_ids, list) or not field_ids:
-        return error("field_ids must be a non-empty list")
-
-    membership = StudyParticipant.query.filter_by(
-        study_id=study_id,
-        participant_id=participant_id,
-    ).first()
-
-    if not membership:
-        return error("participant is not enrolled in this study", 404)
-
-    required_field_rows = StudyRequiredField.query.filter_by(study_id=study_id).all()
-    required_field_ids = {row.field_id for row in required_field_rows}
-    required_count = len(required_field_ids)
-
-    invalid = [fid for fid in field_ids if fid not in required_field_ids]
-    if invalid:
-        return error(
-            f"these fields are not required by this study and cannot be consented here: {invalid}"
-        )
-
-    existing_consented = StudyParticipantConsentedField.query.filter(
-        StudyParticipantConsentedField.study_id == study_id,
-        StudyParticipantConsentedField.participant_id == participant_id,
-        StudyParticipantConsentedField.field_id.in_(field_ids),
-    ).all()
-
-    existing_ids = {row.field_id for row in existing_consented}
-    to_add = [fid for fid in field_ids if fid not in existing_ids]
-
-    for field_id in to_add:
-        db.session.add(
-            StudyParticipantConsentedField(
-                study_id=study_id,
-                participant_id=participant_id,
-                field_id=field_id,
-            )
-        )
-
-    db.session.flush()
-
-    current_consented_count = StudyParticipantConsentedField.query.filter_by(
-        study_id=study_id,
-        participant_id=participant_id,
-    ).count()
-
-    membership.consent_all_fields = (current_consented_count == required_count)
-
-    db.session.commit()
-
-    return jsonify({
-        "message": "consent regranted for selected fields",
-        "study_id": study_id,
-        "participant_id": participant_id,
-        "added_field_ids": to_add,
-        "already_consented_field_ids": list(existing_ids),
-        "consent_all_fields": membership.consent_all_fields,
-    }), 200 '''
-
-
-# Current functionality:
-# - Get current use
-# - Ensure participant role
-# - Get study by ID and validate it exists
-# - Get consented_field_ids from request
-# - Validate consented_field_ids is a list
-# - Get study and refresh status
-# - Validate the field_ids exist for the study
-# - Policy check: studyStatus and whether required fields are included in the consented_field_ids
-# - If required fields are missing, delete membership automatically
-# - Else: delete old consent, insert new consent, update consent_all_fields if all fields are consented, and return success message
-# Future functionality:
-# - NO JWT need to implement that 
 @api.route("/studies/<int:study_id>/consent/modify", methods=["POST"])
 @jwt_required()
 def modify_consent(study_id):
+    """Replace the current user's consented-field set for a study.
+    Validates that every supplied id belongs to the study. If any required
+    field is missing from the new set, the participant is automatically
+    withdrawn from the study. Otherwise the existing consent rows are
+    deleted and replaced wholesale, and consent_all_fields is recomputed.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1042,7 +824,7 @@ def modify_consent(study_id):
         return error("participant is not enrolled in this study", 404)
 
    
-    # Get all valid fields:
+    # Get all valid fields associated with this study:
     study_fields = StudyRequiredField.query.filter_by(study_id=study_id).all()
     all_field_ids = {f.field_id for f in study_fields}
     required_ids = {f.field_id for f in study_fields if f.is_required}
@@ -1050,7 +832,7 @@ def modify_consent(study_id):
     invalid = [fid for fid in consented_field_ids if fid not in all_field_ids]
     if invalid:
         return error(f"invalid field_ids: {invalid}")
-    
+    # If required fields are no longer consented, treat as an implicit withdrawal:
     if not required_ids.issubset(set(consented_field_ids)):
         StudyParticipant.query.filter_by(
             study_id=study_id,
@@ -1079,7 +861,7 @@ def modify_consent(study_id):
     if authori_error:
         return authori_error
 
-    # Update consent ONLY if valid:
+    # Update consent:
     StudyParticipantConsentedField.query.filter_by(
         study_id=study_id,
         participant_id=current_user.user_id,
@@ -1092,6 +874,7 @@ def modify_consent(study_id):
             field_id=fid,
         ))
 
+    # True iff the participant has consented to every available field for this study:
     membership.consent_all_fields = (len(consented_field_ids) == len(all_field_ids))
     log_action("consent_modified", user_id=current_user.user_id, study_id=study_id,
                details={"consented_field_count": len(consented_field_ids)})
@@ -1103,16 +886,16 @@ def modify_consent(study_id):
     }), 200
 
 
-
-# Current functionality (for participants): 
-# - Get participant answers (check needs to change to be updated with everything else)
-# - Validate list 
-# - Check participant exists and is a participant
-# - For each answer: validate field_name, check field exists, then upsert answer
-# - Return success message with list of created vs updated answers
 @api.route("/participants/<int:participant_id>/answers", methods=["POST"])
 @jwt_required()
 def upsert_participant_answers(participant_id):
+    """Upsert a participant's answers for one or more fields.
+    Authorisation is delegated to 'submitAnswers'. For each item, the
+    field is resolved by field_id first and then field_name as a fallback.
+    Enum answers must match one of the declared option values (blank is
+    allowed). Existing answers are updated in place; missing ones are
+    inserted. The response lists each result as 'created' or 'updated'.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1167,7 +950,7 @@ def upsert_participant_answers(participant_id):
                 for option in field.options
             }
 
-            # Allow blank answers, but validate non-blank enum answers.
+            # Allow blank answers, but validate non-blank enum answers:
             if answer_value and answer_value not in allowed_values:
                 return error(
                     f"answer for '{field.field_name}' must be one of: {sorted(allowed_values)}",
@@ -1215,14 +998,14 @@ def upsert_participant_answers(participant_id):
     }), 200
 
 
-# Current functionality:
-# - Get participant answers (check for role needs to be updated with the updated tokens)
-# - Check participant exists and is a participant
-# - Fetch all fields and left join to participant answers to return list of field_name, field_desc, and answer (if exists) for each field
-# - Return list of answers with field descriptions
 @api.route("/participants/<int:participant_id>/answers", methods=["GET"])
 @jwt_required()
 def get_participant_answers(participant_id):
+    """Return every field in the catalogue alongside the participant's answer.
+    Authorised via 'viewOwnAnswers'. Fields without a stored answer are
+    returned with an empty string so the client always sees the full
+    questionnaire.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1268,16 +1051,14 @@ def get_participant_answers(participant_id):
         "answers": results,
     }), 200
 
-# Current functionality:
-# - Get participant studies
-# - Check participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
-# - For each study, refresh study status, get consented field IDs for the participant, split required vs optional field IDs, and return study info along with consent details
-# - Return 
-# Future functionality: 
-# - Should the participants of a study be notified when a study changes statuses? 
 @api.route("/participants/<int:participant_id>/studies", methods=["GET"])
 @jwt_required()
 def list_participant_studies(participant_id):
+    """List every study the participant is enrolled in, with consent details.
+    Authorised via 'viewParticipantStudies'. For each membership the
+    study's status is refreshed and its required/optional field split is
+    returned alongside the participant's currently consented field ids.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1330,14 +1111,14 @@ def list_participant_studies(participant_id):
         "studies": results,
     }), 200
 
-# Current functionality:
-# - Validate participant exists and is a participant (check needs to be updated based on the JWT tokens added to the functionality)
-# - Fetch all studies, refresh their statuses, and return info for studies that are currently open along with required vs optional field splits
-# Future functionality:
-# - More policy engine-based checks 
 @api.route("/participants/<int:participant_id>/available-studies", methods=["GET"])
 @jwt_required()
 def list_available_studies(participant_id):
+    """List open studies the participant has not yet joined.
+    Authorised via 'viewAvailableStudies'. Refreshes each study's status
+    and filters out anything that isn't 'open' or that the participant is
+    already enrolled in.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1355,7 +1136,7 @@ def list_available_studies(participant_id):
     auth_error = authorize("viewAvailableStudies", context)
     if auth_error:
         return auth_error
-
+    # Exclude studies the participant has already joined: 
     joined_ids = {
         s.study_id for s in StudyParticipant.query.filter_by(
             participant_id=participant_id
@@ -1392,12 +1173,16 @@ def list_available_studies(participant_id):
     }), 200
 
 
-# Current functionality: 
-# - Validate researcher exists and is a researcher (check needs to be updated based on the JWT tokens added to the functionality)
-# - Fetch all studies created by the researcher, refresh their statuses, and return study info along with required vs optional field splits and participant counts
+
 @api.route("/researchers/<int:researcher_id>/studies", methods=["GET"])
 @jwt_required()
 def list_researcher_studies(researcher_id):
+    """List every study a researcher owns or collaborates on.
+    Authorised via 'viewResearcherStudies'. Merges studies the researcher
+    created with those where they appear in StudyResearcher, annotating
+    each summary with is_creator and an access_level of 'owner', 'editor'
+    or 'viewer'.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1421,14 +1206,14 @@ def list_researcher_studies(researcher_id):
     auth_error = authorize("viewResearcherStudies", context)
     if auth_error:
         return auth_error
-
+    # Studies the researcher created themselves: 
     created_studies = Study.query.filter_by(creator_id=researcher_id).all()
     created_ids = {s.study_id for s in created_studies}
-
+    # Studies the researcher collaborates on but did NOT create:
     collab_rows = StudyResearcher.query.filter_by(researcher_id=researcher_id).all()
     collab_study_ids = [r.study_id for r in collab_rows if r.study_id not in created_ids]
     collab_studies = Study.query.filter(Study.study_id.in_(collab_study_ids)).all() if collab_study_ids else []
-
+    # Merge both lists, annotating each with the researcher's role on it: 
     results = []
     for study in created_studies + collab_studies:
         refresh_study_status(study)
@@ -1443,10 +1228,16 @@ def list_researcher_studies(researcher_id):
         "studies": results
     }), 200
 
-# Do we need this? 
+
 @api.route("/studies/<int:study_id>", methods=["GET"])
 @jwt_required(optional=True)
 def get_study(study_id):
+    """Return a study's public summary.
+    Open studies are visible to anyone (including unauthenticated callers).
+    Rejected studies are hidden from non-regulators with a 404. All other
+    statuses require authentication and policy-engine approval via
+    'viewStudy'.
+    """
     current_user = get_current_user()
 
     study = Study.query.get(study_id)
@@ -1456,6 +1247,7 @@ def get_study(study_id):
     refresh_study_status(study)
 
     # Rejected studies are only visible to the study's researchers and regulators
+    # Block non-regulator access to rejected studies:
     if study.status == "rejected":
         if not current_user:
             return error("study not found", 404)
@@ -1502,11 +1294,11 @@ def get_study(study_id):
         payload["rejection_reason"] = rejection_reason
         return jsonify({"study": payload}), 200
 
-    # Public access for open studies
+    # Public access for open studies: 
     if study.status == "open":
         return jsonify({"study": payload}), 200
 
-    # Otherwise require auth
+    # Any other status requires authentication: 
     if not current_user:
         return error("authentication required", 401)
 
@@ -1521,12 +1313,20 @@ def get_study(study_id):
         return auth_error
 
     return jsonify({"study": payload}), 200
-# Do we need this? (it doesn't really role checking)
-# IT NEEDS TO BE ONLY FOR RESEARCHERS WHEN THE STUDY IS ONGOING AND WE NEED ANONYMISATION ASAP (CHECK DATA PRIV LECTURES)
+
+
 @api.route("/researchers/<int:researcher_id>/studies/<int:study_id>/data", methods=["GET"])
 @api.route("/studies/<int:study_id>/data", methods=["GET"])
 @jwt_required()
 def get_study_data(study_id, researcher_id=None):
+    """Return anonymised study data using k-anonymity and l-diversity.
+    Authorised via 'accessStudyData' (creator, regulator or editor
+    collaborator). Pivots the (participant, field, answer) rows where the
+    participant has consented, classifies each consented field as a
+    quasi-identifier, sensitive attribute or other, applies the
+    anonymisation pipeline, and returns the resulting groups plus the
+    privacy parameters used.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1550,7 +1350,7 @@ def get_study_data(study_id, researcher_id=None):
     if auth_error:
         return auth_error
 
-    # Fetch all consented study fields
+    # Fetch every (participant, field, answer) triple where the participant has given their consent: 
     rows = db.session.query(
         StudyParticipant.participant_id,
         FieldDescription.field_id,
@@ -1586,7 +1386,7 @@ def get_study_data(study_id, researcher_id=None):
         participant_records[participant_key][field_name] = answer
         consented_field_names.add(field_name)
 
-    # Work out which anonymisation fields are active for this study
+    # Classify each consented field as quasi-identifier, sensitive or other:
     active_quasi_identifier_fields = get_active_candidate_fields(
         consented_field_names,
         K_ANONYMITY_CANDIDATE_FIELDS,
@@ -1603,7 +1403,7 @@ def get_study_data(study_id, researcher_id=None):
         active_sensitive_fields,
     )
 
-    # Apply k-anonymity and l-diversity, then aggregate released field values
+    # Apply k-anonymity and l-diversity, then aggregate released field values:
     anonymised_data = anonymise_study_records(
         participant_records,
         active_quasi_identifier_fields,
@@ -1634,16 +1434,14 @@ def get_study_data(study_id, researcher_id=None):
         "groups": anonymised_data["groups"],
     }), 200
 
-
-# Current functionality: 
-# - Get email and password from request
-# - Validate they exist
-# - Find user 
-# - Check password hash
-# - Block unapproved researcher requests
-# - Generate JWT token with role_id and email as identity
 @api.route("/login", methods=["POST"])
 def login():
+    """Authenticate a user and issue a JWT access token.
+    Returns the same generic error for unknown email and wrong password to
+    avoid user enumeration. Inactive users are blocked. On success, issues
+    a JWT whose identity is the user_id (as a string) with role_id and
+    email as additional claims.
+    """
     data = request.get_json() or {}
 
     email = data.get("email")
@@ -1658,10 +1456,6 @@ def login():
     if not check_password_hash(user.password_hash, password):
         return error("invalid email or password", 401)
     
-
-    # Block unapproved researcher requests: 
-    #if user.requested_role == "researcher" and not user.is_approved:
-    #    return error("researcher account pending approval by regulator", 403)
     # Block inactive users:
     if not user.is_active:
         return error("account is inactive", 403)
@@ -1685,63 +1479,19 @@ def login():
         }
     }), 200
 
-# NEW Endpoint: add regulator approval
-# Current functionality: 
-# - Get user_id from URL and regulator_id from request body
-# - Validate regulator_id belongs to a regulator user
-# - Validate user_id belongs to a user with a pending role request
-# - Update user's role_id to requested_role, set requested_role to None, and set is_approved to True
-# Future functionality:
-# - Make this more policy-engine based. 
-# - Currently trying to do that :), current changes: added jwt_required, removed regulator_id, regulator now comes from JWT, authorization now goes through authorize function with an "approveUserRole" action and context that includes the current_user and target_user. 
-''' @api.route("/admin/users/<int:user_id>/approve", methods=["POST"])
-@jwt_required()
-def approve_user(user_id):
-    current_user = get_current_user()
-    if not current_user:
-        return error("user not found", 404)
-    
-    target_user = User.query.get(user_id)
-    if not target_user:
-        return error("target user not found", 404)
-    
-    context = build_auth_context(current_user = current_user, action= "approveUserRole", target_user = target_user)
-    authori_error = authorize("approveUserRole", context)
-    if authori_error:
-        return authori_error
-   
 
-    target_user.role_id = target_user.requested_role
-    target_user.requested_role = None
-    target_user.is_approved = True
 
-    db.session.commit()
-
-    return jsonify({
-        "message": "user approved",
-        "user_id": target_user.user_id,
-        "new_role": target_user.role_id
-    }), 200 '''
-
-# Approval and rejection endpoints by regulator for pending studies: 
-# Current functionality:
-# - Get study_id from URL and regulator_id from request body
-# - Validate regulator_id belongs to a regulator user
-# - Validate study_id belongs to a pending study
-# - For approval: update study status to open, set approved_at to now, and calculate
-# - open_until and ongoing_until based on approved_at and the study's data_collection_months and research_duration_months
-# - For rejection: update study status to rejected
-# Future functionality:
-# - Make this more policy-engine based.
-# - Currently trying to do that, changes: removed the require_role call, removed manual auth-style logic from the route, moved regulator and pending study logic into policy eval, kept the actual DB update as business logic.
 @api.route("/admin/studies/<int:study_id>/approve", methods=["POST"])
 @jwt_required()
 def approve_study(study_id):
+    """Approve a pending study and start its lifecycle clock.
+    Authorised via 'approveStudy'. Moves the study to 'open', stamps
+    approved_at, and derives open_until and ongoing_until from the
+    study's declared data-collection and research-duration windows.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
-    
-
     
     study = Study.query.get(study_id)
     if not study:
@@ -1758,6 +1508,8 @@ def approve_study(study_id):
     authori_error = authorize("approveStudy", context)
     if authori_error:
         return authori_error
+
+    # Derive the open/ongoing windows from the study's declared durations: 
     approved_at = datetime.utcnow()
 
     study.status = "open"
@@ -1781,6 +1533,9 @@ def approve_study(study_id):
 @api.route("/admin/studies/<int:study_id>/reject", methods=["POST"])
 @jwt_required()
 def reject_study(study_id):
+    """Reject a study, recording an optional reason on the audit log.
+    Authorised via 'rejectStudy'. Sets the study's status to 'rejected'.
+    """
     current_user = get_current_user()
     if not current_user: 
         return error ("user not found", 404)
@@ -1819,14 +1574,15 @@ def reject_study(study_id):
     }), 200
 
 
-# Current functionality:
-# - Get study_id from URL
-# - Validate study_id belongs to a study
-# - Refresh study status based on current time and the study's approved_at, open_until, and ongoing_until timestamps
-# - Return study status along with approved_at, open_until, and ongoing_until timestamps for frontend
+
 @api.route("/studies/<int:study_id>/status", methods=["GET"])
 @jwt_required()
 def get_study_status(study_id):
+    """Return a study's current lifecycle status and timestamps.
+    Calls refresh_study_status first so the response reflects any
+    open to ongoing transitions that have just
+    elapsed.
+    """
     study = Study.query.get(study_id)
     if not study:
         return error("study not found", 404)
@@ -1845,6 +1601,15 @@ def get_study_status(study_id):
 @api.route("/studies/<int:study_id>/modify", methods=["PUT"])
 @jwt_required()
 def modify_study(study_id):
+    """Respond to a regulator-raised issue by modifying the study.
+    Requires an open issue_id belonging to this study that has not
+    already been addressed by a modification. Optionally rewrites the
+    study's required/optional field set and/or description; records
+    per-field add/remove diffs on the StudyModification. Sends the study
+    back to 'pending' for re-approval and marks the issue 'responded'.
+    Editor-level collaborators may modify in addition to the creator;
+    authorisation is delegated to 'modifyStudy'.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -1871,7 +1636,8 @@ def modify_study(study_id):
     
     if issue.status != "open":
         return error("this issue is no longer open", 400)
-    
+
+    # An issue can only be addressed by a single modification, further changes need a new issue: 
     existing_modification = StudyModification.query.filter_by(issue_id=issue_id).first()
     if existing_modification:
         return error(
@@ -1900,7 +1666,7 @@ def modify_study(study_id):
         if len(fields) != len(all_field_ids):
             return error("one or more field_ids do not exist", 400)
 
-    # Build policy context
+    # Editor-level collaborators can modify in addition to the creator: 
     collab = get_study_researcher(study.study_id, current_user.user_id)
     can_edit = (
         study.creator_id == current_user.user_id or
@@ -1927,6 +1693,7 @@ def modify_study(study_id):
     db.session.flush()
 
     if has_field_update:
+        # Compute add/remove differences vs. the current field set for logging purposes:
         split_fields = split_study_field_ids(study_id)
         previous_required_ids = set(split_fields.get("required_field_ids", []))
         previous_optional_ids = set(split_fields.get("optional_field_ids", []))
@@ -1967,6 +1734,7 @@ def modify_study(study_id):
                 modification_type="add"
             ))
 
+        # Rewrite the study's field set:
         StudyRequiredField.query.filter_by(study_id=study_id).delete()
 
         for field_id in required_field_ids:
@@ -1985,7 +1753,7 @@ def modify_study(study_id):
 
     if description:
         study.description = description
-
+    # Send the study back through approval and mark the issue as addressed:
     study.status = "pending"
     study.approved_at = None
     issue.status = "responded"
@@ -2005,6 +1773,7 @@ def modify_study(study_id):
 @api.route("/admin/studies/all", methods=["GET"])
 @jwt_required()
 def list_all_studies():
+    """List every non-rejected study, ordered newest first. Regulator only."""
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2024,10 +1793,11 @@ def list_all_studies():
 
     return jsonify({"studies": [serialise_study_summary(s) for s in studies]}), 200
 
-#Used to return the pending studies with all the info
+
 @api.route("/admin/studies/pending", methods=["GET"])
 @jwt_required()
 def list_pending_studies():
+    """List every study currently awaiting regulator approval. Regulator only."""
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2040,6 +1810,7 @@ def list_pending_studies():
     results = []
     for study in studies:
         refresh_study_status(study)
+        # Check status again after refresh in case it transitioned mid-listing: 
         if study.status == "pending":
             results.append(serialise_study_summary(study))
 
@@ -2048,6 +1819,7 @@ def list_pending_studies():
 @api.route("/admin/studies/<int:study_id>", methods=["GET"])
 @jwt_required()
 def get_regulator_study_detail(study_id):
+    """Return the full regulator-facing study detail, including hydrated fields. Regulator only."""
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2066,10 +1838,16 @@ def get_regulator_study_detail(study_id):
     }), 200
 
 
-#Endpoint to raise issues for studies
+
 @api.route("/admin/studies/<int:study_id>/issues", methods=["POST"])
 @jwt_required()
 def raise_study_issues(study_id):
+    """Raise a new issue against a pending study. Regulator only.
+    The issue must convey something: either a non-empty comment, a list of
+    flagged fields, or both. Every flagged field id must belong to this
+    study. Creates the StudyIssue with status 'open' and an associated
+    StudyIssueField row per flagged field.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2083,6 +1861,7 @@ def raise_study_issues(study_id):
 
     refresh_study_status(study)
 
+    # Issues are only meaningful while the study is STILL awaiting for approval: 
     if study.status != "pending":
         return error("issues can only be raised for pending studies", 400)
 
@@ -2092,7 +1871,7 @@ def raise_study_issues(study_id):
 
     if not isinstance(flagged_field_ids, list):
         return error("flagged_field_ids must be a list", 400)
-
+    # Every flagged field must actually belong to this study: 
     study_field_ids = split_study_field_ids(study_id)["all_field_ids"]
     invalid_ids = [field_id for field_id in flagged_field_ids if field_id not in study_field_ids]
     if invalid_ids:
@@ -2103,7 +1882,7 @@ def raise_study_issues(study_id):
             },
             400,
         )
-
+    # Treat only-whitespace comments as no comment: 
     cleaned_comment = None
     if isinstance(comment, str):
         stripped = comment.strip()
@@ -2139,10 +1918,13 @@ def raise_study_issues(study_id):
         "issue": serialise_study_issue(issue),
     }), 201
 
-#List issues - can be used to show researchers
 @api.route("/admin/studies/<int:study_id>/issues", methods=["GET"])
 @jwt_required()
 def list_study_issues(study_id):
+    """List every issue raised against a study, newest first.
+    Regulators may always view. Researchers may view only if they are the
+    study's creator or a collaborator on it. Every other role is denied.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2172,11 +1954,13 @@ def list_study_issues(study_id):
     }), 200
 
 
-# ─── Activity Logs ────────────────────────────────────────────────────────────
 
 @api.route("/users/<int:user_id>/logs", methods=["GET"])
 @jwt_required()
 def get_user_logs(user_id):
+    """Return the 100 most recent activity-log entries for a user.
+    Users may only view their own logs; regulators may view anyone's.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2198,6 +1982,10 @@ def get_user_logs(user_id):
 @api.route("/admin/studies/<int:study_id>", methods=["DELETE"])
 @jwt_required()
 def delete_study(study_id):
+    """Delete a study. Authorised via 'deleteStudy'.
+    Logs the deletion (capturing the study name before the row is removed)
+    before committing.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2215,7 +2003,7 @@ def delete_study(study_id):
     authori_error = authorize("deleteStudy", context)
     if authori_error:
         return authori_error
-
+    # Capture the name before deletion so we can log it: 
     study_name = study.study_name
     log_action("study_deleted", user_id=current_user.user_id, study_id=study_id,
                details={"study_name": study_name})
@@ -2229,6 +2017,7 @@ def delete_study(study_id):
 @api.route("/admin/studies/<int:study_id>/logs", methods=["GET"])
 @jwt_required()
 def get_study_logs(study_id):
+    """Return every activity-log entry for a study, newest first. Regulator only."""
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2250,11 +2039,14 @@ def get_study_logs(study_id):
     return jsonify({"logs": [serialise_log_entry(l) for l in logs]}), 200
 
 
-# ─── Study Researchers (team management) ──────────────────────────────────────
 
 @api.route("/studies/<int:study_id>/researchers", methods=["GET"])
 @jwt_required()
 def list_study_researchers(study_id):
+    """List the research team for a study (creator first, then collaborators).
+    Visible to regulators, the study creator, and existing collaborators.
+    The creator is always returned with access_level 'owner'.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2292,6 +2084,12 @@ def list_study_researchers(study_id):
 @api.route("/studies/<int:study_id>/researchers", methods=["POST"])
 @jwt_required()
 def add_study_researcher(study_id):
+    """Add a researcher to the study's team. Only the study creator may call.
+    The invitee is resolved by email and must already be a researcher
+    account. The creator is implicitly on the team and cannot be re-added,
+    and duplicate collaborator entries are rejected. access_level must be
+    'editor' or 'viewer' (defaults to 'viewer').
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2347,6 +2145,9 @@ def add_study_researcher(study_id):
 @api.route("/studies/<int:study_id>/researchers/<int:researcher_id>", methods=["PUT"])
 @jwt_required()
 def update_study_researcher(study_id, researcher_id):
+    """Change a collaborator's access_level ('editor' or 'viewer').
+    Only the study creator may call this.
+    """
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
@@ -2382,6 +2183,7 @@ def update_study_researcher(study_id, researcher_id):
 @api.route("/studies/<int:study_id>/researchers/<int:researcher_id>", methods=["DELETE"])
 @jwt_required()
 def remove_study_researcher(study_id, researcher_id):
+    """Remove a collaborator from the study's team. Only the study creator may call."""
     current_user = get_current_user()
     if not current_user:
         return error("user not found", 404)
