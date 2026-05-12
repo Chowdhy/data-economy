@@ -1,11 +1,13 @@
 import Card from "~/components/ui/Card";
 
+// Props for the consent summary component
 interface ConsentSummaryProps {
   totalStudies: number;
   fullConsentCount: number;
   partialConsentCount: number;
 }
 
+// Displays an overview of the user's consent statistics
 export default function ConsentSummary({
   totalStudies,
   fullConsentCount,

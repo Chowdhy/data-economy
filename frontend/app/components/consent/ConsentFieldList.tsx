@@ -1,10 +1,12 @@
 import Card from "~/components/ui/Card";
 import type { FieldDescription } from "~/lib/types";
 
+//Props for the consent field list component
 interface ConsentFieldListProps {
   fields: FieldDescription[];
 }
 
+// Displays all fields the user has consented to share
 export default function ConsentFieldList({ fields }: ConsentFieldListProps) {
   return (
     <Card>

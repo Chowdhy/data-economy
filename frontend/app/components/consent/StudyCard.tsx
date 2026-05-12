@@ -7,6 +7,7 @@ import {
 } from "~/lib/studyStatus";
 import { formatDate } from "~/lib/utils";
 
+// Props for the study card component
 interface StudyCardProps {
   study: {
     study_id: number;
@@ -22,13 +23,19 @@ interface StudyCardProps {
   onModifyConsent?: () => void;
 }
 
+// Displays study details along with consent and status information
 export default function StudyCard({
   study,
   onWithdrawStudy,
   onModifyConsent,
 }: StudyCardProps) {
+  // Get user-friendly study status
   const displayStatus = getResearcherDisplayStatus(study.status);
+
+  //Get label and styling metadata for the status badge
   const statusMeta = getResearcherDisplayStatusMeta(displayStatus);
+
+  // Allow actions only if the study is still open
   const canModifyStudy = displayStatus === "open";
 
   return (

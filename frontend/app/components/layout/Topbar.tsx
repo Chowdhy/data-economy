@@ -4,12 +4,21 @@ import { clearAuthSession } from "~/lib/auth";
 import type { User } from "~/lib/types";
 import { titleCase } from "~/lib/utils";
 
+/**
+ * Defines the props for the topbar component
+ * @param title
+ * @param subtitle
+ * @param currentUser
+ */
 interface TopbarProps {
   title: string;
   subtitle?: string;
   currentUser: User;
 }
 
+  /**
+   * Clears the current session and redirects the user to login
+   */
 export default function Topbar({ title, subtitle, currentUser }: TopbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
