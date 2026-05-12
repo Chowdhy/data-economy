@@ -1,54 +1,82 @@
-# Data Economy
+# Running the App Locally
 
-## Setup
+## 1. Backend setup
 
-Backend setup from `backend/`:
+From the project root:
 
 ```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+## 2. Apply database migrations
+
+From `backend/`:
+
+```bash
+flask --app app:create_app db upgrade
+```
+
+## 3. Seed demo data
+
+From `backend/`:
+
+```bash
 python seed.py
 ```
 
-Frontend setup from `frontend/`:
+Larger seed to demonstrate k-anonymity and l-diversity:
 
 ```bash
+python seed.py --participants 1000 --studies 8
+```
+
+## 4. Demo accounts
+
+| Role | Email | Password |
+|---|---|---|
+| Regulator | `regulator@gmail.com` | `admin123` |
+| Researcher | `alice@gmail.com` | `test123` |
+| Researcher | `bob@gmail.com` | `test123` |
+| Participant | `john@gmail.com` | `test123` |
+| Participant | `jane@gmail.com` | `test123` |
+| Participant | `sam@gmail.com` | `test123` |
+| Participant | `participant4@gmail.com` | `test123` |
+
+
+## 5. Frontend setup
+
+Open a second terminal from the project root:
+
+```bash
+cd frontend
 npm install
 ```
 
-## Run The App
+## 6. Build the frontend
 
-From the repo root, start both services together:
+From `frontend/`:
 
 ```bash
-npm run dev
+npm run build
 ```
 
-That starts:
+## 7. Serve the built frontend through Flask
 
-- Flask API on `http://127.0.0.1:5000`
-- React frontend on `http://localhost:5173`
+From the project root:
 
-`npm run dev` automatically runs `flask db upgrade` before starting the backend.
+```bash
+cd frontend
+npm run build
+cd ../backend
+source .venv/bin/activate
+flask --app app:create_app run
+```
 
-## Test Accounts
+Open:
 
-### Researchers
-
-| Name            | Email                        | Password |
-|-----------------|------------------------------|----------|
-| Dr Alice Smith  | alice.researcher@example.com | test123  |
-| Dr Bob Jones    | bob.researcher@example.com   | test123  |
-
-### Participants
-
-| Name     | Email                        | Password |
-|----------|------------------------------|----------|
-| John Doe | john.participant@example.com | test123  |
-| Jane Roe | jane.participant@example.com | test123  |
-| Sam Lee  | sam.participant@example.com  | test123  |
-
-## Notes
-
-- Study creation supports required and optional fields.
-- Participant consent changes are allowed only while a study is `open`.
-- Researcher access to participant data is allowed only while a study is `ongoing`.
+```txt
+http://127.0.0.1:5000
+```
