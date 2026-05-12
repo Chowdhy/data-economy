@@ -63,4 +63,3 @@ http://127.0.0.1:5000
 | Participant | `john@gmail.com` | `test123` |
 | Participant | `jane@gmail.com` | `test123` |
 | Participant | `sam@gmail.com` | `test123` |
-| Participant | `participant4@gmail.com` | `test123` |
