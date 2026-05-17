@@ -678,6 +678,7 @@ def add_user(name, email, password, role_id, is_active=True):
 
 def add_field(field_def):
     explicit_field_id = field_def.get("field_id")
+    options = field_def.get("options", [])
 
     field = FieldDescription(
         field_id=explicit_field_id,
@@ -689,6 +690,16 @@ def add_field(field_def):
 
     db.session.add(field)
     db.session.flush()
+
+    if field.field_type == "enum":
+        for index, option_value in enumerate(options):
+            db.session.add(
+                FieldOption(
+                    field_id=field.field_id,
+                    value=option_value,
+                    display_order=index,
+                )
+            )
 
     # PostgreSQL sequences do not automatically advance when we insert
     # explicit primary keys like field_id=1 or field_id=2.
