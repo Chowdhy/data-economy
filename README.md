@@ -2,12 +2,29 @@
 
 ## 1. Backend setup
 
-From the project root:
+From the project root (for MacOS):
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
+```
+From the project root (for Windows Terminal):
+
+```bash
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+From the project root (for Windows Powershell):
+
+```bash
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -33,12 +50,16 @@ python seed.py --participants 1000 --studies 8
 
 From the project root:
 
+If not at root:
+```bash
+cd ../
+```
+
 ```bash
 cd frontend
 npm install
 npm run build
 cd ../backend
-source .venv/bin/activate
 flask --app app:create_app run
 
 ```
